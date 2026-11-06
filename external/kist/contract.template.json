@@ -1,0 +1,176 @@
+{
+  "id": "kist-one-intent",
+  "app": {
+    "base_url": "{BASE_URL}"
+  },
+  "journey": [
+    {
+      "action": "goto",
+      "path": "/"
+    },
+    {
+      "action": "check",
+      "selector": "input[name=\"wzData\"][value=\"empty\"]"
+    },
+    {
+      "action": "select_option",
+      "selector": "#wzCur",
+      "value": "USD"
+    },
+    {
+      "action": "click",
+      "selector": "#wzFinish"
+    },
+    {
+      "action": "wait_for_timeout",
+      "ms": 4000
+    },
+    {
+      "action": "goto",
+      "path": "/#goals"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "#gAdd"
+    },
+    {
+      "action": "fill",
+      "selector": "#gName",
+      "value": "CRASHLAB_KIST_ONE_INTENT"
+    },
+    {
+      "action": "fill",
+      "selector": "#gTarget",
+      "value": "1000"
+    },
+    {
+      "action": "fill",
+      "selector": "#gCurrent",
+      "value": "100"
+    },
+    {
+      "action": "fill",
+      "selector": "#gMonthly",
+      "value": "50"
+    },
+    {
+      "action": "click",
+      "selector": "#gAdd"
+    },
+    {
+      "action": "wait_for_timeout",
+      "ms": 500
+    },
+    {
+      "action": "screenshot",
+      "as": "lost-response"
+    },
+    {
+      "action": "click",
+      "selector": "#gAdd"
+    },
+    {
+      "action": "wait_for_timeout",
+      "ms": 1000
+    },
+    {
+      "action": "screenshot",
+      "as": "after-retry"
+    }
+  ],
+  "fault": {
+    "route": "**/api/goals",
+    "method": "POST",
+    "mode": "suppress_after_upstream",
+    "occurrence": 1
+  },
+  "state": {
+    "mode": "sqlite",
+    "db": "{DB_PATH}",
+    "table": "goals",
+    "where": "name='CRASHLAB_KIST_ONE_INTENT'",
+    "expect": 1
+  },
+  "evidence": {
+    "screenshot_dir": "{SCREENSHOT_DIR}"
+  },
+  "control": {
+    "journey": [
+      {
+        "action": "goto",
+        "path": "/#goals"
+      },
+      {
+        "action": "wait_for_selector",
+        "selector": "#gAdd"
+      },
+      {
+        "action": "fill",
+        "selector": "#gName",
+        "value": "CRASHLAB_KIST_TWO_INTENTS"
+      },
+      {
+        "action": "fill",
+        "selector": "#gTarget",
+        "value": "1000"
+      },
+      {
+        "action": "fill",
+        "selector": "#gCurrent",
+        "value": "100"
+      },
+      {
+        "action": "fill",
+        "selector": "#gMonthly",
+        "value": "50"
+      },
+      {
+        "action": "click",
+        "selector": "#gAdd"
+      },
+      {
+        "action": "wait_for_timeout",
+        "ms": 1000
+      },
+      {
+        "action": "fill",
+        "selector": "#gName",
+        "value": "CRASHLAB_KIST_TWO_INTENTS"
+      },
+      {
+        "action": "fill",
+        "selector": "#gTarget",
+        "value": "1000"
+      },
+      {
+        "action": "fill",
+        "selector": "#gCurrent",
+        "value": "100"
+      },
+      {
+        "action": "fill",
+        "selector": "#gMonthly",
+        "value": "50"
+      },
+      {
+        "action": "click",
+        "selector": "#gAdd"
+      },
+      {
+        "action": "wait_for_timeout",
+        "ms": 1000
+      },
+      {
+        "action": "screenshot",
+        "as": "two-intents"
+      }
+    ],
+    "state": {
+      "mode": "sqlite",
+      "db": "{DB_PATH}",
+      "table": "goals",
+      "where": "name='CRASHLAB_KIST_TWO_INTENTS'",
+      "expect": 2
+    }
+  }
+}

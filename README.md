@@ -135,6 +135,17 @@ buggy run, the Hermes repair summary and the repaired run. It is a replay, not
 a live screen capture; the opening frame says so. The source is in
 `demo/index.html`; `demo/record_demo.js` records it with Playwright.
 
+## External application example
+
+The `external/kist` directory contains a browser contract against an
+unmodified Kist checkout, the Hermes repair patch, before/after screenshots and
+the exact replay command. It is an external adoption example, not a bundled
+fixture. The contract checks one recovery intent against one goal and two
+deliberate goals against two goals; the Kist database is observed directly.
+
+See [external/kist/README.md](external/kist/README.md). Do not describe the
+before run as repaired or the patch as a general autonomous repair.
+
 ## Scope and limitations
 
 - Two local fixtures only; no external application has been integrated yet.

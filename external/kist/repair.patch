@@ -1,0 +1,124 @@
+diff --git a/server/db.py b/server/db.py
+index f098031..8b54d84 100644
+--- a/server/db.py
++++ b/server/db.py
+@@ -62,7 +62,7 @@ create index if not exists idx_budget_month on budget_categories(month);
+ create table if not exists goals (
+   id text primary key, name text not null, target_amount real not null, current_amount real default 0,
+   target_date text, currency text default 'EUR', status text default 'active',
+-  created_at text not null, updated_at text not null);
++  created_at text not null, updated_at text not null, intent_key text);
+ create table if not exists debts (
+   id text primary key, name text not null, balance real not null, interest_rate real not null,
+   minimum_payment real not null, type text default 'loan', currency text default 'EUR', updated_at text not null);
+@@ -76,6 +76,14 @@ create table if not exists holdings (
+ 
+ 
+ def init_db() -> None:
+-    """Create base tables if missing (idempotent)."""
++    """Create base tables if missing and migrate older databases (idempotent)."""
+     with get_conn() as conn:
+         conn.executescript(_BASE_SCHEMA)
++        # Existing databases predate client intent keys: add the column before
++        # creating the partial unique index that makes goal creation idempotent.
++        goal_cols = {row[1] for row in conn.execute("PRAGMA table_info(goals)")}
++        if "intent_key" not in goal_cols:
++            conn.execute("ALTER TABLE goals ADD COLUMN intent_key TEXT")
++        conn.execute(
++            "CREATE UNIQUE INDEX IF NOT EXISTS idx_goals_intent_key "
++            "ON goals(intent_key) WHERE intent_key IS NOT NULL AND intent_key <> ''")
+diff --git a/server/planner_goals.py b/server/planner_goals.py
+index b2ebfea..e2b7ab1 100644
+--- a/server/planner_goals.py
++++ b/server/planner_goals.py
+@@ -2,6 +2,7 @@
+ 
+ Split out of planner.py on 2026-09-05 (code moved 1:1; other modules are reached through `P`).
+ """
++import sqlite3
+ import uuid
+ from datetime import date, datetime
+ 
+@@ -47,13 +48,36 @@ def _project(goal, cfg):
+ 
+ 
+ def add_goal(data):
++    """Create a goal, idempotently when the client supplies an intent_key.
++
++    A browser generates one key per Add-goal attempt and reuses it on retry.
++    The partial unique index on goals(intent_key) is the arbiter: if a racing
++    request already committed that key, the insert fails and we return the
++    existing goal instead of creating a duplicate. A missing/blank key keeps
++    the old behaviour (each request creates a goal).
++    """
++    intent_key = data.get("intent_key")
++    if intent_key is not None:
++        intent_key = str(intent_key).strip() or None
++    if intent_key:
++        existing = eb._rows("select id from goals where intent_key = ?", (intent_key,))
++        if existing:
++            return existing[0]["id"]
+     goal_id = str(uuid.uuid4())
+-    eb._exec(
+-        "insert into goals (id, name, target_amount, current_amount, target_date, "
+-        "currency, status, created_at, updated_at) values (?,?,?,?,?,?,?,?,?)",
+-        (goal_id, data["name"], float(data["target_amount"]),
+-         float(data.get("current_amount", 0)), data.get("target_date"),
+-         data.get("currency", "PLN"), "active", P._now(), P._now()))
++    try:
++        eb._exec(
++            "insert into goals (id, name, target_amount, current_amount, target_date, "
++            "currency, status, created_at, updated_at, intent_key) values (?,?,?,?,?,?,?,?,?,?)",
++            (goal_id, data["name"], float(data["target_amount"]),
++             float(data.get("current_amount", 0)), data.get("target_date"),
++             data.get("currency", "PLN"), "active", P._now(), P._now(), intent_key))
++    except sqlite3.IntegrityError:
++        # Lost the race on the unique intent key — the winner's row is committed.
++        if intent_key:
++            existing = eb._rows("select id from goals where intent_key = ?", (intent_key,))
++            if existing:
++                return existing[0]["id"]
++        raise
+     if data.get("monthly_contribution") is not None:
+         eb._exec("insert into goal_meta (goal_id, monthly_contribution) values (?,?)",
+                  (goal_id, float(data["monthly_contribution"])))
+diff --git a/static/js/views/goals.js b/static/js/views/goals.js
+index 00eefee..373072a 100644
+--- a/static/js/views/goals.js
++++ b/static/js/views/goals.js
+@@ -1,3 +1,13 @@
++// One key per "Add goal" attempt: generated on first submit, kept across a lost
++// response so clicking Add goal again is idempotent, cleared after success or
++// when the form is edited (a changed intention is a new attempt).
++let goalIntentKey = null;
++
++function newGoalIntentKey() {
++  if (window.crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
++  return "goal-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
++}
++
+ async function renderGoals(el) {
+   const [goals, cfg] = await Promise.all([
+     api.get("/api/goals"), api.get("/api/settings")]);
+@@ -66,16 +76,21 @@ async function renderGoals(el) {
+     await api.put("/api/settings", { monthly_savings: parseNum(document.getElementById("gSavings")) || "" });
+     route();
+   });
++  ["gName", "gTarget", "gCurrent", "gMonthly"].forEach((id) =>
++    document.getElementById(id).addEventListener("input", () => { goalIntentKey = null; }));
+   document.getElementById("gAdd").addEventListener("click", async () => {
+     const name = document.getElementById("gName").value.trim();
+     const target = parseNum(document.getElementById("gTarget"));
+     if (!name || !target) { alert("Enter a name and target amount"); return; }
+     const monthly = parseNum(document.getElementById("gMonthly"));
++    if (!goalIntentKey) goalIntentKey = newGoalIntentKey();
+     await api.post("/api/goals", {
+       name, target_amount: target,
+       current_amount: parseNum(document.getElementById("gCurrent")) || 0,
+       monthly_contribution: isNaN(monthly) ? undefined : monthly,
++      intent_key: goalIntentKey,
+     });
++    goalIntentKey = null;  // committed — the next deliberate click is a new goal
+     route();
+   });
+   list.querySelectorAll("[data-gupd]").forEach((b) =>

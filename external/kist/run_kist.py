@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""Start a local Kist checkout and run the frozen CrashLab contract.
+
+This is an external-app example, not a Hermes tool. It starts the pinned app
+with an isolated data directory, writes the contract with that run's URL and
+SQLite path, and calls CrashLab's browser runner through crashlab_core.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import socket
+import subprocess
+import sys
+import time
+import urllib.request
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(REPO))
+import crashlab_core as core  # noqa: E402
+
+NAME = "CRASHLAB_KIST_ONE_INTENT"
+CONTROL = "CRASHLAB_KIST_TWO_INTENTS"
+
+
+def free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+def wait_ready(base: str, proc: subprocess.Popen, log: Path) -> None:
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            raise RuntimeError(f"Kist exited {proc.returncode}:\n{log.read_text()[-4000:]}")
+        try:
+            with urllib.request.urlopen(base + "/", timeout=0.25) as response:
+                if response.status == 200:
+                    return
+        except Exception:
+            time.sleep(0.1)
+    raise RuntimeError("Kist did not start within 15 seconds")
+
+
+def contract_for(base: str, db: Path, shots: Path) -> dict:
+    def goal_steps(prefix: str) -> list[dict]:
+        return [
+            {"action": "fill", "selector": "#gName", "value": prefix},
+            {"action": "fill", "selector": "#gTarget", "value": "1000"},
+            {"action": "fill", "selector": "#gCurrent", "value": "100"},
+            {"action": "fill", "selector": "#gMonthly", "value": "50"},
+        ]
+
+    return {
+        "id": "kist-one-intent",
+        "app": {"base_url": base},
+        "journey": [
+            {"action": "goto", "path": "/"},
+            {"action": "check", "selector": 'input[name="wzData"][value="empty"]'},
+            {"action": "select_option", "selector": "#wzCur", "value": "USD"},
+            {"action": "click", "selector": "#wzFinish"},
+            {"action": "wait_for_timeout", "ms": 4000},
+            {"action": "goto", "path": "/#goals"},
+            {"action": "wait_for_selector", "selector": "#gAdd"},
+            *goal_steps(NAME),
+            {"action": "click", "selector": "#gAdd"},
+            {"action": "wait_for_timeout", "ms": 500},
+            {"action": "screenshot", "as": "lost-response"},
+            {"action": "click", "selector": "#gAdd"},
+            {"action": "wait_for_timeout", "ms": 1000},
+            {"action": "screenshot", "as": "after-retry"},
+        ],
+        "fault": {
+            "route": "**/api/goals",
+            "method": "POST",
+            "mode": "suppress_after_upstream",
+            "occurrence": 1,
+        },
+        "state": {
+            "mode": "sqlite",
+            "db": str(db),
+            "table": "goals",
+            "where": f"name='{NAME}'",
+            "expect": 1,
+        },
+        "evidence": {"screenshot_dir": str(shots)},
+        "control": {
+            "journey": [
+                {"action": "goto", "path": "/#goals"},
+                {"action": "wait_for_selector", "selector": "#gAdd"},
+                *goal_steps(CONTROL),
+                {"action": "click", "selector": "#gAdd"},
+                {"action": "wait_for_timeout", "ms": 1000},
+                *goal_steps(CONTROL),
+                {"action": "click", "selector": "#gAdd"},
+                {"action": "wait_for_timeout", "ms": 1000},
+                {"action": "screenshot", "as": "two-intents"},
+            ],
+            "state": {
+                "mode": "sqlite",
+                "db": str(db),
+                "table": "goals",
+                "where": f"name='{CONTROL}'",
+                "expect": 2,
+            },
+        },
+    }
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--app", required=True, type=Path, help="Kist checkout at 7a196af9")
+    parser.add_argument("--python", default=sys.executable, help="Python used to run Kist")
+    parser.add_argument("--output", type=Path, default=Path("kist-run"))
+    args = parser.parse_args()
+    app = args.app.expanduser().resolve()
+    if not (app / "server/app.py").is_file():
+        parser.error(f"not a Kist checkout: {app}")
+
+    run = args.output.expanduser().resolve()
+    run.mkdir(parents=True, exist_ok=True)
+    (run / "home").mkdir(exist_ok=True)
+    data = run / "data"
+    data.mkdir(exist_ok=True)
+    db = data / ".finance/finance.db"
+    base = f"http://127.0.0.1:{free_port()}"
+    env = {
+        "PATH": os.environ["PATH"],
+        "HOME": str(run / "home"),
+        "FINANCE_PROJECT_DIR": str(data),
+        "PORT": base.rsplit(":", 1)[1],
+        "PYTHONUNBUFFERED": "1",
+        "LANG": "C.UTF-8",
+        "TZ": "UTC",
+    }
+    log = (run / "server.log").open("w")
+    proc = subprocess.Popen(
+        [args.python, str(app / "server/app.py")],
+        cwd=app, env=env, stdout=log, stderr=subprocess.STDOUT,
+    )
+    contract_path = run / "contract.json"
+    try:
+        wait_ready(base, proc, run / "server.log")
+        contract = contract_for(base, db, run / "shots")
+        contract_path.write_text(json.dumps(contract, indent=2) + "\n")
+        result = core.run_contract(contract_path, timeout=180)
+        (run / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+        summary = {
+            "run": str(run),
+            "ok": result.get("ok"),
+            "observed": result.get("observed"),
+            "expected": result.get("expected"),
+            "scenario": result.get("scenario"),
+            "control": result.get("control"),
+            "error": result.get("error"),
+        }
+        print(json.dumps(summary, indent=2))
+        return 0 if result.get("ok") else 1
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+        log.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

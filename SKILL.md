@@ -20,6 +20,14 @@ The current evidence includes a real Hermes edit to the checkout fixture, but
 the plugin does not claim general autonomous repair or discovery of unknown
 defects.
 
+## External application example
+
+`external/kist` contains a real browser contract against an unmodified Kist
+checkout and the Hermes repair patch. The before run observes two goals for one
+recovery intent; the repaired run observes one, while two deliberate goals
+still create two. Use it as the external-adoption example, not as a bundled
+fixture or a general autonomous-repair claim. See `external/kist/README.md`.
+
 ## Reliability campaigns
 
 Use `crashlab_campaign_list` to inspect bundled campaigns and their execution

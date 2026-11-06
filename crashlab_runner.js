@@ -41,6 +41,9 @@ function nowId() {
 
   if (contract.fault) {
     await page.route(contract.fault.route, async (route) => {
+      if (contract.fault.method && route.request().method() !== contract.fault.method) {
+        return route.continue();
+      }
       if (interrupted) return route.continue();
       interrupted = true;
       faultMatched = true;
@@ -73,6 +76,16 @@ function nowId() {
         await page.goto(base + (step.path || '/'), { waitUntil: 'domcontentloaded' });
       } else if (step.action === 'click') {
         await page.click(step.selector);
+      } else if (step.action === 'fill') {
+        await page.fill(step.selector, step.value);
+      } else if (step.action === 'check') {
+        await page.check(step.selector);
+      } else if (step.action === 'uncheck') {
+        await page.uncheck(step.selector);
+      } else if (step.action === 'select_option') {
+        await page.selectOption(step.selector, step.value);
+      } else if (step.action === 'press') {
+        await page.press(step.selector, step.key);
       } else if (step.action === 'wait_for_selector') {
         await page.waitForSelector(step.selector, { timeout: step.timeout || 10000 });
       } else if (step.action === 'wait_for_text') {
@@ -81,6 +94,10 @@ function nowId() {
           step.text,
           { timeout: step.timeout || 10000 },
         );
+      } else if (step.action === 'wait_for_url') {
+        await page.waitForURL(step.pattern, { timeout: step.timeout || 10000 });
+      } else if (step.action === 'wait_for_timeout') {
+        await page.waitForTimeout(step.ms);
       } else if (step.action === 'reload') {
         await page.reload({ waitUntil: 'domcontentloaded' });
       } else if (step.action === 'text') {

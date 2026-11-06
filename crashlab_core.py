@@ -69,13 +69,27 @@ def _validate_journey(journey: list, where: str) -> None:
         if not isinstance(step, dict):
             raise ValueError(f"{name} must be an object")
         action = step.get("action")
-        if action not in ("goto", "click", "wait_for_selector", "wait_for_text", "reload", "text", "screenshot"):
+        if action not in ("goto", "click", "fill", "check", "uncheck", "select_option",
+                         "press", "wait_for_selector", "wait_for_text", "wait_for_url",
+                         "wait_for_timeout", "reload", "text", "screenshot"):
             raise ValueError(f"{name}.action is unsupported")
-        if action in ("click", "wait_for_selector", "text"):
+        if action in ("click", "fill", "check", "uncheck", "select_option", "press",
+                      "wait_for_selector", "text"):
             if not isinstance(step.get("selector"), str) or not step["selector"]:
                 raise ValueError(f"{name}.selector is required")
+        if action in ("fill", "select_option"):
+            if not isinstance(step.get("value"), str):
+                raise ValueError(f"{name}.value must be a string")
+        if action == "press" and not isinstance(step.get("key"), str):
+            raise ValueError(f"{name}.key must be a string")
         if action == "wait_for_text" and not isinstance(step.get("text"), str):
             raise ValueError(f"{name}.text is required")
+        if action == "wait_for_url" and not isinstance(step.get("pattern"), str):
+            raise ValueError(f"{name}.pattern must be a string")
+        if action == "wait_for_timeout":
+            ms = step.get("ms")
+            if type(ms) is not int or not 0 <= ms <= 60000:
+                raise ValueError(f"{name}.ms must be an integer from 0 to 60000")
         if action == "goto" and step.get("path") is not None and not isinstance(step["path"], str):
             raise ValueError(f"{name}.path must be a string")
 
@@ -101,6 +115,8 @@ def validate_contract(contract: dict) -> dict:
             raise ValueError("fault.mode must be suppress_after_upstream")
         if not isinstance(fault.get("route"), str) or not fault["route"]:
             raise ValueError("fault.route is required")
+        if fault.get("method") is not None and fault["method"] not in ("GET", "POST", "PUT", "PATCH", "DELETE"):
+            raise ValueError("fault.method must be an HTTP method")
         if fault.get("occurrence", 1) != 1:
             raise ValueError("only fault.occurrence=1 is supported")
     control = contract.get("control")

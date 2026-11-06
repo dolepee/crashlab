@@ -119,9 +119,40 @@ class ContractValidationTests(unittest.TestCase):
         value = self.base(); value["fault"] = {"route": "**/x", "mode": "suppress_after_upstream", "occurrence": 2}
         with self.assertRaises(ValueError): core.validate_contract(value)
 
+    def test_fault_method_is_optional_but_typed(self):
+        value = self.base(); value["fault"] = {"route": "**/x", "method": "POST", "mode": "suppress_after_upstream"}
+        core.validate_contract(value)
+        value["fault"]["method"] = "TRACE"
+        with self.assertRaises(ValueError): core.validate_contract(value)
+
     def test_rejects_unknown_action(self):
         value = self.base(); value["journey"] = [{"action": "teleport"}]
         with self.assertRaises(ValueError): core.validate_contract(value)
+
+    def test_accepts_supported_interaction_actions(self):
+        value = self.base()
+        value["journey"] = [
+            {"action": "fill", "selector": "#name", "value": "x"},
+            {"action": "check", "selector": "#agree"},
+            {"action": "uncheck", "selector": "#extra"},
+            {"action": "select_option", "selector": "#currency", "value": "USD"},
+            {"action": "press", "selector": "#name", "key": "Enter"},
+            {"action": "wait_for_timeout", "ms": 100},
+            {"action": "wait_for_url", "pattern": "**/#done"},
+        ]
+        core.validate_contract(value)
+
+    def test_rejects_incomplete_interaction_actions(self):
+        for step in (
+            {"action": "fill", "selector": "#name"},
+            {"action": "select_option", "selector": "#currency"},
+            {"action": "press", "selector": "#name"},
+            {"action": "wait_for_timeout", "ms": True},
+            {"action": "wait_for_url"},
+        ):
+            with self.subTest(step=step):
+                value = self.base(); value["journey"] = [step]
+                with self.assertRaises(ValueError): core.validate_contract(value)
 
     def test_rejects_bad_expected_counts(self):
         for expected in (-1, True, 1.5, "1"):
