@@ -77,7 +77,48 @@ def _handler(name: str):
     return call
 
 
+def _slash(raw_args: str) -> str:
+    args = raw_args.strip().split()
+    if not args or args[0] in ("status", "latest"):
+        run = core.latest_run()
+        if not run:
+            return "CrashLab: no saved run yet. Use /crashlab run <case.json>."
+        state = "PASS" if run.get("ok") else "FAIL"
+        return (f"CrashLab · {state} · {run.get('contract', '?')}\n"
+                f"{run.get('observed', '?')} observed / {run.get('expected', '?')} expected\n"
+                f"{run.get('diagnosis') or 'No diagnosis recorded.'}\n"
+                f"{run.get('evidence_path') or ''}").strip()
+    if args[0] in ("runs", "log"):
+        rows = core.list_runs(10)
+        if not rows:
+            return "CrashLab: no saved runs."
+        return "\n".join(
+            f"{row.get('run_id', '?')} · {'PASS' if row.get('ok') else 'FAIL'} · "
+            f"{row.get('contract', '?')} · {row.get('observed', '?')}/{row.get('expected', '?')}"
+            for row in rows)
+    if args[0] == "run":
+        if len(args) < 2:
+            return "Usage: /crashlab run <case.json>"
+        path = args[1]
+        try:
+            result = core.persist_run(core.run_contract(path))
+        except Exception as exc:
+            return f"CrashLab: {exc}"
+        return (f"CrashLab · {'PASS' if result.get('ok') else 'FAIL'} · {result.get('contract')}\n"
+                f"{result.get('diagnosis')}\n{result.get('evidence_path')}")
+    if args[0] in ("help", "?"):
+        return ("/crashlab — latest result\n"
+                "/crashlab runs — recent runs\n"
+                "/crashlab run <case.json> — run a saved case")
+    return "Unknown CrashLab command. Try /crashlab help."
+
+
 def register(ctx):
     for schema in TOOL_SCHEMAS:
         ctx.register_tool(name=schema["name"], toolset="crashlab",
                           schema=schema, handler=_handler(schema["name"]))
+    register_command = getattr(ctx, "register_command", None)
+    if register_command is not None:
+        register_command("crashlab", _slash,
+                         description="Show or run a saved CrashLab case.",
+                         args_hint="[status|runs|run <case.json>]")

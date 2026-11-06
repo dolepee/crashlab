@@ -84,7 +84,8 @@ The Desktop half is opt-in and appears in **Capabilities → Plugins**. It reads
 `CRASHLAB_DATA_DIR` (default `~/.local/share/crashlab`) and scans the bundled
 `contracts/` plus `CRASHLAB_CASE_DIR` (default `cases/`). Select a case and press
 **Run case**; the run starts the app when the case has an `app.start` block and
-persists `latest-run.json` for the pane.
+persists `latest-run.json` for the pane. The same evidence is available from
+`/crashlab`, `/crashlab runs` and `/crashlab run <case.json>` in a Hermes chat.
 
 ## Run a fixture
 

@@ -32,5 +32,16 @@ class PluginHandlerTests(unittest.TestCase):
             compare.assert_called_once_with('case.json', 'http://localhost:8765', 'http://localhost:8766')
 
 
+class RegisterTests(unittest.TestCase):
+    def test_registers_tools_and_slash_command(self):
+        calls = []
+        class Ctx:
+            def register_tool(self, **kwargs): calls.append(('tool', kwargs['name']))
+            def register_command(self, name, handler, **kwargs): calls.append(('command', name))
+        plugin.register(Ctx())
+        self.assertIn(('command', 'crashlab'), calls)
+        self.assertIn(('tool', 'crashlab_run'), calls)
+
+
 if __name__ == '__main__':
     unittest.main()

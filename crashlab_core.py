@@ -23,6 +23,39 @@ def _data_dir() -> Path:
     return Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local" / "share" / "crashlab"))
 
 
+def explain_run(result: dict) -> str:
+    """Turn the measured result into the sentence a person needs next."""
+    if result.get("error"):
+        return f"Run failed before a verdict: {result['error']}"
+    scenario = result.get("scenario") or {}
+    if scenario.get("valid") is False:
+        return "The fault did not commit a write, so this run is not evidence."
+    observed, expected = result.get("observed"), result.get("expected")
+    if not isinstance(observed, (int, float)) or not isinstance(expected, (int, float)):
+        return "No persisted state was measured."
+    if observed > expected:
+        return f"Duplicate write: one intent produced {observed:g} persisted records, expected {expected:g}."
+    if observed < expected:
+        return f"Missing write: observed {observed:g} persisted records, expected {expected:g}."
+    control = result.get("control")
+    if control is not None and not control.get("ok"):
+        return "The primary state matched, but the legitimate-use control failed; the change may block normal use."
+    if result.get("ok"):
+        return f"Persisted state is correct ({observed:g}/{expected:g}) and the control passed."
+    return "Persisted state matched but the run is not marked as passing."
+
+
+def explain_comparison(result: dict) -> str:
+    buggy, fixed = result.get("buggy") or {}, result.get("fixed") or {}
+    if result.get("ok"):
+        return "Buggy build reproduced the defect; repaired build passed with the same contract."
+    if buggy.get("ok") and fixed.get("ok"):
+        return "Both builds passed; this is not a reproduction."
+    if not buggy.get("ok") and not fixed.get("ok"):
+        return "Both builds failed; inspect the scenario and control before treating this as repair evidence."
+    return "The comparison is incomplete; inspect the buggy and fixed runs."
+
+
 def persist_run(result: dict) -> dict:
     """Save one completed run outside the plugin directory for the Desktop pane."""
     run_id = str(result.get("run_id") or f"run-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}")
@@ -30,6 +63,7 @@ def persist_run(result: dict) -> dict:
     data = _data_dir()
     runs = data / "runs"
     runs.mkdir(parents=True, exist_ok=True)
+    result["diagnosis"] = explain_run(result)
     path = runs / f"{run_id}.json"
     raw = json.dumps(result, indent=2, default=str) + "\n"
     path.write_text(raw, encoding="utf-8")
@@ -45,11 +79,39 @@ def _persist(result: dict) -> dict:
     data = _data_dir()
     runs = data / "runs"
     runs.mkdir(parents=True, exist_ok=True)
+    result["diagnosis"] = explain_comparison(result)
     path = runs / f"{run_id}.json"
     path.write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
     (data / "latest.json").write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
     result["evidence_path"] = str(path)
     return result
+
+
+def latest_run() -> dict | None:
+    path = _data_dir() / "latest-run.json"
+    if not path.exists():
+        return None
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def list_runs(limit: int = 10) -> list[dict]:
+    directory = _data_dir() / "runs"
+    if not directory.is_dir():
+        return []
+    rows = []
+    for path in sorted(directory.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]:
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(value, dict):
+            rows.append({key: value.get(key) for key in
+                         ("run_id", "contract", "ok", "observed", "expected", "diagnosis", "evidence_path")})
+    return rows
 
 
 def load_contract(path: str | Path) -> dict:

@@ -25,6 +25,9 @@ function Run({ title, run }) {
         className: 'mt-1 text-sm',
         children: `${verdict(run?.ok)} · ${run?.observed ?? '?'} observed / ${run?.expected ?? '?'} expected`
       }),
+      run?.diagnosis
+        ? jsx('div', { className: 'mt-1 text-xs', children: run.diagnosis })
+        : null,
       jsx('div', {
         className: 'mt-1 text-xs text-(--ui-text-tertiary)',
         children: run?.observations?.first_message
