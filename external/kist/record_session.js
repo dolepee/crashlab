@@ -77,6 +77,8 @@ async function record(app, output, suppress) {
     const page = await context.newPage()
     {
       let done = false
+      let markDropped
+      const dropped = new Promise((resolve) => { markDropped = resolve })
       await context.route('**/*', async (route) => {
         const request = route.request()
         if (!done && request.method() === 'POST' && request.url().endsWith('/api/goals')) {
@@ -84,10 +86,12 @@ async function record(app, output, suppress) {
           const upstream = await route.fetch()
           if (upstream.status() !== 201) throw new Error(`upstream ${upstream.status()}`)
           await route.abort('failed')
+          markDropped()
           return
         }
         await route.continue()
       })
+      globalThis.__dropped = dropped
     }
     await page.goto(base + '/#goals', { waitUntil: 'domcontentloaded' })
     await page.locator('#gAdd').waitFor()
@@ -98,20 +102,25 @@ async function record(app, output, suppress) {
     await page.locator('#gMonthly').fill('50')
     await page.waitForTimeout(700)
     await page.locator('#gAdd').click()
-    await page.waitForFunction(
-      (name) => document.querySelector('#gName')?.value === name, NAME)
-    await page.waitForTimeout(600)
+    await page.locator('#gAdd').click()
+    await Promise.race([
+      globalThis.__dropped,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('first response was not dropped')), 10000)),
+    ])
+    await page.waitForTimeout(300)
     await page.locator('#gAdd').click()
     if (suppress) {
       await page.waitForFunction(
         (name) => Array.from(document.querySelectorAll('#gList h3')).filter((x) => x.textContent === name).length === 2,
         NAME,
+        { timeout: 10000 },
       )
     } else {
       await page.waitForFunction(
         (name) => Array.from(document.querySelectorAll('#gList h3')).filter((x) => x.textContent === name).length === 1
           && document.querySelector('#gName')?.value === '',
         NAME,
+        { timeout: 10000 },
       )
     }
     if (process.env.DEBUG_DOM) {

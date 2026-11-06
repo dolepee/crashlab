@@ -91,7 +91,8 @@ def _validate_journey(journey: list, where: str) -> None:
         action = step.get("action")
         if action not in ("goto", "click", "fill", "check", "uncheck", "select_option",
                          "press", "wait_for_selector", "wait_for_text", "wait_for_url",
-                         "wait_for_function", "wait_for_load_state", "wait_for_timeout",
+                         "wait_for_fault", "wait_for_count", "wait_for_value", "wait_for_any",
+                         "wait_for_load_state", "wait_for_timeout",
                          "reload", "text", "screenshot"):
             raise ValueError(f"{name}.action is unsupported")
         if action in ("click", "fill", "check", "uncheck", "select_option", "press",
@@ -107,8 +108,30 @@ def _validate_journey(journey: list, where: str) -> None:
             raise ValueError(f"{name}.text is required")
         if action == "wait_for_url" and not isinstance(step.get("pattern"), str):
             raise ValueError(f"{name}.pattern must be a string")
-        if action == "wait_for_function" and not isinstance(step.get("expression"), str):
-            raise ValueError(f"{name}.expression must be a string")
+        if action in ("wait_for_count", "wait_for_value"):
+            if not isinstance(step.get("selector"), str) or not step["selector"]:
+                raise ValueError(f"{name}.selector is required")
+            if action == "wait_for_count":
+                if "min" in step and (type(step["min"]) is not int or step["min"] < 0):
+                    raise ValueError(f"{name}.min must be a non-negative integer")
+                if "max" in step and (type(step["max"]) is not int or step["max"] < 0):
+                    raise ValueError(f"{name}.max must be a non-negative integer")
+                if "text" in step and not isinstance(step["text"], str):
+                    raise ValueError(f"{name}.text must be a string")
+            else:
+                if "empty" in step and not isinstance(step["empty"], bool):
+                    raise ValueError(f"{name}.empty must be a boolean")
+                if "equals" in step and not isinstance(step["equals"], str):
+                    raise ValueError(f"{name}.equals must be a string")
+        if action == "wait_for_any":
+            conditions = step.get("conditions")
+            if not isinstance(conditions, list) or not conditions:
+                raise ValueError(f"{name}.conditions must be a non-empty list")
+            for condition in conditions:
+                if not isinstance(condition, dict) or condition.get("kind") not in ("count", "value"):
+                    raise ValueError(f"{name}.conditions must contain count/value objects")
+                if not isinstance(condition.get("selector"), str) or not condition["selector"]:
+                    raise ValueError(f"{name}.conditions selector is required")
         if action == "wait_for_load_state" and step.get("state") not in ("load", "domcontentloaded", "networkidle"):
             raise ValueError(f"{name}.state must be load, domcontentloaded or networkidle")
         if action == "wait_for_timeout":
@@ -205,8 +228,13 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
         raise ValueError("app.start.port must be an integer port")
     data = Path(tempfile.mkdtemp(prefix="crashlab-app-"))
     cwd = Path(_expand_start(start.get("cwd", "."), contract_dir=contract_dir, data=data, port=port)).expanduser()
-    env = {**os.environ, "PYTHONUNBUFFERED": "1", "PORT": str(port),
-           "HOME": str(data / "home")}
+    # Local apps get a small, explicit environment. In particular, do not pass
+    # the agent's provider/API credentials through to app.start commands.
+    env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL", "TZ",
+                                            "SYSTEMROOT", "PATHEXT")
+           if key in os.environ}
+    env.update({"PYTHONUNBUFFERED": "1", "PORT": str(port),
+                "HOME": str(data / "home")})
     for key, value in (start.get("env") or {}).items():
         if not isinstance(key, str) or not key:
             raise ValueError("app.start.env keys must be non-empty strings")

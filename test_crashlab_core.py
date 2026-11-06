@@ -129,6 +129,29 @@ class ContractValidationTests(unittest.TestCase):
         value = self.base(); value["journey"] = [{"action": "teleport"}]
         with self.assertRaises(ValueError): core.validate_contract(value)
 
+    def test_rejects_removed_wait_for_function(self):
+        value = self.base()
+        value["journey"] = [{"action": "wait_for_function", "expression": "() => true"}]
+        with self.assertRaises(ValueError): core.validate_contract(value)
+
+    def test_accepts_declarative_waits(self):
+        value = self.base()
+        value["journey"] = [
+            {"action": "wait_for_fault"},
+            {"action": "wait_for_count", "selector": "#list h3", "text": "x", "min": 1, "max": 2},
+            {"action": "wait_for_value", "selector": "#name", "empty": True},
+            {"action": "wait_for_any", "conditions": [
+                {"kind": "count", "selector": "#list h3", "min": 2},
+                {"kind": "value", "selector": "#name", "equals": ""},
+            ]},
+        ]
+        core.validate_contract(value)
+
+    def test_rejects_bad_declarative_wait(self):
+        value = self.base()
+        value["journey"] = [{"action": "wait_for_any", "conditions": []}]
+        with self.assertRaises(ValueError): core.validate_contract(value)
+
     def test_accepts_supported_interaction_actions(self):
         value = self.base()
         value["journey"] = [

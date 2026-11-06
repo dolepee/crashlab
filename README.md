@@ -119,10 +119,13 @@ contract was rerun against that edit. `DAY3.md` records that run.
 
 A contract has:
 
-- `app.base_url` and optional `app.reset_url`.
+- `app.base_url` or `app.start` (command, cwd, Python, setup requests), and
+  optional `app.reset_url`.
 - `fault.route`, `fault.mode` and `fault.occurrence`.
-- `journey` — browser steps such as `goto`, `click`, `wait_for_text`, `text`
-  and `screenshot`.
+- `journey` — browser steps such as `goto`, `click`, `text` and `screenshot`.
+  Waits are declarative (`wait_for_fault`, `wait_for_count`, `wait_for_value`,
+  `wait_for_any`); contracts do not execute JavaScript on the host or in the
+  page.
 - `state` — the expected length and the observer. `mode: "sqlite"` uses a
   read-only database probe outside the app; `mode: "http"` uses the app's
   `/state` endpoint and is not independent of the application under repair.
@@ -182,8 +185,11 @@ before run as repaired or the patch as a general autonomous repair.
 - The fault is a suppressed response after commit; this is not a general chaos
   testing engine. `mode: "http"` is app-supplied and cannot prove the app did not
   tamper with its own state; use `sqlite` for the bundled fixtures.
-- The repair evidence covers the checkout fixture. It is one known defect class,
-  not a claim of general repair.
+- The repair evidence covers Kist and the bundled checkout fixture. It is one
+  known defect class, not a claim of general repair.
+- `app.start` runs a local command by design. It receives only PATH, LANG, TZ,
+  HOME, PORT and contract-declared environment values; it does not inherit the
+  agent's provider or API credentials.
 
 ## Disclosure
 

@@ -9,6 +9,7 @@
     "expected": 1,
     "scenario": {
       "matched": true,
+      "delivered": true,
       "upstream_status": 201,
       "committed_after_fault": 1,
       "valid": true
@@ -21,32 +22,32 @@
     },
     "records": [
       {
-        "id": "18d85a03-5ee6-40be-ae95-53bfe79e4c92",
+        "id": "ae6b6b15-65ff-422f-a7d0-9df226426f6b",
         "name": "CRASHLAB_KIST_ONE_INTENT",
         "target_amount": 1000,
         "current_amount": 100,
         "target_date": null,
         "currency": "PLN",
         "status": "active",
-        "created_at": "2026-11-06T22:04:10",
-        "updated_at": "2026-11-06T22:04:10"
+        "created_at": "2026-11-06T22:45:16",
+        "updated_at": "2026-11-06T22:45:16"
       },
       {
-        "id": "dd7822d5-7d18-465e-b181-e71b8e28d870",
+        "id": "955eb07c-f7ce-4d0e-8b13-7f94735505c6",
         "name": "CRASHLAB_KIST_ONE_INTENT",
         "target_amount": 1000,
         "current_amount": 100,
         "target_date": null,
         "currency": "PLN",
         "status": "active",
-        "created_at": "2026-11-06T22:04:10",
-        "updated_at": "2026-11-06T22:04:10"
+        "created_at": "2026-11-06T22:45:17",
+        "updated_at": "2026-11-06T22:45:17"
       }
     ],
     "screenshots": [
-      "kist-one-intent-2026-11-06T22-04-10-210Z-lost-response.png",
-      "kist-one-intent-2026-11-06T22-04-10-210Z-after-retry.png",
-      "kist-one-intent-2026-11-06T22-04-10-210Z-two-intents.png"
+      "kist-one-intent-2026-11-06T22-45-16-269Z-lost-response.png",
+      "kist-one-intent-2026-11-06T22-45-16-269Z-after-retry.png",
+      "kist-one-intent-2026-11-06T22-45-16-269Z-two-intents.png"
     ]
   },
   "after": {
@@ -55,6 +56,7 @@
     "expected": 1,
     "scenario": {
       "matched": true,
+      "delivered": true,
       "upstream_status": 201,
       "committed_after_fault": 1,
       "valid": true
@@ -67,25 +69,25 @@
     },
     "records": [
       {
-        "id": "8d8faaa0-071c-4011-b3db-0cf6586c37b2",
+        "id": "d4ecedbd-fe66-4429-ad84-b9cc8f785416",
         "name": "CRASHLAB_KIST_ONE_INTENT",
         "target_amount": 1000,
         "current_amount": 100,
         "target_date": null,
         "currency": "PLN",
         "status": "active",
-        "created_at": "2026-11-06T22:04:05",
-        "updated_at": "2026-11-06T22:04:05",
-        "client_request_id": "6fbbcebc-4c8e-442f-8ce3-ad0023cb20cc"
+        "created_at": "2026-11-06T22:45:19",
+        "updated_at": "2026-11-06T22:45:19",
+        "client_request_id": "dfe0d668-b626-4d83-975d-513516e3a78d"
       }
     ],
     "screenshots": [
-      "kist-one-intent-2026-11-06T22-04-05-143Z-lost-response.png",
-      "kist-one-intent-2026-11-06T22-04-05-143Z-after-retry.png",
-      "kist-one-intent-2026-11-06T22-04-05-143Z-two-intents.png"
+      "kist-one-intent-2026-11-06T22-45-18-595Z-lost-response.png",
+      "kist-one-intent-2026-11-06T22-45-18-595Z-after-retry.png",
+      "kist-one-intent-2026-11-06T22-45-18-595Z-two-intents.png"
     ]
   },
   "repair": "external/kist/repair.patch",
   "repair_log": "external/kist/repair-live.log",
-  "note": "Both runs use the same contract and the same suppressed first POST. The after run is a fresh Hermes one-shot repair on a clean upstream copy. The journey waits for the settled UI; the database assertion is unchanged."
+  "note": "Both runs use the same contract and the same suppressed first POST. The journey waits for the fault to be delivered, then for a settled result (two cards before; one card and cleared form after). The database assertion is unchanged."
 }

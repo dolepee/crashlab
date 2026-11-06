@@ -60,8 +60,7 @@
       "selector": "#gAdd"
     },
     {
-      "action": "wait_for_function",
-      "expression": "() => document.querySelector('#gName')?.value === 'CRASHLAB_KIST_ONE_INTENT'"
+      "action": "wait_for_fault"
     },
     {
       "action": "screenshot",
@@ -72,8 +71,20 @@
       "selector": "#gAdd"
     },
     {
-      "action": "wait_for_function",
-      "expression": "() => { const n = Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_ONE_INTENT').length; const v = document.querySelector('#gName')?.value; return n >= 1 && (v === '' || n >= 2); }"
+      "action": "wait_for_any",
+      "conditions": [
+        {
+          "kind": "count",
+          "selector": "#gList h3",
+          "text": "CRASHLAB_KIST_ONE_INTENT",
+          "min": 2
+        },
+        {
+          "kind": "value",
+          "selector": "#gName",
+          "empty": true
+        }
+      ]
     },
     {
       "action": "screenshot",
@@ -131,8 +142,11 @@
         "selector": "#gAdd"
       },
       {
-        "action": "wait_for_function",
-        "expression": "() => Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_TWO_INTENTS').length === 1"
+        "action": "wait_for_count",
+        "selector": "#gList h3",
+        "text": "CRASHLAB_KIST_TWO_INTENTS",
+        "min": 1,
+        "max": 1
       },
       {
         "action": "reload"
@@ -166,8 +180,10 @@
         "selector": "#gAdd"
       },
       {
-        "action": "wait_for_function",
-        "expression": "() => Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_TWO_INTENTS').length === 2"
+        "action": "wait_for_count",
+        "selector": "#gList h3",
+        "text": "CRASHLAB_KIST_TWO_INTENTS",
+        "min": 2
       },
       {
         "action": "screenshot",
