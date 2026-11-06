@@ -44,7 +44,7 @@ The booking fixture reproduced the same pattern:
 - Fixed: 1 booking; expected 1; pass.
 - Control: 2 distinct bookings; 2 bookings; pass.
 
-See `DAY2.md` and `DAY3.md` for the runs. The checked-in HTML/PNG evidence is
+See `DAY2.md` and `DAY3.md` for the runs, and `docs/repair-report.png` and `docs/booking-report.png` for the rendered evidence. The checked-in HTML/PNG evidence is
 outside the plugin runtime; generated evidence is ignored by git.
 
 ## Install
