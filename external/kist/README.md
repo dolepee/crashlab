@@ -12,14 +12,17 @@ It is here to make the provenance of the Kist result reviewable and replayable.
   enabled, and clicking it again creates a second goal.
 - CrashLab observes the SQLite `goals` table directly. The before run reports
   `observed: 2`, `expected: 1`; the control reports two deliberate goals.
-- The repaired checkout was produced by a Hermes one-shot agent in
-  `/workspace/tmp/kist-hermes`; the patch is in `repair.patch`.
+- The repaired checkout was produced by a fresh Hermes one-shot agent run in
+  `/tmp/kist-repair-live`; the source diff is `repair.patch` and the agent’s
+  final report is `repair-live.log`. The full conversational transcript was not
+  captured; the diff and report are retained.
 - The same contract reports `observed: 1`, `expected: 1`, and the same control
   still reports two goals.
 
 The before/after summaries are in `evidence/result-summary.json`; the
 screenshots are `buggy-before-retry.png`, `buggy-after-retry.png`,
-`repaired-after-retry.png` and `repaired-two-intents.png`.
+`repaired-before-retry.png`, `repaired-after-retry.png` and the two `two-intents`
+controls.
 
 ## What is not proven
 
@@ -50,12 +53,11 @@ python external/kist/run_kist.py \
   --output /tmp/kist-run
 ```
 
-The script starts Kist with an isolated `FINANCE_PROJECT_DIR`, completes the
-app configuration through `/api/app-config`, writes the contract into the run
-directory, invokes the registered `crashlab_run` path, and prints the result.
-The run is also persisted as `latest-run.json` for the Desktop pane. A fresh
-data directory is required for each run; Kist has no CrashLab-specific reset
-endpoint.
+The script writes an `app.start` contract, then invokes the registered
+`crashlab_run` path. CrashLab starts Kist, completes `/api/app-config`, runs
+the browser and stops the app. The run is persisted as `latest-run.json` for
+the Desktop pane. A fresh data directory is required for each run; Kist has no
+CrashLab-specific reset endpoint.
 
 To apply the Hermes repair to a separate copy:
 

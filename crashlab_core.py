@@ -173,6 +173,7 @@ def _expand_start(value: Any, *, contract_dir: Path, data: Path, port: int) -> A
     """Expand the small, documented local-app placeholders."""
     if isinstance(value, str):
         return (value.replace("{APP_DIR}", str(contract_dir))
+                .replace("{ROOT}", str(ROOT))
                 .replace("{DATA_DIR}", str(data))
                 .replace("{PORT}", str(port))
                 .replace("{PYTHON}", sys.executable)

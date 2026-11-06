@@ -64,23 +64,27 @@ Requirements:
 - Node.js, `npm`, and Chromium available locally.
 - `playwright-core` installed for the runner.
 
+Fresh install from the public repository:
+
 ```bash
-npm install
-# Chromium: the runner uses CHROME_PATH or /usr/bin/chromium.
+hermes plugins install dolepee/crashlab --enable
+# When Hermes asks to install the Node sidecar, answer yes.
+# If installed non-interactively, finish the sidecar once:
+cd "$HERMES_HOME/plugins/crashlab" && npm ci
 ```
 
-Copy or link this directory into `$HERMES_HOME/plugins/crashlab`, then:
+Then confirm:
 
 ```bash
-hermes plugins enable crashlab
 hermes plugins validate "$HERMES_HOME/plugins/crashlab" --install-deps
 hermes plugins doctor "$HERMES_HOME/plugins/crashlab"
 ```
 
-The Desktop half is opt-in and appears in **Capabilities → Plugins**. Its
-evidence endpoint reads `CRASHLAB_EVIDENCE_DIR` when set; otherwise it reads
-`evidence/` beside the plugin. The endpoint returns saved runs only. It does not
-run tests itself.
+The Desktop half is opt-in and appears in **Capabilities → Plugins**. It reads
+`CRASHLAB_DATA_DIR` (default `~/.local/share/crashlab`) and scans the bundled
+`contracts/` plus `CRASHLAB_CASE_DIR` (default `cases/`). Select a case and press
+**Run case**; the run starts the app when the case has an `app.start` block and
+persists `latest-run.json` for the pane.
 
 ## Run a fixture
 
@@ -153,6 +157,15 @@ the exact replay command. It is an external adoption example, not a bundled
 fixture. The contract checks one recovery intent against one goal and two
 deliberate goals against two goals; the Kist database is observed directly.
 
+The contract now carries an `app.start` block. `crashlab_run` starts Kist
+through the same local-app path as every other case; `run_kist.py` builds that
+block and no longer runs a separate application launcher.
+
+`cases/checkout-local-start.json` and `cases/checkout-local-fixed.json` are the
+transfer check: the same case format starts the local checkout fixture, fails
+2/1 on the buggy build, and passes 1/1 on the fixed build. They are bundled
+fixtures, not a second external application.
+
 See [external/kist/README.md](external/kist/README.md). Do not describe the
 before run as repaired or the patch as a general autonomous repair.
 
@@ -160,6 +173,8 @@ before run as repaired or the patch as a general autonomous repair.
 
 - Two local fixtures plus the external Kist example; Kist is one app and one
   Hermes one-shot repair, not proof of broad compatibility.
+- The second workflow is a bundled checkout fixture, not an independent
+  external application.
 - The Desktop pane was launched in Hermes Desktop for the earlier evidence view
   in `docs/desktop-pane.png`; the newest run/comparison view is wired to the
   persisted run but has not been visually recaptured.

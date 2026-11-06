@@ -1,0 +1,8 @@
+Verification is now fresh and green.
+
+- `pytest` full suite: 278 passed in ~20s (previously blocked by missing `pytest`/`flask` on the system interpreter; installed `hypothesis` and `pandas` into the existing `/tmp/kist-deps` environment and ran with it on PATH).
+- Targeted run: 105 passed (`test_goals_idempotency`, `test_api`, `test_security`, `test_career_goal_impact`).
+- `node --check static/js/views/goals.js` passes.
+- Live HTTP check earlier confirmed: same `client_request_id` twice → same goal id, row count +1; a new key → new goal. No code changed since, so that evidence still applies.
+
+The fix stands as reported: intent key on the client, server-side lookup plus `UNIQUE` index on `goals.client_request_id`, additive `Idempotency-Key` header support, and an idempotent `ALTER TABLE` migration in `init_db()`.

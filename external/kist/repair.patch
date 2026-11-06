@@ -1,36 +1,55 @@
-diff --git a/server/db.py b/server/db.py
-index f098031..8b54d84 100644
---- a/server/db.py
-+++ b/server/db.py
-@@ -62,7 +62,7 @@ create index if not exists idx_budget_month on budget_categories(month);
+diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=.finance' '--exclude=node_modules' '--exclude=.pytest_cache' '--exclude=.hypothesis' a/server/app.py b/server/app.py
+--- a/server/app.py	2026-11-04 22:39:02.000000000 +0000
++++ b/server/app.py	2026-11-06 21:57:09.344585592 +0000
+@@ -434,7 +434,14 @@
+ 
+ @app.post("/api/goals")
+ def goals_add():
+-    return jsonify({"id": planner.add_goal(request.get_json(force=True))}), 201
++    data = request.get_json(force=True)
++    # Retry safety: the browser sends the same intent key on a resend, so a
++    # duplicate POST returns the goal already created instead of a second one.
++    # (Header supported too, for non-browser clients; body shape is unchanged.)
++    key = request.headers.get("Idempotency-Key")
++    if key and not data.get("client_request_id"):
++        data["client_request_id"] = key
++    return jsonify({"id": planner.add_goal(data)}), 201
+ 
+ 
+ @app.put("/api/goals/<goal_id>")
+diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=.finance' '--exclude=node_modules' '--exclude=.pytest_cache' '--exclude=.hypothesis' a/server/db.py b/server/db.py
+--- a/server/db.py	2026-11-04 22:39:02.000000000 +0000
++++ b/server/db.py	2026-11-06 21:57:01.084534926 +0000
+@@ -62,7 +62,7 @@
  create table if not exists goals (
    id text primary key, name text not null, target_amount real not null, current_amount real default 0,
    target_date text, currency text default 'EUR', status text default 'active',
 -  created_at text not null, updated_at text not null);
-+  created_at text not null, updated_at text not null, intent_key text);
++  created_at text not null, updated_at text not null, client_request_id text);
  create table if not exists debts (
    id text primary key, name text not null, balance real not null, interest_rate real not null,
    minimum_payment real not null, type text default 'loan', currency text default 'EUR', updated_at text not null);
-@@ -76,6 +76,14 @@ create table if not exists holdings (
+@@ -76,6 +76,16 @@
  
  
  def init_db() -> None:
 -    """Create base tables if missing (idempotent)."""
-+    """Create base tables if missing and migrate older databases (idempotent)."""
++    """Create base tables if missing (idempotent) and migrate existing DBs."""
      with get_conn() as conn:
          conn.executescript(_BASE_SCHEMA)
-+        # Existing databases predate client intent keys: add the column before
-+        # creating the partial unique index that makes goal creation idempotent.
-+        goal_cols = {row[1] for row in conn.execute("PRAGMA table_info(goals)")}
-+        if "intent_key" not in goal_cols:
-+            conn.execute("ALTER TABLE goals ADD COLUMN intent_key TEXT")
-+        conn.execute(
-+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_goals_intent_key "
-+            "ON goals(intent_key) WHERE intent_key IS NOT NULL AND intent_key <> ''")
-diff --git a/server/planner_goals.py b/server/planner_goals.py
-index b2ebfea..e2b7ab1 100644
---- a/server/planner_goals.py
-+++ b/server/planner_goals.py
++        # Migration: goal creates carry a client-supplied intent key so a retried
++        # POST after a lost response returns the original goal instead of a copy.
++        # Existing databases predate the column; NULL keys stay allowed (legacy
++        # rows / clients that send no key) because SQLite unique indexes treat
++        # NULLs as distinct.
++        cols = {row[1] for row in conn.execute("pragma table_info(goals)")}
++        if "client_request_id" not in cols:
++            conn.execute("alter table goals add column client_request_id text")
++        conn.execute("create unique index if not exists idx_goals_client_request_id "
++                     "on goals(client_request_id)")
+diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=.finance' '--exclude=node_modules' '--exclude=.pytest_cache' '--exclude=.hypothesis' a/server/planner_goals.py b/server/planner_goals.py
+--- a/server/planner_goals.py	2026-11-04 22:39:02.000000000 +0000
++++ b/server/planner_goals.py	2026-11-06 21:58:26.326047495 +0000
 @@ -2,6 +2,7 @@
  
  Split out of planner.py on 2026-09-05 (code moved 1:1; other modules are reached through `P`).
@@ -39,25 +58,24 @@ index b2ebfea..e2b7ab1 100644
  import uuid
  from datetime import date, datetime
  
-@@ -47,13 +48,36 @@ def _project(goal, cfg):
+@@ -46,14 +47,35 @@
+             "eta_band": band}
  
  
- def add_goal(data):
-+    """Create a goal, idempotently when the client supplies an intent_key.
++def _goal_id_for_intent(key):
++    rows = eb._rows("select id from goals where client_request_id = ?", (key,))
++    return rows[0]["id"] if rows else None
 +
-+    A browser generates one key per Add-goal attempt and reuses it on retry.
-+    The partial unique index on goals(intent_key) is the arbiter: if a racing
-+    request already committed that key, the insert fails and we return the
-+    existing goal instead of creating a duplicate. A missing/blank key keeps
-+    the old behaviour (each request creates a goal).
-+    """
-+    intent_key = data.get("intent_key")
-+    if intent_key is not None:
-+        intent_key = str(intent_key).strip() or None
-+    if intent_key:
-+        existing = eb._rows("select id from goals where intent_key = ?", (intent_key,))
++
+ def add_goal(data):
++    # A client-supplied intent key makes a retried POST idempotent: after a lost
++    # response the browser resends the same key and gets the original goal back.
++    # No key (legacy client / script) keeps the old create-always behaviour.
++    key = str(data.get("client_request_id") or "").strip() or None
++    if key:
++        existing = _goal_id_for_intent(key)
 +        if existing:
-+            return existing[0]["id"]
++            return existing
      goal_id = str(uuid.uuid4())
 -    eb._exec(
 -        "insert into goals (id, name, target_amount, current_amount, target_date, "
@@ -68,57 +86,160 @@ index b2ebfea..e2b7ab1 100644
 +    try:
 +        eb._exec(
 +            "insert into goals (id, name, target_amount, current_amount, target_date, "
-+            "currency, status, created_at, updated_at, intent_key) values (?,?,?,?,?,?,?,?,?,?)",
++            "currency, status, created_at, updated_at, client_request_id) "
++            "values (?,?,?,?,?,?,?,?,?,?)",
 +            (goal_id, data["name"], float(data["target_amount"]),
 +             float(data.get("current_amount", 0)), data.get("target_date"),
-+             data.get("currency", "PLN"), "active", P._now(), P._now(), intent_key))
++             data.get("currency", "PLN"), "active", P._now(), P._now(), key))
 +    except sqlite3.IntegrityError:
-+        # Lost the race on the unique intent key — the winner's row is committed.
-+        if intent_key:
-+            existing = eb._rows("select id from goals where intent_key = ?", (intent_key,))
-+            if existing:
-+                return existing[0]["id"]
++        # Concurrent duplicate: the unique index picked a winner; return its goal.
++        existing = _goal_id_for_intent(key) if key else None
++        if existing:
++            return existing
 +        raise
      if data.get("monthly_contribution") is not None:
          eb._exec("insert into goal_meta (goal_id, monthly_contribution) values (?,?)",
                   (goal_id, float(data["monthly_contribution"])))
-diff --git a/static/js/views/goals.js b/static/js/views/goals.js
-index 00eefee..373072a 100644
---- a/static/js/views/goals.js
-+++ b/static/js/views/goals.js
-@@ -1,3 +1,13 @@
-+// One key per "Add goal" attempt: generated on first submit, kept across a lost
-+// response so clicking Add goal again is idempotent, cleared after success or
-+// when the form is edited (a changed intention is a new attempt).
-+let goalIntentKey = null;
-+
-+function newGoalIntentKey() {
-+  if (window.crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
-+  return "goal-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=.finance' '--exclude=node_modules' '--exclude=.pytest_cache' '--exclude=.hypothesis' a/static/js/views/goals.js b/static/js/views/goals.js
+--- a/static/js/views/goals.js	2026-11-04 22:39:02.000000000 +0000
++++ b/static/js/views/goals.js	2026-11-06 21:57:20.275652299 +0000
+@@ -1,3 +1,16 @@
++// One intent key per "New goal" form draft. A POST whose response is lost keeps
++// the key, so clicking Add goal again resends the same intent and the server
++// returns the goal it already created. Editing a field or a successful create
++// starts a fresh intent (two deliberate adds still create two goals).
++let _goalIntentKey = null;
++function _newGoalIntentKey() {
++  if (_goalIntentKey) return _goalIntentKey;
++  _goalIntentKey = (window.crypto && crypto.randomUUID)
++    ? crypto.randomUUID()
++    : "goal-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
++  return _goalIntentKey;
 +}
 +
  async function renderGoals(el) {
    const [goals, cfg] = await Promise.all([
      api.get("/api/goals"), api.get("/api/settings")]);
-@@ -66,16 +76,21 @@ async function renderGoals(el) {
+@@ -62,6 +75,11 @@
+     }).join("");
+   }
+ 
++  // Any edit is a new intent: reset the key so a later click is not deduped
++  // against the pre-edit goal.
++  ["gName", "gTarget", "gCurrent", "gMonthly"].forEach((id) =>
++    document.getElementById(id).addEventListener("input", () => { _goalIntentKey = null; }));
++
+   document.getElementById("gSaveCfg").addEventListener("click", async () => {
      await api.put("/api/settings", { monthly_savings: parseNum(document.getElementById("gSavings")) || "" });
      route();
-   });
-+  ["gName", "gTarget", "gCurrent", "gMonthly"].forEach((id) =>
-+    document.getElementById(id).addEventListener("input", () => { goalIntentKey = null; }));
-   document.getElementById("gAdd").addEventListener("click", async () => {
-     const name = document.getElementById("gName").value.trim();
-     const target = parseNum(document.getElementById("gTarget"));
-     if (!name || !target) { alert("Enter a name and target amount"); return; }
-     const monthly = parseNum(document.getElementById("gMonthly"));
-+    if (!goalIntentKey) goalIntentKey = newGoalIntentKey();
-     await api.post("/api/goals", {
+@@ -75,7 +93,9 @@
        name, target_amount: target,
        current_amount: parseNum(document.getElementById("gCurrent")) || 0,
        monthly_contribution: isNaN(monthly) ? undefined : monthly,
-+      intent_key: goalIntentKey,
++      client_request_id: _newGoalIntentKey(),
      });
-+    goalIntentKey = null;  // committed — the next deliberate click is a new goal
++    _goalIntentKey = null;  // created — the next add is a new intent
      route();
    });
    list.querySelectorAll("[data-gupd]").forEach((b) =>
+diff -ruN '--exclude=__pycache__' '--exclude=*.pyc' '--exclude=.finance' '--exclude=node_modules' '--exclude=.pytest_cache' '--exclude=.hypothesis' a/tests/test_goals_idempotency.py b/tests/test_goals_idempotency.py
+--- a/tests/test_goals_idempotency.py	1970-01-01 00:00:00.000000000 +0000
++++ b/tests/test_goals_idempotency.py	2026-11-06 21:57:31.391719741 +0000
+@@ -0,0 +1,97 @@
++"""Goal create is idempotent per client intent key (lost-response retry)."""
++import sqlite3
++
++
++def _count(client):
++    return len(client.get("/api/goals").get_json())
++
++
++def _post(client, key=None, headers=None):
++    body = {"name": "Retry goal", "target_amount": 5000}
++    if key is not None:
++        body["client_request_id"] = key
++    return client.post("/api/goals", json=body, headers=headers or {})
++
++
++def _ids(client):
++    return {g["id"] for g in client.get("/api/goals").get_json()}
++
++
++def test_same_intent_key_creates_one_goal(client):
++    before = _count(client)
++    first = _post(client, key="intent-abc")
++    second = _post(client, key="intent-abc")
++    assert first.status_code == 201 and second.status_code == 201
++    assert first.get_json()["id"] == second.get_json()["id"]
++    assert _count(client) == before + 1
++    client.delete("/api/goals/" + first.get_json()["id"])
++
++
++def test_different_intent_keys_create_two_goals(client):
++    before = _count(client)
++    a = _post(client, key="intent-a")
++    b = _post(client, key="intent-b")
++    assert a.get_json()["id"] != b.get_json()["id"]
++    assert _count(client) == before + 2
++    for r in (a, b):
++        client.delete("/api/goals/" + r.get_json()["id"])
++
++
++def test_no_intent_key_keeps_create_always(client):
++    before = _count(client)
++    a = _post(client)
++    b = _post(client)
++    assert a.get_json()["id"] != b.get_json()["id"]
++    assert _count(client) == before + 2
++    for r in (a, b):
++        client.delete("/api/goals/" + r.get_json()["id"])
++
++
++def test_idempotency_key_header_also_dedupes(client):
++    before = _count(client)
++    a = _post(client, headers={"Idempotency-Key": "intent-header"})
++    b = _post(client, headers={"Idempotency-Key": "intent-header"})
++    assert a.get_json()["id"] == b.get_json()["id"]
++    assert _count(client) == before + 1
++    client.delete("/api/goals/" + a.get_json()["id"])
++
++
++def test_init_db_migrates_legacy_goals_table(tmp_path, monkeypatch):
++    import db
++
++    monkeypatch.setenv("FINANCE_PROJECT_DIR", str(tmp_path))
++    finance = tmp_path / ".finance"
++    finance.mkdir()
++    con = sqlite3.connect(finance / "finance.db")
++    con.execute("""create table goals (
++        id text primary key, name text not null, target_amount real not null,
++        current_amount real default 0, target_date text, currency text default 'EUR',
++        status text default 'active', created_at text not null, updated_at text not null)""")
++    con.execute("insert into goals values "
++                "('old', 'legacy', 10, 0, null, 'PLN', 'active', '2026-01-01', '2026-01-01')")
++    con.commit()
++    con.close()
++
++    db.init_db()
++    db.init_db()  # migration is idempotent
++
++    con = sqlite3.connect(finance / "finance.db")
++    cols = {r[1] for r in con.execute("pragma table_info(goals)")}
++    assert "client_request_id" in cols
++    indexes = {r[1] for r in con.execute("pragma index_list(goals)")}
++    assert "idx_goals_client_request_id" in indexes
++    # existing row survives
++    assert con.execute("select name from goals where id = 'old'").fetchone()[0] == "legacy"
++
++    # uniqueness holds at the database level too
++    con.execute("insert into goals (id, name, target_amount, created_at, updated_at, "
++                "client_request_id) values ('g1', 'a', 1, 'x', 'x', 'k')")
++    try:
++        con.execute("insert into goals (id, name, target_amount, created_at, updated_at, "
++                    "client_request_id) values ('g2', 'b', 1, 'x', 'x', 'k')")
++    except sqlite3.IntegrityError:
++        pass
++    else:
++        raise AssertionError("duplicate client_request_id was accepted")
++    finally:
++        con.close()
