@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import copy
 import hashlib
 import importlib.util
 import json
@@ -346,7 +347,10 @@ def run_campaign(manifest_path, output_dir, legacy_root=None):
     run_id = "campaign-" + time.strftime("%Y%m%dT%H%M%SZ", time.gmtime()) + "-" + uuid.uuid4().hex[:8]
     out = Path(output_dir).resolve() / run_id
     out.mkdir(parents=True)
-    write_json(out / "manifest.json", manifest)
+    saved_manifest = copy.deepcopy(manifest)
+    for index, case in enumerate(saved_manifest["cases"]):
+        case["contract"] = f"contract-{index}.json"
+    write_json(out / "manifest.json", saved_manifest)
     rows = []
     for index, case in enumerate(manifest["cases"]):
         for repetition in range(case.get("repetitions", 1)):
@@ -366,6 +370,12 @@ def run_campaign(manifest_path, output_dir, legacy_root=None):
                 contract["evidence"] = {"screenshot_dir": str(out / f"screenshots-{index}-{repetition}")}
                 effective_path = out / f"contract-{index}-{repetition}.json"
                 write_json(effective_path, contract)
+                # The manifest refers to this canonical path. Persist it beside the
+                # manifest so a saved campaign can be replayed after the temporary
+                # input directory is gone.
+                canonical_path = out / f"contract-{index}.json"
+                if not canonical_path.exists():
+                    write_json(canonical_path, contract)
                 contract_sha = hashlib.sha256(json.dumps(contract, sort_keys=True).encode()).hexdigest()
                 if case["engine"] == "http_concurrency":
                     run = run_http(contract, contract_path.parent, out / f"state-{index}-{repetition}")

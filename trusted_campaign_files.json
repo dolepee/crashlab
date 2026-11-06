@@ -5,13 +5,13 @@
     "plugin.py": "c198856fa75490df2342fe23776d85ae2f5a85ecc575f2f6d918d33169cd099e",
     "plugin.yaml": "e3ecaaf5a9a3f1f5ae034e040e0fb0c60b619240ce3a7f55fa37a7be8214e3ed",
     "campaign_plugin.py": "ab796ce7b108fa0b2dd0e36a73c92f45e78fe87bec2e39a4d4f6843f488b2e6d",
-    "campaign.py": "e8c2cd5e2e441c1746b4cde5778520208e211ae5f49eecc1e2041ed5d8643285",
+    "campaign.py": "e2f310a08bdc3867c5717ad41cb5f36fed50d822d25782e3080e6f065cd43950",
     "crashlab_core.py": "b612cb0dc5bab41762140fcda96d94d0e8f95fc1b42c769797dfaef0280616bd",
     "crashlab_runner.js": "c380f4dfb62b489b630d4e82346462989f2fcb6762d72d30205d46f1ae749041",
     "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
     "contracts/checkout-lost-response.json": "adb78a99504fc6c71d050768ea82044ad0e6f7943d2e957fe673d3970cd799f7",
     "contracts/booking-lost-response.json": "eadef4f0829cba94129971fb10886a23b4c030a8947cde16f5fac030ceed294f",
-    "campaign_contracts/inventory-contention.json": "c1e0c6b0d88c91f0ef12973defd258a4f64712b1c6345488a9f1ffaa730f29b7",
+    "campaign_contracts/inventory-contention.json": "da8651ddd5ae8450dac7537c8aa720a68d2cbb72b2826fac6441e3d1549e1247",
     "campaigns/inventory.json": "1dd104ee9f5f7a7c3cd5b9f02a3cd57c19fa0939f2ce47f8ab7f5549404b0ded",
     "campaigns/mixed.json": "64727cf9eb7be369f0a5b0fa328a7a2f4358a7bf7b5cef9dac22b5ecd47e69f9"
   }

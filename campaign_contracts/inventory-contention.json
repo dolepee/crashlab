@@ -143,6 +143,30 @@
         "source": "responses",
         "status": 201,
         "equals": 2
+      },
+      {
+        "id": "legitimate-widget-mapping",
+        "source": "sqlite",
+        "query": "SELECT COUNT(*) FROM reservations WHERE intent_key='legitimate-widget' AND sku='widget' AND units=1",
+        "equals": 1
+      },
+      {
+        "id": "legitimate-gadget-mapping",
+        "source": "sqlite",
+        "query": "SELECT COUNT(*) FROM reservations WHERE intent_key='legitimate-gadget' AND sku='gadget' AND units=1",
+        "equals": 1
+      },
+      {
+        "id": "widget-stock-zero",
+        "source": "sqlite",
+        "query": "SELECT available FROM inventory WHERE sku='widget'",
+        "equals": 0
+      },
+      {
+        "id": "gadget-stock-zero",
+        "source": "sqlite",
+        "query": "SELECT available FROM inventory WHERE sku='gadget'",
+        "equals": 0
       }
     ]
   }

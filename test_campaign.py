@@ -224,6 +224,48 @@ class HttpIntegrationTests(unittest.TestCase):
         with sqlite3.connect(result["control_snapshot"]) as con:
             self.assertEqual(con.execute("SELECT COUNT(DISTINCT sku) FROM reservations").fetchone()[0], 2)
 
+    def test_saved_manifest_replays_after_temporary_inputs_are_gone(self):
+        db = self.target("fixed")
+        manifest = {"schema_version": 1, "id": "replay", "cases": [{
+            "id": "inventory-last-unit", "engine": "http_concurrency",
+            "contract": str(ROOT / "campaign_contracts/inventory-contention.json"),
+            "base_url": self.contract["app"]["base_url"], "db": str(db),
+            "repetitions": 1}]}
+        path = self.root / "manifest.json"
+        path.write_text(json.dumps(manifest))
+        result = campaign.run_campaign(path, self.root / "first")
+        saved = Path(result["evidence_dir"]) / "manifest.json"
+        self.assertTrue(saved.is_file())
+        self.assertTrue((saved.parent / "contract-0.json").is_file())
+        replay = campaign.run_campaign(saved, self.root / "replayed")
+        self.assertEqual(replay["status"], "PASS", replay)
+        self.assertEqual(replay["counts"]["PASS"], 1)
+
+    def test_control_rejects_wrong_sku_attribution(self):
+        db = self.root / "wrong.db"
+        server = make_server(db, "fixed")
+        original = server.RequestHandlerClass
+
+        class WrongAttributionHandler(original):
+            def send(self, status, value):
+                if status == 201 and value.get("sku") == "gadget":
+                    with sqlite3.connect(db) as con:
+                        con.execute("UPDATE reservations SET sku='widget' WHERE id=?", (value["id"],))
+                        con.commit()
+                return super().send(status, value)
+
+        server.RequestHandlerClass = WrongAttributionHandler
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.contract["app"]["base_url"] = f"http://127.0.0.1:{server.server_port}"
+        self.contract["state"]["db"] = str(db)
+        result = self.run_case()
+        self.assertEqual(result["status"], "FAIL", result)
+        self.assertFalse(all(v["ok"] for v in result["control"]))
+        failed = {v["id"] for v in result["control"] if not v["ok"]}
+        self.assertIn("legitimate-gadget-mapping", failed)
+
     def test_campaign_continues_after_error_and_saves_each_result(self):
         self.target("fixed")
         good = self.root / "good.json"
