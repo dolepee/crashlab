@@ -65,3 +65,21 @@ git -C /path/to/copy apply /path/to/CrashLab/external/kist/repair.patch
 
 Do not apply the patch to the before-run checkout and then present that run as
 unmodified upstream evidence.
+
+## Record the browser session
+
+The 26-second `demo/crashlab-kist-live.mp4` was recorded from the two real
+browser sessions above. It is a live recording, not a terminal replay:
+
+```bash
+KIST_PYTHON=/path/to/python \
+node external/kist/record_session.js \
+  /path/to/kist-finance-7a196af9550378d24d196e666ac0a0f6dd37cb48 \
+  /path/to/repaired-kist \
+  /tmp/kist-recordings
+```
+
+The script starts each app with an isolated data directory, writes
+`/api/app-config`, suppresses the first POST response only in the upstream run,
+and records Chromium video. The fixed waits in this recording script are for
+readable pacing; the contract run itself uses observable conditions only.
