@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "id": "checkout-and-inventory",
+  "cases": [
+    {"id": "checkout-lost-response", "engine": "legacy_browser", "contract": "../contracts/checkout-lost-response.json", "repetitions": 1},
+    {"id": "inventory-last-unit", "engine": "http_concurrency", "contract": "../campaign_contracts/inventory-contention.json", "repetitions": 1}
+  ]
+}

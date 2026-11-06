@@ -1,0 +1,144 @@
+{
+  "repository": "https://github.com/dolepee/crashlab",
+  "commit": "683e82e86691390e7fde899c4ccd75850e72dbb2",
+  "files": [
+    {
+      "path": "LICENSE",
+      "git_blob_sha": "940e292ed5ab733a835c9f1de17ed692f34f274c",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/LICENSE",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "README.md",
+      "git_blob_sha": "cd1074cf523849f088dca01f9ddd66bb929f32b4",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/README.md",
+      "unchanged_in_integration": false
+    },
+    {
+      "path": "SKILL.md",
+      "git_blob_sha": "57aa03fc48510fe782d76e247d74a1795bd9dff4",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/SKILL.md",
+      "unchanged_in_integration": false
+    },
+    {
+      "path": "__init__.py",
+      "git_blob_sha": "62bbc2a257ecd999d3c3d103ca77749c6b42392b",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/__init__.py",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "booking.py",
+      "git_blob_sha": "8722561f594fee3fbe8ada944e0829f383a1598b",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/booking.py",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "contracts/booking-lost-response.json",
+      "git_blob_sha": "3a8dd198eb52707a9b20bcc7a3901d0a4e80b1f6",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/contracts/booking-lost-response.json",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "contracts/checkout-lost-response.json",
+      "git_blob_sha": "6b7c22f4c091c4c116a1a3ab79426caee6c43e05",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/contracts/checkout-lost-response.json",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "crashlab_core.py",
+      "git_blob_sha": "c178fc9d4631a678b8748415c527ba60c7a2ea91",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/crashlab_core.py",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "crashlab_probe.py",
+      "git_blob_sha": "b466cb6f733dc7f4f87b4d782619625240e99a62",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/crashlab_probe.py",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "crashlab_runner.js",
+      "git_blob_sha": "5e185f93a23e92babc735d9bb54876aa6db29983",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/crashlab_runner.js",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "dashboard/manifest.json",
+      "git_blob_sha": "5ffe3d29201dc8f23676996776acc7c9daabfca7",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/dashboard/manifest.json",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "dashboard/plugin_api.py",
+      "git_blob_sha": "f7676d3f12050e6e5210831fd566f56313f3d000",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/dashboard/plugin_api.py",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "desktop/plugin.js",
+      "git_blob_sha": "d21ce9cad3e7d94e899ed32d52b92ac22a806b40",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/desktop/plugin.js",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "package.json",
+      "git_blob_sha": "9b6c5fb84ed499823c0f09b63b7f8f149c6e2867",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/package.json",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "plugin.py",
+      "git_blob_sha": "87cebcfd8b5c8116efa04f43bab77ad76f451c4a",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/plugin.py",
+      "unchanged_in_integration": false
+    },
+    {
+      "path": "plugin.yaml",
+      "git_blob_sha": "9a72619fe2cddfd73db2ace376db61341c222025",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/plugin.yaml",
+      "unchanged_in_integration": false
+    },
+    {
+      "path": "report.py",
+      "git_blob_sha": "e066bd34d0a6cae668bbe725c6efb37df90b4baf",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/report.py",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "server.py",
+      "git_blob_sha": "7477baae3377c7e0155941c7239b9a5cc66e3bce",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/server.py",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "test_control.js",
+      "git_blob_sha": "4a552b95f000ccd87a44fe2b2b50cc5d0e48a60e",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/test_control.js",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "test_crashlab_core.py",
+      "git_blob_sha": "214eaf8cd24ee097cebc75812858b7a0603f8227",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/test_crashlab_core.py",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "test_lost_response.js",
+      "git_blob_sha": "e822f92eb3b8e16e564f86dce47c3d74351d976e",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/test_lost_response.js",
+      "unchanged_in_integration": true
+    },
+    {
+      "path": "test_plugin.py",
+      "git_blob_sha": "bb9d78410d1234b8a65aad75983a0f3bb0b39d19",
+      "url": "https://github.com/dolepee/crashlab/blob/683e82e86691390e7fde899c4ccd75850e72dbb2/test_plugin.py",
+      "unchanged_in_integration": true
+    }
+  ],
+  "intentionally_modified_original_files": [
+    "README.md",
+    "SKILL.md",
+    "plugin.py",
+    "plugin.yaml"
+  ]
+}

@@ -2,7 +2,7 @@ name: crashlab
 label: CrashLab
 kind: standalone
 manifest_version: 1
-version: 0.1.0
+version: 0.2.0
 description: >
   Run a saved browser journey, suppress a response after the server has
   committed, inspect the persisted records, and compare the same case against
@@ -15,3 +15,6 @@ provides_tools:
   - crashlab_run
   - crashlab_compare
   - crashlab_list
+  - crashlab_campaign_list
+  - crashlab_campaign_validate
+  - crashlab_campaign_run

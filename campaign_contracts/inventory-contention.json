@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "id": "inventory-last-unit",
+  "app": {
+    "base_url": "http://127.0.0.1:8795",
+    "reset_url": "/reset"
+  },
+  "state": {
+    "mode": "sqlite",
+    "db": "../data/inventory-{port}.db"
+  },
+  "timeout_seconds": 5,
+  "allowed_statuses": [
+    201,
+    409
+  ],
+  "fault": {
+    "mode": "concurrent_requests",
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/reserve",
+        "json": {
+          "intent_key": "alice",
+          "sku": "widget",
+          "units": 1,
+          "test_batch": "last-unit",
+          "test_participants": 2
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/reserve",
+        "json": {
+          "intent_key": "bob",
+          "sku": "widget",
+          "units": 1,
+          "test_batch": "last-unit",
+          "test_participants": 2
+        }
+      }
+    ],
+    "required_response_fields": {
+      "_crashlab_gate.batch": "last-unit",
+      "_crashlab_gate.participants": 2,
+      "_crashlab_gate.released": true
+    }
+  },
+  "baseline": [
+    {
+      "id": "clean-reservations",
+      "source": "sqlite",
+      "query": "SELECT COUNT(*) FROM reservations",
+      "equals": 0
+    },
+    {
+      "id": "initial-stock",
+      "source": "sqlite",
+      "query": "SELECT SUM(available) FROM inventory",
+      "equals": 2
+    },
+    {
+      "id": "last-widget",
+      "source": "sqlite",
+      "query": "SELECT available FROM inventory WHERE sku='widget'",
+      "equals": 1
+    }
+  ],
+  "invariants": [
+    {
+      "id": "one-reservation",
+      "source": "sqlite",
+      "query": "SELECT COUNT(*) FROM reservations WHERE sku='widget'",
+      "equals": 1
+    },
+    {
+      "id": "remaining-widget",
+      "source": "sqlite",
+      "query": "SELECT available FROM inventory WHERE sku='widget'",
+      "equals": 0
+    },
+    {
+      "id": "stock-conservation",
+      "source": "sqlite",
+      "query": "SELECT (SELECT SUM(available) FROM inventory)+(SELECT COALESCE(SUM(units),0) FROM reservations)",
+      "equals": 2
+    },
+    {
+      "id": "nonnegative-stock",
+      "source": "sqlite",
+      "query": "SELECT COUNT(*) FROM inventory WHERE available<0",
+      "equals": 0
+    },
+    {
+      "id": "one-success",
+      "source": "responses",
+      "status": 201,
+      "equals": 1
+    },
+    {
+      "id": "one-conflict",
+      "source": "responses",
+      "status": 409,
+      "equals": 1
+    }
+  ],
+  "control": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/reserve",
+        "json": {
+          "intent_key": "legitimate-widget",
+          "sku": "widget",
+          "units": 1
+        }
+      },
+      {
+        "method": "POST",
+        "path": "/reserve",
+        "json": {
+          "intent_key": "legitimate-gadget",
+          "sku": "gadget",
+          "units": 1
+        }
+      }
+    ],
+    "invariants": [
+      {
+        "id": "two-distinct-reservations",
+        "source": "sqlite",
+        "query": "SELECT COUNT(*) FROM reservations",
+        "equals": 2
+      },
+      {
+        "id": "remaining-stock",
+        "source": "sqlite",
+        "query": "SELECT SUM(available) FROM inventory",
+        "equals": 0
+      },
+      {
+        "id": "two-successes",
+        "source": "responses",
+        "status": 201,
+        "equals": 2
+      }
+    ]
+  }
+}

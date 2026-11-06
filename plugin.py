@@ -5,8 +5,10 @@ import json
 
 try:
     from . import crashlab_core as core
+    from . import campaign_plugin
 except ImportError:
     import crashlab_core as core
+    import campaign_plugin
 
 TOOL_SCHEMAS = [
     {
@@ -52,10 +54,13 @@ TOOL_SCHEMAS = [
         "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
     },
 ]
+TOOL_SCHEMAS.extend(campaign_plugin.schemas())
 
 
 def _handler(name: str):
     def invoke(kwargs):
+        if name.startswith("crashlab_campaign_"):
+            return campaign_plugin.invoke(name, kwargs)
         if name == "crashlab_validate":
             contract = core.load_contract(kwargs["contract_path"])
             return {"ok": True, "contract": contract}

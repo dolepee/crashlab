@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "id": "inventory-contention",
+  "cases": [
+    {"id": "inventory-last-unit", "engine": "http_concurrency", "contract": "../campaign_contracts/inventory-contention.json", "repetitions": 1}
+  ]
+}

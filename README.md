@@ -1,5 +1,13 @@
 # CrashLab
 
+## Isolated campaign integration
+
+This copy adds registered campaign list/validate/run tools while retaining the
+original four tools. See [CAMPAIGNS.md](CAMPAIGNS.md) for setup, safe target
+configuration, verification and limitations. Inventory contention execution is
+supported; mixed browser campaign execution is intentionally blocked pending
+network confinement. The original project README follows below.
+
 CrashLab is a Hermes plugin for reproducing and repairing a failure that normal
 browser tests miss: the server commits a write, the response is lost, the user
 retries, and the application ends up with two records for one intent.
