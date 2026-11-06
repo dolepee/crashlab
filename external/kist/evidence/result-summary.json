@@ -1,0 +1,87 @@
+{
+  "app": "grzella/kist-finance",
+  "commit": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+  "contract": "kist-one-intent",
+  "browser": "Chromium 155.0.8059.79 headless",
+  "before": {
+    "contract": "kist-one-intent",
+    "observed": 2,
+    "expected": 1,
+    "scenario": {
+      "matched": true,
+      "upstream_status": 201,
+      "committed_after_fault": 1,
+      "valid": true
+    },
+    "control": {
+      "observed": 2,
+      "expected": 2,
+      "ok": true
+    },
+    "records": [
+      {
+        "id": "358f34ab-8a30-402e-bd43-2652bf49cee0",
+        "name": "CRASHLAB_KIST_ONE_INTENT",
+        "target_amount": 1000,
+        "current_amount": 100,
+        "target_date": null,
+        "currency": "PLN",
+        "status": "active",
+        "created_at": "2026-11-06T20:02:53",
+        "updated_at": "2026-11-06T20:02:53"
+      },
+      {
+        "id": "0ee2036c-a05b-42d6-8621-51be433a0b2a",
+        "name": "CRASHLAB_KIST_ONE_INTENT",
+        "target_amount": 1000,
+        "current_amount": 100,
+        "target_date": null,
+        "currency": "PLN",
+        "status": "active",
+        "created_at": "2026-11-06T20:02:54",
+        "updated_at": "2026-11-06T20:02:54"
+      }
+    ],
+    "screenshots": [
+      "kist-one-intent-2026-11-06T20-02-47-642Z-lost-response.png",
+      "kist-one-intent-2026-11-06T20-02-47-642Z-after-retry.png",
+      "kist-one-intent-2026-11-06T20-02-47-642Z-two-intents.png"
+    ]
+  },
+  "after": {
+    "contract": "kist-one-intent",
+    "observed": 1,
+    "expected": 1,
+    "scenario": {
+      "matched": true,
+      "upstream_status": 201,
+      "committed_after_fault": 1,
+      "valid": true
+    },
+    "control": {
+      "observed": 2,
+      "expected": 2,
+      "ok": true
+    },
+    "records": [
+      {
+        "id": "b00d9bd1-ba47-4d69-99a3-a76fedbee97e",
+        "name": "CRASHLAB_KIST_ONE_INTENT",
+        "target_amount": 1000,
+        "current_amount": 100,
+        "target_date": null,
+        "currency": "PLN",
+        "status": "active",
+        "created_at": "2026-11-06T20:06:50",
+        "updated_at": "2026-11-06T20:06:50",
+        "intent_key": "80d1527d-6f7e-4798-96e2-f53e8ab1c00e"
+      }
+    ],
+    "screenshots": [
+      "kist-one-intent-2026-11-06T20-06-44-573Z-lost-response.png",
+      "kist-one-intent-2026-11-06T20-06-44-573Z-after-retry.png",
+      "kist-one-intent-2026-11-06T20-06-44-573Z-two-intents.png"
+    ]
+  },
+  "note": "Both runs are separate fresh app databases. The before app is unmodified upstream; the after app is the same upstream plus repair.patch applied by a Hermes one-shot agent. The contract was unchanged."
+}
