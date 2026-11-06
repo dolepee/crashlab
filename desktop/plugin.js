@@ -43,15 +43,40 @@ function Run({ title, run }) {
 
 function EvidencePane({ ctx }) {
   const [data, setData] = useState(null)
+  const [cases, setCases] = useState([])
+  const [selected, setSelected] = useState('')
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
+
+  const refresh = () => ctx.rest('/overview').then(setData)
 
   useEffect(() => {
     let alive = true
-    ctx.rest('/overview')
-      .then((value) => { if (alive) setData(value) })
+    Promise.all([ctx.rest('/overview'), ctx.rest('/contracts')])
+      .then(([overview, list]) => {
+        if (!alive) return
+        setData(overview)
+        setCases(list.contracts || [])
+        const first = (list.contracts || []).find((item) => !item.error)
+        if (first) setSelected(first.path)
+      })
       .catch((err) => { if (alive) setError(String(err)) })
     return () => { alive = false }
   }, [ctx])
+
+  const startRun = async () => {
+    if (!selected) return
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await ctx.rest('/run', { method: 'POST', body: { contract_path: selected } })
+      setData((current) => ({ ...(current || {}), latest_run: result }))
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   if (error) return jsx('div', { className: 'p-3 text-sm text-(--ui-danger)', children: error })
   if (!data) return jsx('div', { className: 'p-3 text-sm text-(--ui-text-tertiary)', children: 'Loading evidence…' })
@@ -59,14 +84,20 @@ function EvidencePane({ ctx }) {
   const comparison = data.comparison
   const latest = data.latest_run
   const campaign = data.campaign
-  if (!comparison && !latest && !campaign) {
-    return jsx('div', {
-      className: 'p-3 text-sm text-(--ui-text-tertiary)',
-      children: 'No saved result yet. Run crashlab_run or crashlab_compare first.'
-    })
-  }
-
   const items = []
+  const caseOptions = cases.map((item) => jsx('option', {
+    key: item.path,
+    value: item.path,
+    disabled: item.error ? true : undefined,
+    children: item.error ? `${item.id} (invalid)` : item.id
+  }))
+  if (!latest && !comparison && !campaign) {
+    items.push(jsx('div', {
+      key: 'empty',
+      className: 'text-xs text-(--ui-text-tertiary)',
+      children: 'No saved result yet. Select a case and run it.'
+    }))
+  }
   if (latest) {
     items.push(jsx(Run, {
       key: 'latest',
@@ -106,6 +137,24 @@ function EvidencePane({ ctx }) {
       jsx('div', {
         className: 'text-xs text-(--ui-text-tertiary)',
         children: 'A pass requires a valid scenario, observed = expected, and a passing control.'
+      }),
+      jsxs('div', {
+        className: 'flex items-center gap-2',
+        children: [
+          jsx('select', {
+            value: selected,
+            onChange: (event) => setSelected(event.target.value),
+            disabled: busy || caseOptions.length === 0,
+            className: 'min-w-0 flex-1 rounded border border-(--ui-stroke-secondary) bg-transparent px-2 py-1 text-xs',
+            children: caseOptions.length ? caseOptions : [jsx('option', { value: '', children: 'No cases available' })]
+          }),
+          jsx('button', {
+            onClick: startRun,
+            disabled: busy || !selected,
+            className: 'rounded border border-(--ui-stroke-secondary) px-2 py-1 text-xs',
+            children: busy ? 'Running…' : 'Run case'
+          })
+        ]
       }),
       ...items,
       jsx('div', {

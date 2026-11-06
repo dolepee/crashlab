@@ -4,9 +4,14 @@ from __future__ import annotations
 import json
 import math
 import os
+import shlex
+import socket
 import subprocess
+import sys
 import tempfile
 import time
+import urllib.error
+import urllib.request
 import uuid
 from pathlib import Path
 from typing import Any
@@ -123,8 +128,13 @@ def validate_contract(contract: dict) -> dict:
     if not isinstance(contract["app"], dict):
         raise ValueError("app must be an object")
     base = contract["app"].get("base_url")
-    if not isinstance(base, str) or not base.startswith(("http://", "https://")):
+    start = contract["app"].get("start")
+    if base is None and start is None:
+        raise ValueError("app.base_url or app.start is required")
+    if base is not None and (not isinstance(base, str) or not base.startswith(("http://", "https://"))):
         raise ValueError("app.base_url must be an http(s) URL")
+    if start is not None and not isinstance(start, dict):
+        raise ValueError("app.start must be an object")
     _validate_journey(contract["journey"], "journey")
     _validate_state(contract["state"], "state")
     fault = contract.get("fault")
@@ -153,30 +163,150 @@ def _node() -> str:
     return node
 
 
+def _free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def _expand_start(value: Any, *, contract_dir: Path, data: Path, port: int) -> Any:
+    """Expand the small, documented local-app placeholders."""
+    if isinstance(value, str):
+        return (value.replace("{APP_DIR}", str(contract_dir))
+                .replace("{DATA_DIR}", str(data))
+                .replace("{PORT}", str(port))
+                .replace("{PYTHON}", sys.executable)
+                .replace("{HOME}", str(data / "home")))
+    if isinstance(value, list):
+        return [_expand_start(item, contract_dir=contract_dir, data=data, port=port) for item in value]
+    if isinstance(value, dict):
+        return {key: _expand_start(item, contract_dir=contract_dir, data=data, port=port)
+                for key, item in value.items()}
+    return value
+
+
+def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, str, Path, Any, Path]:
+    app = contract["app"]
+    start = app.get("start")
+    if not isinstance(start, dict):
+        raise ValueError("app.start must be an object")
+    command = start.get("command")
+    if isinstance(command, str):
+        command = shlex.split(command)
+    if not isinstance(command, list) or not all(isinstance(item, str) and item for item in command):
+        raise ValueError("app.start.command must be a non-empty string list")
+    app_python = str(start.get("python") or sys.executable)
+    command = [item.replace("{PYTHON}", app_python) for item in command]
+    port = start.get("port")
+    if port is None:
+        port = _free_port()
+    if type(port) is not int or not 1 <= port <= 65535:
+        raise ValueError("app.start.port must be an integer port")
+    data = Path(tempfile.mkdtemp(prefix="crashlab-app-"))
+    cwd = Path(_expand_start(start.get("cwd", "."), contract_dir=contract_dir, data=data, port=port)).expanduser()
+    env = {**os.environ, "PYTHONUNBUFFERED": "1", "PORT": str(port),
+           "HOME": str(data / "home")}
+    for key, value in (start.get("env") or {}).items():
+        if not isinstance(key, str) or not key:
+            raise ValueError("app.start.env keys must be non-empty strings")
+        env[key] = str(_expand_start(value, contract_dir=contract_dir, data=data, port=port))
+    (data / "home").mkdir(parents=True, exist_ok=True)
+    log = data / "app.log"
+    log_handle = log.open("w", encoding="utf-8")
+    proc = subprocess.Popen(
+        [_expand_start(item, contract_dir=contract_dir, data=data, port=port) for item in command],
+        cwd=cwd, env=env, stdout=log_handle, stderr=subprocess.STDOUT,
+    )
+    base = str(_expand_start(start.get("base_url") or f"http://127.0.0.1:{port}",
+                             contract_dir=contract_dir, data=data, port=port))
+    health = str(start.get("health_path", "/"))
+    timeout_s = float(start.get("ready_timeout", 30))
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            log_handle.close()
+            text = log.read_text(encoding="utf-8", errors="replace")
+            raise RuntimeError(f"app exited before readiness ({proc.returncode}): {text[-2000:]}")
+        try:
+            with urllib.request.urlopen(base.rstrip("/") + health, timeout=0.5) as response:
+                if response.status < 500:
+                    for step in start.get("setup", []):
+                        if not isinstance(step, dict) or not isinstance(step.get("path"), str):
+                            raise ValueError("app.start.setup steps need a path")
+                        payload = None
+                        headers = {}
+                        if "json" in step:
+                            payload = json.dumps(step["json"]).encode("utf-8")
+                            headers["Content-Type"] = "application/json"
+                        elif "body" in step:
+                            payload = str(step["body"]).encode("utf-8")
+                        request = urllib.request.Request(
+                            base.rstrip("/") + step["path"], data=payload,
+                            headers=headers, method=str(step.get("method", "POST")),
+                        )
+                        with urllib.request.urlopen(request, timeout=5) as setup:
+                            if not 200 <= setup.status < 300:
+                                raise RuntimeError(f"app setup returned {setup.status}")
+                    return proc, base, log, log_handle, data
+        except (urllib.error.URLError, TimeoutError, OSError):
+            time.sleep(0.1)
+    proc.terminate()
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+    log_handle.close()
+    raise RuntimeError(f"app did not become ready within {timeout_s}s: {log.read_text(encoding='utf-8', errors='replace')[-2000:]}")
+
+
 def run_contract(contract_path: str | Path, base_url: str | None = None,
                  timeout: int = 120) -> dict:
     contract = load_contract(contract_path)
-    if base_url:
-        contract["app"]["base_url"] = base_url
-    # The runner receives a temporary contract; make sqlite observer paths
-    # relative to the contract the caller supplied, not to /tmp.
     contract_dir = Path(contract_path).expanduser().resolve().parent
-    for state in (contract.get("state"), (contract.get("control") or {}).get("state")):
-        if isinstance(state, dict) and state.get("mode") == "sqlite" and state.get("db"):
-            db = Path(state["db"]).expanduser()
-            if not db.is_absolute():
-                state["db"] = str((contract_dir / db).resolve())
-    fd, temp_path = tempfile.mkstemp(prefix="crashlab-contract-", suffix=".json")
+    started = None
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            json.dump(contract, fh)
-        proc = subprocess.run(
-            [_node(), str(RUNNER), temp_path],
-            cwd=ROOT, capture_output=True, text=True, timeout=timeout,
-            env={**os.environ, "CHROME_PATH": os.environ.get("CHROME_PATH", "/usr/bin/chromium")},
-        )
+        if base_url:
+            contract["app"]["base_url"] = base_url
+        elif contract["app"].get("start"):
+            started, contract["app"]["base_url"], log_path, log_handle, app_data = _start_app(contract, contract_dir)
+        # The runner receives a temporary contract; make sqlite observer paths
+        # relative to the contract the caller supplied, not to /tmp.
+        for state in (contract.get("state"), (contract.get("control") or {}).get("state")):
+            if isinstance(state, dict) and state.get("mode") == "sqlite" and state.get("db"):
+                raw = str(state["db"])
+                if started is not None:
+                    raw = (raw.replace("{DATA_DIR}", str(app_data))
+                              .replace("{APP_DIR}", str(contract_dir)))
+                db = Path(raw).expanduser()
+                if not db.is_absolute():
+                    db = (contract_dir / db).resolve()
+                state["db"] = str(db)
+        evidence = contract.get("evidence")
+        if started is not None and isinstance(evidence, dict) and evidence.get("screenshot_dir"):
+            evidence["screenshot_dir"] = _expand_start(
+                evidence["screenshot_dir"], contract_dir=contract_dir,
+                data=app_data, port=0)
+        fd, temp_path = tempfile.mkstemp(prefix="crashlab-contract-", suffix=".json")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as fh:
+                json.dump(contract, fh)
+            proc = subprocess.run(
+                [_node(), str(RUNNER), temp_path],
+                cwd=ROOT, capture_output=True, text=True, timeout=timeout,
+                env={**os.environ, "CHROME_PATH": os.environ.get("CHROME_PATH", "/usr/bin/chromium")},
+            )
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
     finally:
-        Path(temp_path).unlink(missing_ok=True)
+        if started is not None:
+            started.terminate()
+            try:
+                started.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                started.kill()
+                started.wait()
+            log_handle.close()
     try:
         result = json.loads(proc.stdout)
     except json.JSONDecodeError:

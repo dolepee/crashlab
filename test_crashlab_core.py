@@ -166,3 +166,26 @@ class ContractValidationTests(unittest.TestCase):
 
     def test_accepts_strict_contract(self):
         core.validate_contract(self.base())
+
+    def test_accepts_local_app_start_without_base_url(self):
+        value = self.base()
+        del value["app"]["base_url"]
+        value["app"]["start"] = {
+            "command": ["{PYTHON}", "server.py"],
+            "cwd": "{APP_DIR}",
+            "base_url": "http://127.0.0.1:{PORT}",
+            "setup": [{"method": "POST", "path": "/api/config", "json": {"ok": True}}],
+        }
+        core.validate_contract(value)
+
+    def test_requires_base_url_or_start(self):
+        value = self.base()
+        del value["app"]["base_url"]
+        with self.assertRaises(ValueError):
+            core.validate_contract(value)
+
+    def test_rejects_non_object_start(self):
+        value = self.base()
+        value["app"]["start"] = "python app.py"
+        with self.assertRaises(ValueError):
+            core.validate_contract(value)

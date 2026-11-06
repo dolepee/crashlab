@@ -10,11 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import socket
-import subprocess
 import sys
-import time
-import urllib.request
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
@@ -26,38 +22,7 @@ NAME = "CRASHLAB_KIST_ONE_INTENT"
 CONTROL = "CRASHLAB_KIST_TWO_INTENTS"
 
 
-def free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return sock.getsockname()[1]
-
-
-def wait_ready(base: str, proc: subprocess.Popen, log: Path) -> None:
-    deadline = time.monotonic() + 15
-    while time.monotonic() < deadline:
-        if proc.poll() is not None:
-            raise RuntimeError(f"Kist exited {proc.returncode}:\n{log.read_text()[-4000:]}")
-        try:
-            with urllib.request.urlopen(base + "/", timeout=0.25) as response:
-                if response.status == 200:
-                    return
-        except Exception:
-            time.sleep(0.1)
-    raise RuntimeError("Kist did not start within 15 seconds")
-
-
-def configure_app(base: str) -> None:
-    body = json.dumps({"modules": {}, "wizard_completed": True, "base_currency": "USD"}).encode()
-    request = urllib.request.Request(
-        base + "/api/app-config", data=body, method="POST",
-        headers={"Content-Type": "application/json"},
-    )
-    with urllib.request.urlopen(request, timeout=5) as response:
-        if response.status != 200:
-            raise RuntimeError(f"Kist app-config HTTP {response.status}")
-
-
-def contract_for(base: str, db: Path, shots: Path) -> dict:
+def contract_for(app: Path, python: str) -> dict:
     def goal_steps(prefix: str) -> list[dict]:
         return [
             {"action": "fill", "selector": "#gName", "value": prefix},
@@ -68,7 +33,19 @@ def contract_for(base: str, db: Path, shots: Path) -> dict:
 
     return {
         "id": "kist-one-intent",
-        "app": {"base_url": base},
+        "app": {
+            "start": {
+                "command": ["{PYTHON}", "server/app.py"],
+                "python": python,
+                "cwd": str(app),
+                "env": {"FINANCE_PROJECT_DIR": "{DATA_DIR}"},
+                "base_url": "http://127.0.0.1:{PORT}",
+                "health_path": "/",
+                "ready_timeout": 30,
+                "setup": [{"method": "POST", "path": "/api/app-config", "json": {
+                    "modules": {}, "wizard_completed": True, "base_currency": "USD"}}],
+            }
+        },
         "journey": [
             {"action": "goto", "path": "/#goals"},
             {"action": "wait_for_selector", "selector": "#gAdd"},
@@ -88,12 +65,12 @@ def contract_for(base: str, db: Path, shots: Path) -> dict:
         },
         "state": {
             "mode": "sqlite",
-            "db": str(db),
+            "db": "{DATA_DIR}/.finance/finance.db",
             "table": "goals",
             "where": f"name='{NAME}'",
             "expect": 1,
         },
-        "evidence": {"screenshot_dir": str(shots)},
+        "evidence": {"screenshot_dir": "{DATA_DIR}/shots"},
         "control": {
             "journey": [
                 {"action": "goto", "path": "/#goals"},
@@ -110,7 +87,7 @@ def contract_for(base: str, db: Path, shots: Path) -> dict:
             ],
             "state": {
                 "mode": "sqlite",
-                "db": str(db),
+                "db": "{DATA_DIR}/.finance/finance.db",
                 "table": "goals",
                 "where": f"name='{CONTROL}'",
                 "expect": 2,
@@ -131,57 +108,26 @@ def main() -> int:
 
     run = args.output.expanduser().resolve()
     run.mkdir(parents=True, exist_ok=True)
-    (run / "home").mkdir(exist_ok=True)
-    data = run / "data"
-    data.mkdir(exist_ok=True)
-    db = data / ".finance/finance.db"
-    base = f"http://127.0.0.1:{free_port()}"
-    env = {
-        "PATH": os.environ["PATH"],
-        "HOME": str(run / "home"),
-        "FINANCE_PROJECT_DIR": str(data),
-        "PORT": base.rsplit(":", 1)[1],
-        "PYTHONUNBUFFERED": "1",
-        "LANG": "C.UTF-8",
-        "TZ": "UTC",
-    }
-    log = (run / "server.log").open("w")
-    proc = subprocess.Popen(
-        [args.python, str(app / "server/app.py")],
-        cwd=app, env=env, stdout=log, stderr=subprocess.STDOUT,
-    )
     contract_path = run / "contract.json"
-    try:
-        wait_ready(base, proc, run / "server.log")
-        configure_app(base)
-        contract = contract_for(base, db, run / "shots")
-        contract_path.write_text(json.dumps(contract, indent=2) + "\n")
-        # Exercise the registered crashlab_run path, not just the core helper.
-        data_dir = run / "crashlab-data"
-        data_dir.mkdir(exist_ok=True)
-        os.environ["CRASHLAB_DATA_DIR"] = str(data_dir)
-        raw = plugin._handler("crashlab_run")({"contract_path": str(contract_path)})
-        result = json.loads(raw)
-        (run / "result.json").write_text(json.dumps(result, indent=2) + "\n")
-        summary = {
-            "run": str(run),
-            "ok": result.get("ok"),
-            "observed": result.get("observed"),
-            "expected": result.get("expected"),
-            "scenario": result.get("scenario"),
-            "control": result.get("control"),
-            "error": result.get("error"),
-        }
-        print(json.dumps(summary, indent=2))
-        return 0 if result.get("ok") else 1
-    finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            proc.kill()
-            proc.wait()
-        log.close()
+    contract = contract_for(app, args.python)
+    contract_path.write_text(json.dumps(contract, indent=2) + "\n")
+    data_dir = run / "crashlab-data"
+    data_dir.mkdir(exist_ok=True)
+    os.environ["CRASHLAB_DATA_DIR"] = str(data_dir)
+    raw = plugin._handler("crashlab_run")({"contract_path": str(contract_path)})
+    result = json.loads(raw)
+    (run / "result.json").write_text(json.dumps(result, indent=2) + "\n")
+    summary = {
+        "run": str(run),
+        "ok": result.get("ok"),
+        "observed": result.get("observed"),
+        "expected": result.get("expected"),
+        "scenario": result.get("scenario"),
+        "control": result.get("control"),
+        "error": result.get("error"),
+    }
+    print(json.dumps(summary, indent=2))
+    return 0 if result.get("ok") else 1
 
 
 if __name__ == "__main__":

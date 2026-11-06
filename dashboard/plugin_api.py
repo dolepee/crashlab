@@ -1,17 +1,24 @@
 """CrashLab backend routes for the Desktop evidence pane."""
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
 DATA = Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local" / "share" / "crashlab"))
+CASE_DIR = Path(os.environ.get("CRASHLAB_CASE_DIR", ROOT / "cases"))
 RUN_ID = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
+
+
+class RunRequest(BaseModel):
+    contract_path: str
 
 
 def _read(path: Path) -> dict:
@@ -70,9 +77,36 @@ async def run_detail(run_id: str) -> dict:
     return _read(path)
 
 
+def _case_paths() -> list[Path]:
+    paths = []
+    for directory in (ROOT / "contracts", CASE_DIR):
+        if directory.is_dir():
+            paths.extend(sorted(directory.glob("*.json")))
+    return paths
+
+
 @router.get("/contracts")
 async def contracts() -> dict:
     rows = []
-    for path in sorted((ROOT / "contracts").glob("*.json")):
-        rows.append({"id": path.stem, "path": str(path)})
+    for path in _case_paths():
+        try:
+            contract = json.loads(path.read_text(encoding="utf-8"))
+            rows.append({"id": contract.get("id", path.stem), "path": str(path),
+                         "source": "bundled" if path.is_relative_to(ROOT / "contracts") else "workspace"})
+        except (OSError, ValueError) as exc:
+            rows.append({"id": path.stem, "path": str(path), "error": str(exc)})
     return {"contracts": rows}
+
+
+@router.post("/run")
+async def run(request: RunRequest) -> dict:
+    """Start one saved case through the same core path as the agent tool."""
+    from crashlab_core import run_contract
+
+    allowed = {path.resolve() for path in _case_paths()}
+    path = Path(request.contract_path).expanduser().resolve()
+    if path not in allowed:
+        raise HTTPException(status_code=400, detail="contract must be in the case directory")
+    result = await asyncio.to_thread(run_contract, str(path))
+    from crashlab_core import persist_run
+    return persist_run(result)
