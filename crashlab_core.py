@@ -18,6 +18,21 @@ def _data_dir() -> Path:
     return Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local" / "share" / "crashlab"))
 
 
+def persist_run(result: dict) -> dict:
+    """Save one completed run outside the plugin directory for the Desktop pane."""
+    run_id = str(result.get("run_id") or f"run-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}")
+    result["run_id"] = run_id
+    data = _data_dir()
+    runs = data / "runs"
+    runs.mkdir(parents=True, exist_ok=True)
+    path = runs / f"{run_id}.json"
+    raw = json.dumps(result, indent=2, default=str) + "\n"
+    path.write_text(raw, encoding="utf-8")
+    (data / "latest-run.json").write_text(raw, encoding="utf-8")
+    result["evidence_path"] = str(path)
+    return result
+
+
 def _persist(result: dict) -> dict:
     """Save a completed comparison outside the plugin directory and expose its id."""
     run_id = str(result.get("run_id") or f"compare-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}")
@@ -71,7 +86,8 @@ def _validate_journey(journey: list, where: str) -> None:
         action = step.get("action")
         if action not in ("goto", "click", "fill", "check", "uncheck", "select_option",
                          "press", "wait_for_selector", "wait_for_text", "wait_for_url",
-                         "wait_for_timeout", "reload", "text", "screenshot"):
+                         "wait_for_function", "wait_for_load_state", "wait_for_timeout",
+                         "reload", "text", "screenshot"):
             raise ValueError(f"{name}.action is unsupported")
         if action in ("click", "fill", "check", "uncheck", "select_option", "press",
                       "wait_for_selector", "text"):
@@ -86,6 +102,10 @@ def _validate_journey(journey: list, where: str) -> None:
             raise ValueError(f"{name}.text is required")
         if action == "wait_for_url" and not isinstance(step.get("pattern"), str):
             raise ValueError(f"{name}.pattern must be a string")
+        if action == "wait_for_function" and not isinstance(step.get("expression"), str):
+            raise ValueError(f"{name}.expression must be a string")
+        if action == "wait_for_load_state" and step.get("state") not in ("load", "domcontentloaded", "networkidle"):
+            raise ValueError(f"{name}.state must be load, domcontentloaded or networkidle")
         if action == "wait_for_timeout":
             ms = step.get("ms")
             if type(ms) is not int or not 0 <= ms <= 60000:

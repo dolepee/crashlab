@@ -6,27 +6,6 @@
   "journey": [
     {
       "action": "goto",
-      "path": "/"
-    },
-    {
-      "action": "check",
-      "selector": "input[name=\"wzData\"][value=\"empty\"]"
-    },
-    {
-      "action": "select_option",
-      "selector": "#wzCur",
-      "value": "USD"
-    },
-    {
-      "action": "click",
-      "selector": "#wzFinish"
-    },
-    {
-      "action": "wait_for_timeout",
-      "ms": 4000
-    },
-    {
-      "action": "goto",
       "path": "/#goals"
     },
     {
@@ -58,8 +37,8 @@
       "selector": "#gAdd"
     },
     {
-      "action": "wait_for_timeout",
-      "ms": 500
+      "action": "wait_for_function",
+      "expression": "() => document.querySelector('#gName')?.value === 'CRASHLAB_KIST_ONE_INTENT'"
     },
     {
       "action": "screenshot",
@@ -70,8 +49,8 @@
       "selector": "#gAdd"
     },
     {
-      "action": "wait_for_timeout",
-      "ms": 1000
+      "action": "wait_for_function",
+      "expression": "() => Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_ONE_INTENT').length === 2"
     },
     {
       "action": "screenshot",
@@ -129,8 +108,15 @@
         "selector": "#gAdd"
       },
       {
-        "action": "wait_for_timeout",
-        "ms": 1000
+        "action": "wait_for_function",
+        "expression": "() => Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_TWO_INTENTS').length === 1"
+      },
+      {
+        "action": "reload"
+      },
+      {
+        "action": "wait_for_selector",
+        "selector": "#gAdd"
       },
       {
         "action": "fill",
@@ -157,8 +143,8 @@
         "selector": "#gAdd"
       },
       {
-        "action": "wait_for_timeout",
-        "ms": 1000
+        "action": "wait_for_function",
+        "expression": "() => Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_TWO_INTENTS').length === 2"
       },
       {
         "action": "screenshot",

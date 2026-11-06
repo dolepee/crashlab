@@ -65,7 +65,8 @@ def _handler(name: str):
             contract = core.load_contract(kwargs["contract_path"])
             return {"ok": True, "contract": contract}
         if name == "crashlab_run":
-            return core.run_contract(kwargs["contract_path"], base_url=kwargs.get("base_url"))
+            return core.persist_run(core.run_contract(
+                kwargs["contract_path"], base_url=kwargs.get("base_url")))
         if name == "crashlab_compare":
             return core.compare(kwargs["contract_path"], kwargs["buggy_url"], kwargs["fixed_url"])
         if name == "crashlab_list":

@@ -6,12 +6,21 @@ function verdict(value) {
   return value ? 'PASS' : 'FAIL'
 }
 
-function Run({ title, run }) {
-  const scenario = run?.scenario
+function Card({ title, children }) {
   return jsxs('div', {
     className: 'rounded-md border border-(--ui-stroke-secondary) p-3',
     children: [
       jsx('div', { className: 'text-xs font-medium', children: title }),
+      ...children
+    ]
+  })
+}
+
+function Run({ title, run }) {
+  const scenario = run?.scenario
+  return jsxs(Card, {
+    title,
+    children: [
       jsx('div', {
         className: 'mt-1 text-sm',
         children: `${verdict(run?.ok)} · ${run?.observed ?? '?'} observed / ${run?.expected ?? '?'} expected`
@@ -34,29 +43,61 @@ function Run({ title, run }) {
 
 function EvidencePane({ ctx }) {
   const [data, setData] = useState(null)
-  const [empty, setEmpty] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let alive = true
-    ctx.rest('/evidence')
-      .then((value) => {
-        const run = value?.run ?? value?.repair ?? null
-        if (!run || run.ok === false) {
-          if (alive) setEmpty(true)
-          return
-        }
-        if (alive) setData(run)
-      })
-      .catch((err) => {
-        if (alive) setError(String(err))
-      })
+    ctx.rest('/overview')
+      .then((value) => { if (alive) setData(value) })
+      .catch((err) => { if (alive) setError(String(err)) })
     return () => { alive = false }
   }, [ctx])
 
   if (error) return jsx('div', { className: 'p-3 text-sm text-(--ui-danger)', children: error })
-  if (empty) return jsx('div', { className: 'p-3 text-sm text-(--ui-text-tertiary)', children: 'No completed comparison yet. Run crashlab_compare first.' })
   if (!data) return jsx('div', { className: 'p-3 text-sm text-(--ui-text-tertiary)', children: 'Loading evidence…' })
+
+  const comparison = data.comparison
+  const latest = data.latest_run
+  const campaign = data.campaign
+  if (!comparison && !latest && !campaign) {
+    return jsx('div', {
+      className: 'p-3 text-sm text-(--ui-text-tertiary)',
+      children: 'No saved result yet. Run crashlab_run or crashlab_compare first.'
+    })
+  }
+
+  const items = []
+  if (latest) {
+    items.push(jsx(Run, {
+      key: 'latest',
+      title: latest.contract?.includes('kist') ? 'External Kist run' : 'Latest run',
+      run: latest
+    }))
+    if (latest.control) {
+      items.push(jsx(Run, { key: 'latest-control', title: 'Latest control', run: latest.control }))
+    }
+  }
+  if (comparison) {
+    items.push(jsx(Run, { key: 'buggy', title: 'Before repair', run: comparison.buggy }))
+    items.push(jsx(Run, { key: 'fixed', title: 'After repair', run: comparison.fixed }))
+  }
+  if (campaign) {
+    const counts = campaign.counts || {}
+    items.push(jsxs(Card, {
+      key: 'campaign',
+      title: 'Capacity campaign',
+      children: [
+        jsx('div', {
+          className: 'mt-1 text-sm',
+          children: `${campaign.status ?? '?'} · ${counts.PASS ?? 0} pass / ${counts.FAIL ?? 0} fail / ${counts.INVALID ?? 0} invalid`
+        }),
+        jsx('div', {
+          className: 'mt-1 text-xs text-(--ui-text-tertiary)',
+          children: campaign.campaign ? `case set: ${campaign.campaign}` : 'recorded campaign result'
+        })
+      ]
+    }))
+  }
 
   return jsxs('div', {
     className: 'flex h-full flex-col gap-3 overflow-auto p-3 text-sm',
@@ -64,18 +105,12 @@ function EvidencePane({ ctx }) {
       jsx('div', { className: 'font-medium', children: 'CrashLab evidence' }),
       jsx('div', {
         className: 'text-xs text-(--ui-text-tertiary)',
-        children: `contract: ${data.contract || 'none'} · overall: ${verdict(data.ok)}`
+        children: 'A pass requires a valid scenario, observed = expected, and a passing control.'
       }),
+      ...items,
       jsx('div', {
         className: 'text-xs text-(--ui-text-tertiary)',
-        children: `run: ${data.run_id || 'unknown'}`
-      }),
-      jsx(Run, { title: 'Buggy application', run: data.buggy }),
-      jsx(Run, { title: 'Repaired application', run: data.fixed }),
-      jsx(Run, { title: 'Control', run: data.fixed?.control }),
-      jsx('div', {
-        className: 'text-xs text-(--ui-text-tertiary)',
-        children: 'Records are read through the configured observer. A pass requires a valid scenario and observed = expected.'
+        children: 'Records are read through the configured observer; the app cannot write the verdict.'
       })
     ]
   })

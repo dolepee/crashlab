@@ -20,6 +20,7 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 import crashlab_core as core  # noqa: E402
+import plugin  # noqa: E402
 
 NAME = "CRASHLAB_KIST_ONE_INTENT"
 CONTROL = "CRASHLAB_KIST_TWO_INTENTS"
@@ -45,6 +46,17 @@ def wait_ready(base: str, proc: subprocess.Popen, log: Path) -> None:
     raise RuntimeError("Kist did not start within 15 seconds")
 
 
+def configure_app(base: str) -> None:
+    body = json.dumps({"modules": {}, "wizard_completed": True, "base_currency": "USD"}).encode()
+    request = urllib.request.Request(
+        base + "/api/app-config", data=body, method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=5) as response:
+        if response.status != 200:
+            raise RuntimeError(f"Kist app-config HTTP {response.status}")
+
+
 def contract_for(base: str, db: Path, shots: Path) -> dict:
     def goal_steps(prefix: str) -> list[dict]:
         return [
@@ -58,19 +70,14 @@ def contract_for(base: str, db: Path, shots: Path) -> dict:
         "id": "kist-one-intent",
         "app": {"base_url": base},
         "journey": [
-            {"action": "goto", "path": "/"},
-            {"action": "check", "selector": 'input[name="wzData"][value="empty"]'},
-            {"action": "select_option", "selector": "#wzCur", "value": "USD"},
-            {"action": "click", "selector": "#wzFinish"},
-            {"action": "wait_for_timeout", "ms": 4000},
             {"action": "goto", "path": "/#goals"},
             {"action": "wait_for_selector", "selector": "#gAdd"},
             *goal_steps(NAME),
             {"action": "click", "selector": "#gAdd"},
-            {"action": "wait_for_timeout", "ms": 500},
+            {"action": "wait_for_function", "expression": "() => document.querySelector('#gName')?.value === 'CRASHLAB_KIST_ONE_INTENT'"},
             {"action": "screenshot", "as": "lost-response"},
             {"action": "click", "selector": "#gAdd"},
-            {"action": "wait_for_timeout", "ms": 1000},
+            {"action": "wait_for_function", "expression": "() => Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_ONE_INTENT').length === 2"},
             {"action": "screenshot", "as": "after-retry"},
         ],
         "fault": {
@@ -93,10 +100,12 @@ def contract_for(base: str, db: Path, shots: Path) -> dict:
                 {"action": "wait_for_selector", "selector": "#gAdd"},
                 *goal_steps(CONTROL),
                 {"action": "click", "selector": "#gAdd"},
-                {"action": "wait_for_timeout", "ms": 1000},
+                {"action": "wait_for_function", "expression": "() => Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_TWO_INTENTS').length === 1"},
+                {"action": "reload"},
+                {"action": "wait_for_selector", "selector": "#gAdd"},
                 *goal_steps(CONTROL),
                 {"action": "click", "selector": "#gAdd"},
-                {"action": "wait_for_timeout", "ms": 1000},
+                {"action": "wait_for_function", "expression": "() => Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_TWO_INTENTS').length === 2"},
                 {"action": "screenshot", "as": "two-intents"},
             ],
             "state": {
@@ -144,9 +153,15 @@ def main() -> int:
     contract_path = run / "contract.json"
     try:
         wait_ready(base, proc, run / "server.log")
+        configure_app(base)
         contract = contract_for(base, db, run / "shots")
         contract_path.write_text(json.dumps(contract, indent=2) + "\n")
-        result = core.run_contract(contract_path, timeout=180)
+        # Exercise the registered crashlab_run path, not just the core helper.
+        data_dir = run / "crashlab-data"
+        data_dir.mkdir(exist_ok=True)
+        os.environ["CRASHLAB_DATA_DIR"] = str(data_dir)
+        raw = plugin._handler("crashlab_run")({"contract_path": str(contract_path)})
+        result = json.loads(raw)
         (run / "result.json").write_text(json.dumps(result, indent=2) + "\n")
         summary = {
             "run": str(run),

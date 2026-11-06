@@ -29,9 +29,9 @@ screenshots are `buggy-before-retry.png`, `buggy-after-retry.png`,
   deliberate goals, including two goals with the same name and fields.
 - Kist stores savings-goal records. This is not a duplicate payment or a money
   movement test.
-- The browser run used Chromium 155 headless in this environment. The original
-  Kist browser script needed a wait for the setup wizard's reload before
-  navigating to `#goals`; the runner here does that.
+- The browser run used Chromium 155 headless in this environment. Kist is
+  configured through `/api/app-config` so the run starts directly in Goals;
+  the contract waits on observable conditions rather than fixed sleeps.
 
 ## Prerequisites
 
@@ -50,10 +50,12 @@ python external/kist/run_kist.py \
   --output /tmp/kist-run
 ```
 
-The script starts Kist with an isolated `FINANCE_PROJECT_DIR`, writes the
-contract into the run directory, invokes CrashLab's browser runner through
-`crashlab_core.run_contract`, and prints the result. A fresh data directory is
-required for each run; Kist has no CrashLab-specific reset endpoint.
+The script starts Kist with an isolated `FINANCE_PROJECT_DIR`, completes the
+app configuration through `/api/app-config`, writes the contract into the run
+directory, invokes the registered `crashlab_run` path, and prints the result.
+The run is also persisted as `latest-run.json` for the Desktop pane. A fresh
+data directory is required for each run; Kist has no CrashLab-specific reset
+endpoint.
 
 To apply the Hermes repair to a separate copy:
 

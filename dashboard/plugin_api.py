@@ -22,6 +22,20 @@ def _read(path: Path) -> dict:
     return value if isinstance(value, dict) else {"ok": False, "error": "evidence is not an object"}
 
 
+@router.get("/overview")
+async def overview() -> dict:
+    """Compact status for the Desktop pane; reads saved evidence only."""
+    comparison = _read(DATA / "latest.json") if (DATA / "latest.json").exists() else None
+    latest_run = _read(DATA / "latest-run.json") if (DATA / "latest-run.json").exists() else None
+    campaign = _read(DATA / "campaign-latest.json") if (DATA / "campaign-latest.json").exists() else None
+    return {
+        "ok": True,
+        "comparison": comparison,
+        "latest_run": latest_run,
+        "campaign": campaign,
+    }
+
+
 @router.get("/evidence")
 async def evidence() -> dict:
     path = DATA / "latest.json"

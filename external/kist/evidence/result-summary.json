@@ -20,32 +20,32 @@
     },
     "records": [
       {
-        "id": "358f34ab-8a30-402e-bd43-2652bf49cee0",
+        "id": "ae54c002-03fb-4f16-bd83-51c425218d96",
         "name": "CRASHLAB_KIST_ONE_INTENT",
         "target_amount": 1000,
         "current_amount": 100,
         "target_date": null,
         "currency": "PLN",
         "status": "active",
-        "created_at": "2026-11-06T20:02:53",
-        "updated_at": "2026-11-06T20:02:53"
+        "created_at": "2026-11-06T21:23:00",
+        "updated_at": "2026-11-06T21:23:00"
       },
       {
-        "id": "0ee2036c-a05b-42d6-8621-51be433a0b2a",
+        "id": "a1cd4a5a-c14b-44b2-870e-0b1930f186cc",
         "name": "CRASHLAB_KIST_ONE_INTENT",
         "target_amount": 1000,
         "current_amount": 100,
         "target_date": null,
         "currency": "PLN",
         "status": "active",
-        "created_at": "2026-11-06T20:02:54",
-        "updated_at": "2026-11-06T20:02:54"
+        "created_at": "2026-11-06T21:23:00",
+        "updated_at": "2026-11-06T21:23:00"
       }
     ],
     "screenshots": [
-      "kist-one-intent-2026-11-06T20-02-47-642Z-lost-response.png",
-      "kist-one-intent-2026-11-06T20-02-47-642Z-after-retry.png",
-      "kist-one-intent-2026-11-06T20-02-47-642Z-two-intents.png"
+      "kist-one-intent-2026-11-06T21-23-00-012Z-lost-response.png",
+      "kist-one-intent-2026-11-06T21-23-00-012Z-after-retry.png",
+      "kist-one-intent-2026-11-06T21-23-00-012Z-two-intents.png"
     ]
   },
   "after": {
@@ -65,23 +65,23 @@
     },
     "records": [
       {
-        "id": "b00d9bd1-ba47-4d69-99a3-a76fedbee97e",
+        "id": "f8278715-2e1a-492c-af9a-c7e6245dd6b0",
         "name": "CRASHLAB_KIST_ONE_INTENT",
         "target_amount": 1000,
         "current_amount": 100,
         "target_date": null,
         "currency": "PLN",
         "status": "active",
-        "created_at": "2026-11-06T20:06:50",
-        "updated_at": "2026-11-06T20:06:50",
-        "intent_key": "80d1527d-6f7e-4798-96e2-f53e8ab1c00e"
+        "created_at": "2026-11-06T21:22:51",
+        "updated_at": "2026-11-06T21:22:51",
+        "intent_key": "b4546575-e55a-4bc8-b680-ddda42e13c85"
       }
     ],
     "screenshots": [
-      "kist-one-intent-2026-11-06T20-06-44-573Z-lost-response.png",
-      "kist-one-intent-2026-11-06T20-06-44-573Z-after-retry.png",
-      "kist-one-intent-2026-11-06T20-06-44-573Z-two-intents.png"
+      "kist-one-intent-2026-11-06T21-22-51-350Z-lost-response.png",
+      "kist-one-intent-2026-11-06T21-22-51-350Z-after-retry.png",
+      "kist-one-intent-2026-11-06T21-22-51-350Z-two-intents.png"
     ]
   },
-  "note": "Both runs are separate fresh app databases. The before app is unmodified upstream; the after app is the same upstream plus repair.patch applied by a Hermes one-shot agent. The contract was unchanged."
+  "note": "Fresh app databases. Before is unmodified upstream; after is the same upstream plus repair.patch applied by a Hermes one-shot agent. The contract is unchanged. Wizard-free setup uses /api/app-config and observable waits."
 }
