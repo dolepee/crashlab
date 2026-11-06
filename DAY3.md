@@ -56,8 +56,7 @@ Evidence:
 
 ## What it does not prove
 
-- There is no native Desktop evidence viewer yet; the report is HTML.
-- The second application is not wired in.
+- The Desktop evidence pane and the second fixture did not exist when this run was recorded; both were added on Day 4.
 - The plugin still needs a local Chromium and `playwright-core`.
 - The fixture app is intentionally small and intentionally buggy.
 - The agent's repair is one known defect, not a general repair guarantee.

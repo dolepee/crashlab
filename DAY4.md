@@ -33,11 +33,17 @@ display. It rendered:
 
 Screenshot: `docs/desktop-pane.png`.
 
+## Demo
+
+An 88-second terminal replay was generated from the real runs and the Desktop
+screenshot. It is explicitly labelled as a replay, not a live capture.
+File: `demo/crashlab-demo.mp4` (kept out of git).
+
 ## Packaging
 
-The public staging repository is:
+The final repository is:
 
-https://github.com/julian-saint-work/crashlab
+https://github.com/dolepee/crashlab
 
 The clean checkout passes `hermes plugins validate`:
 
@@ -47,5 +53,4 @@ The clean checkout passes `hermes plugins validate`:
 - no core override
 - desktop surface: inside the SDK
 
-The repo is a staging repo, not the final submission identity. The catalog PR
-must come from `dolepee`.
+The repository is owned by `dolepee`; the catalog PR must come from that account.

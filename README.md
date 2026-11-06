@@ -44,7 +44,7 @@ The booking fixture reproduced the same pattern:
 - Fixed: 1 booking; expected 1; pass.
 - Control: 2 distinct bookings; 2 bookings; pass.
 
-See `DAY2.md` and `DAY3.md` for the runs, and `docs/repair-report.png` and `docs/booking-report.png` for the rendered evidence. The checked-in HTML/PNG evidence is
+See `DAY2.md`, `DAY3.md` and `DAY4.md` for the runs, and `docs/repair-report.png` and `docs/booking-report.png` for the rendered evidence. The checked-in HTML/PNG evidence is
 outside the plugin runtime; generated evidence is ignored by git.
 
 ## Install
@@ -115,6 +115,13 @@ A contract has:
 
 The runner exits non-zero when the primary or control assertion fails. A failed
 check is evidence, not a pass.
+
+## Demo
+
+`demo/crashlab-demo.mp4` is an 88-second terminal replay built from the real
+buggy run, the Hermes repair summary and the repaired run. It is a replay, not
+a live screen capture; the opening frame says so. The source is in
+`demo/index.html`; `demo/record_demo.js` records it with Playwright.
 
 ## Scope and limitations
 

@@ -7,3 +7,8 @@ __pycache__/
 
 .hermes/
 .local/
+.cache/
+.npm/
+demo/raw/
+demo/*.mp4
+demo/*.webm

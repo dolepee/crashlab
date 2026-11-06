@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CrashLab demo</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --line:#30363d; --fg:#e6edf3; --muted:#8b949e; --green:#3fb950; --red:#f85149; --blue:#58a6ff; --yellow:#d29922; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; width:1280px; height:720px; overflow:hidden; background:var(--bg); color:var(--fg); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .screen { width:1280px; height:720px; position:relative; overflow:hidden; }
+  .bar { height:44px; background:#010409; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:10px; padding:0 18px; color:var(--muted); font-size:14px; }
+  .dot { width:10px; height:10px; border-radius:50%; background:#30363d; }
+  .dot.red { background:#ff5f56; } .dot.yellow { background:#ffbd2e; } .dot.green { background:#27c93f; }
+  .body { padding:34px 46px; height:calc(720px - 44px); display:flex; flex-direction:column; }
+  h1 { font-family: ui-sans-serif, system-ui, sans-serif; font-size:54px; line-height:1.05; letter-spacing:-0.03em; margin:0 0 12px; }
+  .sub { font-family: ui-sans-serif, system-ui, sans-serif; font-size:21px; color:var(--muted); margin:0 0 28px; }
+  .kicker { color:var(--blue); font-size:14px; letter-spacing:0.14em; text-transform:uppercase; margin-bottom:18px; }
+  .big { font-size:34px; color:var(--fg); margin:10px 0; }
+  .accent { color:var(--yellow); }
+  .green { color:var(--green); } .red { color:var(--red); } .blue { color:var(--blue); } .muted { color:var(--muted); }
+  pre { margin:0; white-space:pre-wrap; font-size:18px; line-height:1.55; }
+  .term { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px 22px; min-height:250px; }
+  .prompt { color:var(--green); }
+  .cmd { color:var(--fg); }
+  .line { opacity:0; transform:translateY(3px); animation:show .18s forwards; }
+  @keyframes show { to { opacity:1; transform:none; } }
+  .stamp { position:absolute; right:24px; bottom:18px; color:#6e7681; font-size:12px; }
+  .scene { position:absolute; inset:44px 0 0; padding:34px 46px; opacity:0; }
+  .scene.on { opacity:1; }
+  .scene h2 { font-family: ui-sans-serif, system-ui, sans-serif; font-size:34px; margin:0 0 6px; }
+  .scene .small { color:var(--muted); font-size:15px; margin-bottom:20px; }
+  .shot { width:100%; height:520px; object-fit:contain; border:1px solid var(--line); border-radius:8px; background:#fff; }
+  .badge { display:inline-block; padding:3px 9px; border-radius:999px; font-size:12px; border:1px solid var(--line); color:var(--muted); margin-right:6px; }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="bar"><span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span><span style="margin-left:8px">CrashLab — evidence replay</span><span style="margin-left:auto">Hermes plugin</span></div>
+
+  <section class="scene on" id="s0" style="padding-top:92px">
+    <div class="kicker">CrashLab</div>
+    <h1>One intent.<br>Two orders.</h1>
+    <div class="sub">A lost response hides a duplicate write. CrashLab makes the state prove it.</div>
+    <div class="big muted">Contract → fault → persisted state → repair → same contract.</div>
+    <div class="stamp">Real runs. Terminal replay, not a live screen capture.</div>
+  </section>
+
+  <section class="scene" id="s1">
+    <div class="kicker">01 — reproduce</div>
+    <h2>The page says it failed. The database says it didn’t.</h2>
+    <div class="small">The response is dropped after the server has committed. The browser retries.</div>
+    <div class="term"><pre id="t1"></pre></div>
+    <div class="stamp">buggy checkout — real run</div>
+  </section>
+
+  <section class="scene" id="s2">
+    <div class="kicker">02 — repair</div>
+    <h2>Hermes edits the app, not the test.</h2>
+    <div class="small">Only <span class="blue">app.py</span> changes. The contract stays byte-for-byte unchanged.</div>
+    <div class="term"><pre id="t2"></pre></div>
+    <div class="stamp">Hermes Agent repair — summary of the real edit</div>
+  </section>
+
+  <section class="scene" id="s3">
+    <div class="kicker">03 — prove</div>
+    <h2>Same contract. One order.</h2>
+    <div class="small">The control also passes: two genuinely distinct purchases still create two orders.</div>
+    <div class="term"><pre id="t3"></pre></div>
+    <div class="stamp">repaired checkout — real run</div>
+  </section>
+
+  <section class="scene" id="s4">
+    <div class="kicker">04 — inspect</div>
+    <h2>The evidence is in the app.</h2>
+    <div class="small">Hermes Desktop pane → scoped backend → saved run.</div>
+    <img class="shot" src="../docs/desktop-pane.png" alt="CrashLab Desktop pane">
+    <div class="stamp">actual Desktop pane — saved evidence</div>
+  </section>
+
+  <section class="scene" id="s5" style="padding-top:100px">
+    <div class="kicker">CrashLab</div>
+    <h1 style="font-size:44px">A failure is not<br>a banner.</h1>
+    <div class="sub">It is the state left behind. And a repair is only real when the same test still passes.</div>
+    <div class="big"><span class="green">2 → 1</span> <span class="muted">·</span> control <span class="green">2</span></div>
+    <div class="stamp">Two fixtures. One failure class. Working vertical slice.</div>
+  </section>
+</div>
+
+<script>
+const scenes = ['s0','s1','s2','s3','s4','s5'];
+const times = [0, 8000, 23000, 42000, 59000, 73000];
+function show(i){ scenes.forEach((id,j)=>document.getElementById(id).classList.toggle('on', j===i)); }
+function typeline(id, text, delay, cls='') {
+  const pre = document.getElementById(id);
+  const div = document.createElement('div');
+  div.className = 'line ' + cls;
+  div.textContent = text;
+  div.style.animationDelay = delay + 'ms';
+  pre.appendChild(div);
+}
+const t1 = [
+  ['$ node crashlab_runner.js contracts/checkout-lost-response.json', 'prompt'],
+  ['', ''],
+  ['{', 'muted'],
+  ['  "contract": "checkout-lost-response",', ''],
+  ['  "ok": false,', 'red'],
+  ['  "expected": 1,', ''],
+  ['  "observed": 2,', 'red'],
+  ['  "observations": {', ''],
+  ['    "first_message": "Could not confirm the order. Try again",', ''],
+  ['    "second_message": "Order confirmed: #6"', ''],
+  ['  }', ''],
+  ['}', 'muted'],
+  ['', ''],
+  ['# two persisted orders for one intent', 'accent'],
+];
+const t2 = [
+  ['$ # Hermes receives the contract, the failure and app.py', 'prompt'],
+  ['', ''],
+  ['Changed: app.py only', 'green'],
+  ['  + create_order(intent_key, item)', ''],
+  ['  + BEGIN IMMEDIATE before lookup', ''],
+  ['  + return existing order on retry', ''],
+  ['  + partial unique index on non-empty intent_key', ''],
+  ['', ''],
+  ['Guarantee:', 'muted'],
+  ['  one non-empty intent_key → one persisted order', 'green'],
+  ['', ''],
+  ['The contract file was not edited.', 'accent'],
+];
+const t3 = [
+  ['$ node crashlab_runner.js /tmp/checkout-fixed.json', 'prompt'],
+  ['', ''],
+  ['{', 'muted'],
+  ['  "contract": "checkout-lost-response",', ''],
+  ['  "ok": true,', 'green'],
+  ['  "expected": 1,', ''],
+  ['  "observed": 1,', 'green'],
+  ['  "control": { "observed": 2, "expected": 2, "ok": true }', 'green'],
+  ['}', 'muted'],
+  ['', ''],
+  ['# fresh server. same contract. control still succeeds.', 'accent'],
+];
+setTimeout(()=>show(1), times[1]);
+t1.forEach(([text,cls],i)=>typeline('t1',text,times[1]+300+i*380,cls));
+setTimeout(()=>show(2), times[2]);
+t2.forEach(([text,cls],i)=>typeline('t2',text,times[2]+300+i*500,cls));
+setTimeout(()=>show(3), times[3]);
+t3.forEach(([text,cls],i)=>typeline('t3',text,times[3]+300+i*500,cls));
+setTimeout(()=>show(4), times[4]);
+setTimeout(()=>show(5), times[5]);
+</script>
+</body>
+</html>
