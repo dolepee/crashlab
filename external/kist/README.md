@@ -83,6 +83,8 @@ node external/kist/record_session.js \
 
 The script starts each app with an isolated data directory, writes
 `/api/app-config`, suppresses the first POST response in **both** runs, and
-records Chromium video. The before run resolves to two goal cards; the repaired
-run resolves to one and a cleared form. The fixed waits in this recording
-script are for readable pacing; the contract run uses observable conditions.
+records Chromium video. It clicks Add once, waits for that response to be
+dropped, then clicks the retry once. The before run resolves to two goal cards;
+the repaired run resolves to one and a cleared form. The fixed waits in this
+recording script are for readable pacing; the contract run uses observable
+conditions.

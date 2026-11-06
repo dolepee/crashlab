@@ -102,7 +102,6 @@ async function record(app, output, suppress) {
     await page.locator('#gMonthly').fill('50')
     await page.waitForTimeout(700)
     await page.locator('#gAdd').click()
-    await page.locator('#gAdd').click()
     await Promise.race([
       globalThis.__dropped,
       new Promise((_, reject) => setTimeout(() => reject(new Error('first response was not dropped')), 10000)),
