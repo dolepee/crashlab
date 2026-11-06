@@ -96,6 +96,10 @@ function nowId() {
         );
       } else if (step.action === 'wait_for_url') {
         await page.waitForURL(step.pattern, { timeout: step.timeout || 10000 });
+      } else if (step.action === 'wait_for_function') {
+        await page.waitForFunction(step.expression, { timeout: step.timeout || 10000 });
+      } else if (step.action === 'wait_for_load_state') {
+        await page.waitForLoadState(step.state, { timeout: step.timeout || 10000 });
       } else if (step.action === 'wait_for_timeout') {
         await page.waitForTimeout(step.ms);
       } else if (step.action === 'reload') {
