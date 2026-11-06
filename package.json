@@ -1,0 +1,14 @@
+{
+  "name": "hermes-crashlab",
+  "version": "0.1.0",
+  "description": "Hermes plugin for reproducing lost-response duplicate writes and verifying repairs against persisted state.",
+  "scripts": {
+    "test": "node test_lost_response.js"
+  },
+  "author": "Iyanda Abdulqodir Adedolapo",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "playwright-core": "^1.65.0"
+  }
+}

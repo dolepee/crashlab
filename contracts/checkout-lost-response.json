@@ -1,0 +1,92 @@
+{
+  "id": "checkout-lost-response",
+  "app": {
+    "base_url": "http://127.0.0.1:8765",
+    "reset_url": "/reset"
+  },
+  "journey": [
+    {
+      "action": "goto",
+      "path": "/"
+    },
+    {
+      "action": "click",
+      "selector": "#buy"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "#retry"
+    },
+    {
+      "action": "text",
+      "selector": "#status",
+      "as": "first_message"
+    },
+    {
+      "action": "screenshot",
+      "as": "failure"
+    },
+    {
+      "action": "click",
+      "selector": "#retry"
+    },
+    {
+      "action": "wait_for_text",
+      "text": "Order confirmed"
+    },
+    {
+      "action": "text",
+      "selector": "#status",
+      "as": "second_message"
+    },
+    {
+      "action": "screenshot",
+      "as": "after_retry"
+    }
+  ],
+  "fault": {
+    "route": "**/order",
+    "mode": "suppress_after_upstream",
+    "occurrence": 1
+  },
+  "state": {
+    "url": "/state",
+    "path": "orders",
+    "expect": 1
+  },
+  "evidence": {
+    "screenshot_dir": "evidence"
+  },
+  "control": {
+    "journey": [
+      {
+        "action": "goto",
+        "path": "/"
+      },
+      {
+        "action": "click",
+        "selector": "#buy"
+      },
+      {
+        "action": "wait_for_text",
+        "text": "Order confirmed"
+      },
+      {
+        "action": "reload"
+      },
+      {
+        "action": "click",
+        "selector": "#buy"
+      },
+      {
+        "action": "wait_for_text",
+        "text": "Order confirmed"
+      }
+    ],
+    "state": {
+      "url": "/state",
+      "path": "orders",
+      "expect": 2
+    }
+  }
+}

@@ -1,0 +1,17 @@
+name: crashlab
+label: CrashLab
+kind: standalone
+manifest_version: 1
+version: 0.1.0
+description: >
+  Run a saved browser journey, suppress a response after the server has
+  committed, inspect the persisted records, and compare the same case against
+  a buggy and a repaired application. A failed check is evidence, not a pass.
+author: Iyanda Abdulqodir Adedolapo
+license: MIT
+requires_hermes: ">=0.21.5"
+provides_tools:
+  - crashlab_validate
+  - crashlab_run
+  - crashlab_compare
+  - crashlab_list

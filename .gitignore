@@ -1,0 +1,9 @@
+
+.config/
+node_modules/
+data/
+evidence/
+__pycache__/
+
+.hermes/
+.local/
