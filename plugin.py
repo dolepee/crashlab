@@ -1,6 +1,8 @@
 """CrashLab — Hermes testing workbench."""
 from __future__ import annotations
 
+import json
+
 try:
     from . import crashlab_core as core
 except ImportError:
@@ -53,7 +55,7 @@ TOOL_SCHEMAS = [
 
 
 def _handler(name: str):
-    def call(**kwargs):
+    def invoke(kwargs):
         if name == "crashlab_validate":
             contract = core.load_contract(kwargs["contract_path"])
             return {"ok": True, "contract": contract}
@@ -64,6 +66,8 @@ def _handler(name: str):
         if name == "crashlab_list":
             return {"contracts": core.list_contracts()}
         raise ValueError(f"unknown CrashLab tool: {name}")
+    def call(args):
+        return json.dumps(invoke(args))
     return call
 
 

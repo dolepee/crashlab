@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import subprocess
 import tempfile
@@ -67,6 +68,29 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
     return result
 
 
+def _completed_assertion(run: dict, *, passed: bool) -> bool:
+    """Require measured state, not an infrastructure error or a status flag alone."""
+    if run.get("error") or run.get("returncode") != (0 if passed else 1):
+        return False
+    if run.get("ok") is not passed:
+        return False
+    counts = (run.get("observed"), run.get("expected"))
+    if not all(type(value) in (int, float) and math.isfinite(value) and value >= 0
+               for value in counts):
+        return False
+    if (counts[0] == counts[1]) is not passed:
+        return False
+    control = run.get("control")
+    if control is not None:
+        if not isinstance(control, dict) or control.get("ok") is not True:
+            return False
+        counts = (control.get("observed"), control.get("expected"))
+        if not all(type(value) in (int, float) and math.isfinite(value) and value >= 0
+                   for value in counts) or counts[0] != counts[1]:
+            return False
+    return True
+
+
 def compare(contract_path: str | Path, buggy_url: str, fixed_url: str,
             timeout: int = 120) -> dict:
     buggy = run_contract(contract_path, base_url=buggy_url, timeout=timeout)
@@ -75,7 +99,7 @@ def compare(contract_path: str | Path, buggy_url: str, fixed_url: str,
         "contract": buggy.get("contract"),
         "buggy": buggy,
         "fixed": fixed,
-        "ok": (not buggy.get("ok")) and bool(fixed.get("ok")),
+        "ok": _completed_assertion(buggy, passed=False) and _completed_assertion(fixed, passed=True),
     }
 
 
