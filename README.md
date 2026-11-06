@@ -119,8 +119,8 @@ check is evidence, not a pass.
 ## Scope and limitations
 
 - Two local fixtures only; no external application has been integrated yet.
-- The Desktop pane is validated statically; it has not been launched inside the
-  packaged Electron app in this environment.
+- The Desktop pane has been launched in the Hermes Desktop app against the saved
+  run. See `docs/desktop-pane.png`.
 - The runner requires a local Chromium and `playwright-core`.
 - The fault is a suppressed response after commit; this is not a general chaos
   testing engine.
