@@ -9,7 +9,7 @@ description: >
   a buggy and a repaired application. A failed check is evidence, not a pass.
 author: Iyanda Abdulqodir Adedolapo
 license: MIT
-requires_hermes: ">=0.21.5"
+requires_hermes: ">=0.23.0"
 provides_tools:
   - crashlab_validate
   - crashlab_run
