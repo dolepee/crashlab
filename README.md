@@ -34,9 +34,10 @@ repair did not simply block legitimate later purchases.
 - `contracts/checkout-lost-response.json` — checkout fixture.
 - `contracts/booking-lost-response.json` — booking fixture.
 - `server.py` and `booking.py` — the two deliberately buggy fixture apps.
-- `desktop/plugin.js` — a native Hermes Desktop pane that displays saved
-  evidence through `ctx.rest`.
-- `dashboard/plugin_api.py` — the pane's evidence endpoint.
+- `desktop/plugin.js` — a native Hermes Desktop pane that displays the latest
+  run, the comparison and campaign evidence through `ctx.rest`.
+- `dashboard/plugin_api.py` — the pane's `/overview`, `/latest` and `/evidence`
+  endpoints. `crashlab_run` persists `latest-run.json` for this view.
 
 ## Evidence from the development run
 
@@ -139,6 +140,11 @@ a live screen capture; the opening frame says so. The source is in
 unmodified before run, the frozen contract, the Hermes patch and the repaired
 run. Its source is `demo/kist.html`; `demo/record_kist.js` records it.
 
+`demo/crashlab-kist-live.mp4` is a 26.5-second **live browser recording**, not
+an evidence replay. It shows the unmodified Kist checkout creating a second
+goal after a dropped response, then the same intent against the Hermes-repaired
+checkout creating one. The recorder is `external/kist/record_session.js`.
+
 ## External application example
 
 The `external/kist` directory contains a browser contract against an
@@ -152,9 +158,11 @@ before run as repaired or the patch as a general autonomous repair.
 
 ## Scope and limitations
 
-- Two local fixtures only; no external application has been integrated yet.
-- The Desktop pane has been launched in the Hermes Desktop app against the saved
-  run. See `docs/desktop-pane.png`.
+- Two local fixtures plus the external Kist example; Kist is one app and one
+  Hermes one-shot repair, not proof of broad compatibility.
+- The Desktop pane was launched in Hermes Desktop for the earlier evidence view
+  in `docs/desktop-pane.png`; the newest run/comparison view is wired to the
+  persisted run but has not been visually recaptured.
 - The runner requires a local Chromium and `playwright-core`.
 - The fault is a suppressed response after commit; this is not a general chaos
   testing engine. `mode: "http"` is app-supplied and cannot prove the app did not
