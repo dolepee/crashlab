@@ -135,6 +135,10 @@ buggy run, the Hermes repair summary and the repaired run. It is a replay, not
 a live screen capture; the opening frame says so. The source is in
 `demo/index.html`; `demo/record_demo.js` records it with Playwright.
 
+`demo/kist-demo.mp4` is an 88-second replay of the external Kist run: the
+unmodified before run, the frozen contract, the Hermes patch and the repaired
+run. Its source is `demo/kist.html`; `demo/record_kist.js` records it.
+
 ## External application example
 
 The `external/kist` directory contains a browser contract against an
