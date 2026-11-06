@@ -86,7 +86,10 @@
   </section>
 </div>
 
+<script src="./data.js"></script>
 <script>
+const D = window.CRASHLAB_DATA;
+if (!D || !D.buggy || !D.fixed) throw new Error("demo data.js missing");
 const scenes = ['s0','s1','s2','s3','s4','s5'];
 const times = [0, 8000, 23000, 42000, 59000, 73000];
 function show(i){ scenes.forEach((id,j)=>document.getElementById(id).classList.toggle('on', j===i)); }
@@ -104,11 +107,11 @@ const t1 = [
   ['{', 'muted'],
   ['  "contract": "checkout-lost-response",', ''],
   ['  "ok": false,', 'red'],
-  ['  "expected": 1,', ''],
-  ['  "observed": 2,', 'red'],
+  ['  "expected": ' + D.buggy.expected + ',', ''],
+  ['  "observed": ' + D.buggy.observed + ',', 'red'],
   ['  "observations": {', ''],
-  ['    "first_message": "Could not confirm the order. Try again",', ''],
-  ['    "second_message": "Order confirmed: #6"', ''],
+  ['    "first_message": ' + JSON.stringify(D.buggy.observations.first_message) + ',', ''],
+  ['    "second_message": ' + JSON.stringify(D.buggy.observations.second_message) + '', ''],
   ['  }', ''],
   ['}', 'muted'],
   ['', ''],
@@ -129,14 +132,16 @@ const t2 = [
   ['The contract file was not edited.', 'accent'],
 ];
 const t3 = [
-  ['$ node crashlab_runner.js /tmp/checkout-fixed.json', 'prompt'],
+  ['$ node crashlab_runner.js contracts/checkout-lost-response.json --base-url http://127.0.0.1:8766', 'prompt'],
   ['', ''],
   ['{', 'muted'],
   ['  "contract": "checkout-lost-response",', ''],
-  ['  "ok": true,', 'green'],
-  ['  "expected": 1,', ''],
-  ['  "observed": 1,', 'green'],
-  ['  "control": { "observed": 2, "expected": 2, "ok": true }', 'green'],
+  ['  "ok": ' + D.fixed.ok + ',', 'green'],
+  ['  "expected": ' + D.fixed.expected + ',', ''],
+  ['  "observed": ' + D.fixed.observed + ',', 'green'],
+  ['  "control": { "observed": ' + D.control.observed + ', "expected": ' + D.control.expected + ', "ok": ' + D.control.ok + ' }', 'green'],
+  ['', ''],
+  ['  "scenario": { "valid": ' + D.fixed.scenario.valid + ', "upstream": ' + D.fixed.scenario.upstream_status + ', "committed": ' + D.fixed.scenario.committed_after_fault + ' }', 'green'],
   ['}', 'muted'],
   ['', ''],
   ['# fresh server. same contract. control still succeeds.', 'accent'],

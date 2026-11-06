@@ -1,0 +1,52 @@
+{
+  "contract": "checkout-lost-response",
+  "run_id": "checkout-lost-response-2026-11-06T17-33-18-448Z",
+  "base_url": "http://127.0.0.1:8776",
+  "ok": true,
+  "expected": 1,
+  "observed": 1,
+  "observations": {
+    "first_message": "Could not confirm the order. Try again",
+    "second_message": "Order confirmed: #21"
+  },
+  "upstream_status": 200,
+  "scenario": {
+    "matched": true,
+    "upstream_status": 200,
+    "committed_after_fault": 1,
+    "valid": true
+  },
+  "screenshots": [
+    "/workspace/hermes-crashlab/evidence/checkout-lost-response-2026-11-06T17-33-18-448Z-failure.png",
+    "/workspace/hermes-crashlab/evidence/checkout-lost-response-2026-11-06T17-33-18-448Z-after_retry.png"
+  ],
+  "records": [
+    {
+      "id": 21,
+      "intent_key": "1b6e7ed5-1eb4-465f-af42-fd90273d439d",
+      "item": "CrashLab Test Widget",
+      "created_at": "2026-11-06 17:33:18"
+    }
+  ],
+  "control": {
+    "observed": 2,
+    "expected": 2,
+    "records": [
+      {
+        "id": 23,
+        "intent_key": "306b7a8d-fa18-4f28-904e-158bed422e56",
+        "item": "CrashLab Test Widget",
+        "created_at": "2026-11-06 17:33:19"
+      },
+      {
+        "id": 22,
+        "intent_key": "cb073382-a4e4-41a7-985d-444ade1fb819",
+        "item": "CrashLab Test Widget",
+        "created_at": "2026-11-06 17:33:19"
+      }
+    ],
+    "observer": "sqlite",
+    "db": "/tmp/crashlab-repair/data/orders-8776.db",
+    "ok": true
+  }
+}

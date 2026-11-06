@@ -1,0 +1,26 @@
+⚠ install out of sync (ffmpeg: not installed or outdated; node: not installed or outdated; npm: not installed or outdated; ripgrep: not installed or outdated) — this unknown-managed install must rebuild the artifact to fix
+Repaired and verified.
+
+Baseline on 8775 (before edit)
+  ok: false, expected 1, observed 2 — both orders shared the same intent_key (ids 1 and 2), confirming the retry inserted a duplicate.
+
+Change in /tmp/crashlab-repair/app.py (only file touched)
+  - `create_order(intent_key, item)` runs `BEGIN IMMEDIATE`, looks up an existing row by non-empty intent_key, returns `(id, False)` if found, otherwise inserts and returns `(id, True)`. The write lock is taken before the lookup, so a retry racing the original insert can't double-insert.
+  - A partial unique index `orders_intent_key_uq ON orders(intent_key) WHERE intent_key <> ''` enforces it at the DB level; creation is tolerated (and fell back to the transactional check) on legacy DBs that already contain duplicates. Empty/missing keys are excluded, so they behave as before and never block later purchases.
+  - `/order` now returns `{id, created, intent_key}`; the page still uses `b.id`. `/reset` and `/state` are unchanged, and the contract file is untouched (same 1583 bytes, mtime 15:44).
+
+Contract run on fresh server (port 8776, fresh DB data/orders-8776.db)
+  "ok": true, "expected": 1, "observed": 1
+  first_message:  "Could not confirm the order. Try again"
+  second_message: "Order confirmed: #5"
+  records: one order, intent_key 6d606d15…
+  control: observed 2, expected 2, ok true — reload generates a new key and correctly creates a second order.
+  returncode 0
+
+Extra checks on 8776
+  - Same key twice: ids 1 then 1 (`created` false on the retry).
+  - New key: new id 2.
+  - 20 concurrent POSTs with one key: all returned id 8, exactly 1 row persisted.
+  - `python3 -m py_compile app.py` clean.
+
+The fixed server is still running on 127.0.0.1:8776 (DB at /tmp/crashlab-repair/data/orders-8776.db, currently reset to zero orders). The old buggy process is still listening on 8775 with the pre-fix code in memory — restart it if you want that port to serve the fix too.

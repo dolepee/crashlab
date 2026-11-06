@@ -2,6 +2,7 @@
 // Usage: node crashlab_runner.js contract.json
 const fs = require('fs');
 const path = require('path');
+const { execFileSync } = require('child_process');
 const { chromium } = require('playwright-core');
 
 function nowId() {
@@ -11,7 +12,10 @@ function nowId() {
 (async () => {
   const contractPath = process.argv[2];
   if (!contractPath) throw new Error('contract path required');
+  const baseArgIndex = process.argv.indexOf('--base-url');
+  const baseOverride = baseArgIndex >= 0 ? process.argv[baseArgIndex + 1] : null;
   const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  if (baseOverride) contract.app.base_url = baseOverride;
   const base = contract.app.base_url.replace(/\/$/, '');
   const evidenceDir = path.resolve(contract.evidence?.screenshot_dir || 'evidence');
   fs.mkdirSync(evidenceDir, { recursive: true });
@@ -19,7 +23,9 @@ function nowId() {
   const observations = {};
   const screenshots = [];
   let interrupted = false;
+  let faultMatched = false;
   let upstreamStatus = null;
+  let faultState = null;
 
   const browser = await chromium.launch({
     executablePath: process.env.CHROME_PATH || '/usr/bin/chromium',
@@ -37,9 +43,17 @@ function nowId() {
     await page.route(contract.fault.route, async (route) => {
       if (interrupted) return route.continue();
       interrupted = true;
+      faultMatched = true;
       if (contract.fault.mode === 'suppress_after_upstream') {
         const response = await route.fetch();
         upstreamStatus = response.status();
+        // Probe durable state immediately after the upstream call, before the
+        // browser sees a failure and before the retry can run.
+        try {
+          faultState = await readState(contract.state);
+        } catch (err) {
+          faultState = { error: String(err) };
+        }
         await route.abort('failed');
       } else {
         await route.abort('failed');
@@ -82,6 +96,24 @@ function nowId() {
   }
 
   async function readState(spec) {
+    if (spec.mode === 'sqlite') {
+      const db = String(spec.db || '').replace('{port}', new URL(base).port);
+      if (!db) throw new Error('state.db is required for sqlite mode');
+      const probe = path.join(__dirname, 'crashlab_probe.py');
+      const raw = execFileSync(process.env.PYTHON_BINARY || 'python3', [
+        probe, path.resolve(path.dirname(contractPath), db), spec.table || 'orders', spec.where || '',
+      ], { encoding: 'utf8' });
+      const body = JSON.parse(raw);
+      if (body.error) throw new Error(body.error);
+      const records = Array.isArray(body.records) ? body.records : [];
+      return {
+        observed: records.length,
+        expected: Number(spec.expect),
+        records,
+        observer: 'sqlite',
+        db: path.resolve(path.dirname(contractPath), db),
+      };
+    }
     const response = await fetch(base + spec.url);
     if (!response.ok) throw new Error(`state endpoint HTTP ${response.status}`);
     const body = await response.json();
@@ -90,6 +122,7 @@ function nowId() {
       observed: Array.isArray(records) ? records.length : Number(records),
       expected: Number(spec.expect),
       records: Array.isArray(records) ? records : [],
+      observer: 'http',
     };
   }
 
@@ -114,10 +147,23 @@ function nowId() {
       observed: primary.observed,
       observations,
       upstream_status: upstreamStatus,
+      scenario: contract.fault
+        ? {
+            matched: faultMatched,
+            upstream_status: upstreamStatus,
+            committed_after_fault: faultState?.observed ?? null,
+            valid: faultMatched
+              && Number.isFinite(upstreamStatus)
+              && upstreamStatus >= 200 && upstreamStatus < 300
+              && Number.isFinite(faultState?.observed)
+              && faultState.observed >= 1,
+          }
+        : { matched: true, valid: true },
       screenshots,
       records: primary.records,
       control,
     };
+    result.ok = result.ok && result.scenario.valid;
     console.log(JSON.stringify(result, null, 2));
     await browser.close();
     process.exit(result.ok ? 0 : 1);

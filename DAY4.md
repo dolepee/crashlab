@@ -54,3 +54,23 @@ The clean checkout passes `hermes plugins validate`:
 - desktop surface: inside the SDK
 
 The repository is owned by `dolepee`; the catalog PR must come from that account.
+
+## Reliability follow-up
+
+The review's high-priority findings were addressed after the first Desktop
+screenshot:
+
+- The runner now records whether the configured fault matched, the upstream
+  status, and durable state immediately after the first request. A 503-before-
+  commit case is `scenario.valid: false` and cannot produce a repair pass.
+- Fixture contracts use a read-only SQLite observer outside the application.
+  Changing the app's `/state` endpoint no longer changes the verdict.
+- Comparisons are persisted under `CRASHLAB_DATA_DIR`; the Desktop pane fetches
+  the saved run through `/evidence`.
+- Contract validation rejects unknown actions, modes, occurrences and invalid
+  expected counts.
+- The prepared fixed fixtures use an immediate transaction and a unique
+  intent-key index. Twenty concurrent same-key requests produced one row.
+
+The 24 unit tests, Python compilation, plugin validation and the real Desktop
+pane run were rechecked after these changes.

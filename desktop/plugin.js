@@ -7,6 +7,7 @@ function verdict(value) {
 }
 
 function Run({ title, run }) {
+  const scenario = run?.scenario
   return jsxs('div', {
     className: 'rounded-md border border-(--ui-stroke-secondary) p-3',
     children: [
@@ -17,42 +18,64 @@ function Run({ title, run }) {
       }),
       jsx('div', {
         className: 'mt-1 text-xs text-(--ui-text-tertiary)',
-        children: `${run?.observations?.first_message ?? ''} → ${run?.observations?.second_message ?? ''}`
-      })
+        children: run?.observations?.first_message
+          ? `${run.observations.first_message} → ${run.observations.second_message ?? ''}`
+          : `${run?.records?.length ?? 0} persisted records`
+      }),
+      scenario
+        ? jsx('div', {
+            className: 'mt-1 text-xs text-(--ui-text-tertiary)',
+            children: `scenario: ${scenario.valid ? 'valid' : 'invalid'} · upstream ${scenario.upstream_status ?? '?'} · committed ${scenario.committed_after_fault ?? '?'}`
+          })
+        : null
     ]
   })
 }
 
 function EvidencePane({ ctx }) {
   const [data, setData] = useState(null)
+  const [empty, setEmpty] = useState(false)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let alive = true
     ctx.rest('/evidence')
-      .then((value) => { if (alive) setData(value) })
-      .catch((err) => { if (alive) setError(String(err)) })
+      .then((value) => {
+        const run = value?.run ?? value?.repair ?? null
+        if (!run || run.ok === false) {
+          if (alive) setEmpty(true)
+          return
+        }
+        if (alive) setData(run)
+      })
+      .catch((err) => {
+        if (alive) setError(String(err))
+      })
     return () => { alive = false }
   }, [ctx])
 
   if (error) return jsx('div', { className: 'p-3 text-sm text-(--ui-danger)', children: error })
+  if (empty) return jsx('div', { className: 'p-3 text-sm text-(--ui-text-tertiary)', children: 'No completed comparison yet. Run crashlab_compare first.' })
   if (!data) return jsx('div', { className: 'p-3 text-sm text-(--ui-text-tertiary)', children: 'Loading evidence…' })
 
-  const repair = data.repair || {}
   return jsxs('div', {
     className: 'flex h-full flex-col gap-3 overflow-auto p-3 text-sm',
     children: [
       jsx('div', { className: 'font-medium', children: 'CrashLab evidence' }),
       jsx('div', {
         className: 'text-xs text-(--ui-text-tertiary)',
-        children: `contract: ${repair.contract || 'none'} · overall: ${verdict(repair.ok)}`
+        children: `contract: ${data.contract || 'none'} · overall: ${verdict(data.ok)}`
       }),
-      jsx(Run, { title: 'Buggy application', run: repair.buggy }),
-      jsx(Run, { title: 'Repaired application', run: repair.fixed }),
-      jsx(Run, { title: 'Control', run: repair.fixed?.control }),
       jsx('div', {
         className: 'text-xs text-(--ui-text-tertiary)',
-        children: 'Records are read from /state. A pass requires observed = expected.'
+        children: `run: ${data.run_id || 'unknown'}`
+      }),
+      jsx(Run, { title: 'Buggy application', run: data.buggy }),
+      jsx(Run, { title: 'Repaired application', run: data.fixed }),
+      jsx(Run, { title: 'Control', run: data.fixed?.control }),
+      jsx('div', {
+        className: 'text-xs text-(--ui-text-tertiary)',
+        children: 'Records are read through the configured observer. A pass requires a valid scenario and observed = expected.'
       })
     ]
   })

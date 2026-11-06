@@ -50,8 +50,10 @@
     "occurrence": 1
   },
   "state": {
-    "url": "/state",
-    "path": "orders",
+    "mode": "sqlite",
+    "db": "../data/orders-{port}.db",
+    "table": "orders",
+    "where": "intent_key <> ''",
     "expect": 1
   },
   "evidence": {
@@ -84,8 +86,10 @@
       }
     ],
     "state": {
-      "url": "/state",
-      "path": "orders",
+      "mode": "sqlite",
+      "db": "../data/orders-{port}.db",
+      "table": "orders",
+      "where": "intent_key <> ''",
       "expect": 2
     }
   }

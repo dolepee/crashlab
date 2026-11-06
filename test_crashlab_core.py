@@ -11,6 +11,7 @@ class CompareTests(unittest.TestCase):
         self.buggy = {
             "contract": "checkout-lost-response", "ok": False, "returncode": 1,
             "observed": 2, "expected": 1,
+            "scenario": {"valid": True},
             "control": {"ok": True, "observed": 2, "expected": 2},
         }
         self.fixed = copy.deepcopy(self.buggy)
@@ -28,6 +29,17 @@ class CompareTests(unittest.TestCase):
 
     def test_real_primary_failure_then_repair_passes(self):
         self.assertTrue(self.compare())
+
+    def test_invalid_scenario_does_not_pass(self):
+        for target in ("buggy", "fixed"):
+            with self.subTest(target=target):
+                self.setUp()
+                getattr(self, target)["scenario"] = {"valid": False}
+                self.assertFalse(self.compare())
+
+    def test_missing_scenario_does_not_pass(self):
+        self.buggy.pop("scenario")
+        self.assertFalse(self.compare())
 
     def test_runner_errors_do_not_count_as_reproduction(self):
         for code in (1, 2, 3, -9):
@@ -90,3 +102,36 @@ class CompareTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class ContractValidationTests(unittest.TestCase):
+    def base(self):
+        return {
+            "id": "case", "app": {"base_url": "http://127.0.0.1:1"},
+            "journey": [{"action": "goto", "path": "/"}],
+            "state": {"url": "/state", "path": "rows", "expect": 1},
+        }
+
+    def test_rejects_unknown_fault_mode(self):
+        value = self.base(); value["fault"] = {"route": "**/x", "mode": "typo", "occurrence": 1}
+        with self.assertRaises(ValueError): core.validate_contract(value)
+
+    def test_rejects_unsupported_occurrence(self):
+        value = self.base(); value["fault"] = {"route": "**/x", "mode": "suppress_after_upstream", "occurrence": 2}
+        with self.assertRaises(ValueError): core.validate_contract(value)
+
+    def test_rejects_unknown_action(self):
+        value = self.base(); value["journey"] = [{"action": "teleport"}]
+        with self.assertRaises(ValueError): core.validate_contract(value)
+
+    def test_rejects_bad_expected_counts(self):
+        for expected in (-1, True, 1.5, "1"):
+            with self.subTest(expected=expected):
+                value = self.base(); value["state"]["expect"] = expected
+                with self.assertRaises(ValueError): core.validate_contract(value)
+
+    def test_sqlite_requires_db(self):
+        value = self.base(); value["state"] = {"mode": "sqlite", "table": "orders", "expect": 1}
+        with self.assertRaises(ValueError): core.validate_contract(value)
+
+    def test_accepts_strict_contract(self):
+        core.validate_contract(self.base())

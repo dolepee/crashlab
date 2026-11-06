@@ -23,6 +23,15 @@ def connect():
         "slot TEXT NOT NULL,"
         "created_at TEXT NOT NULL DEFAULT (datetime('now')))"
     )
+    if not BUGGY:
+        try:
+            con.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS bookings_intent_key_uq "
+                "ON bookings(intent_key) WHERE intent_key <> ''"
+            )
+            con.commit()
+        except sqlite3.IntegrityError:
+            con.rollback()
     return con
 
 
@@ -75,12 +84,22 @@ class Handler(BaseHTTPRequestHandler):
         con = connect()
         try:
             if not BUGGY:
+                con.execute("BEGIN IMMEDIATE")
                 row = con.execute("SELECT id FROM bookings WHERE intent_key=?", (intent,)).fetchone()
                 if row:
+                    con.commit()
                     self.sendj(200, {"id": row[0], "deduplicated": True})
                     return
-            cur = con.execute("INSERT INTO bookings(intent_key,slot) VALUES(?,?)", (intent, slot))
-            con.commit()
+            try:
+                cur = con.execute("INSERT INTO bookings(intent_key,slot) VALUES(?,?)", (intent, slot))
+                con.commit()
+            except sqlite3.IntegrityError:
+                con.rollback()
+                row = con.execute("SELECT id FROM bookings WHERE intent_key=?", (intent,)).fetchone()
+                if not row:
+                    raise
+                self.sendj(200, {"id": row[0], "deduplicated": True})
+                return
             self.sendj(200, {"id": cur.lastrowid, "deduplicated": False})
         finally:
             con.close()

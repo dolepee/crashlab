@@ -21,8 +21,8 @@ repair did not simply block legitimate later purchases.
 - `crashlab_compare` — run the same contract against a buggy and a repaired URL.
 - `crashlab_list` — list bundled contracts.
 - `crashlab_runner.js` — Playwright runner. It suppresses the response after the
-  upstream server has processed the request, then records screenshots and the
-  persisted records.
+  upstream server has processed the request, proves the write committed, then
+  records screenshots and the persisted records.
 - `contracts/checkout-lost-response.json` — checkout fixture.
 - `contracts/booking-lost-response.json` — booking fixture.
 - `server.py` and `booking.py` — the two deliberately buggy fixture apps.
@@ -44,7 +44,7 @@ The booking fixture reproduced the same pattern:
 - Fixed: 1 booking; expected 1; pass.
 - Control: 2 distinct bookings; 2 bookings; pass.
 
-See `DAY2.md`, `DAY3.md` and `DAY4.md` for the runs, and `docs/repair-report.png` and `docs/booking-report.png` for the rendered evidence. The checked-in HTML/PNG evidence is
+See `DAY2.md`, `DAY3.md`, `DAY4.md` and `proof/README.md` for the runs, and `docs/repair-report.png` and `docs/booking-report.png` for the rendered evidence. The checked-in HTML/PNG evidence is
 outside the plugin runtime; generated evidence is ignored by git.
 
 ## Install
@@ -78,23 +78,24 @@ run tests itself.
 Start the buggy and repaired checkout servers:
 
 ```bash
-python3 server.py                       # 127.0.0.1:8765, buggy
-PORT=8766 BUGGY=0 python3 server.py     # 127.0.0.1:8766, repaired fixture
+PORT=8765 BUGGY=1 CRASHLAB_DB=data/orders-8765.db python3 server.py
+PORT=8766 BUGGY=0 CRASHLAB_DB=data/orders-8766.db python3 server.py
 ```
 
 Run the saved contract against each:
 
 ```bash
-node crashlab_runner.js contracts/checkout-lost-response.json
-CHROME_PATH=/usr/bin/chromium node crashlab_runner.js /tmp/checkout-fixed.json
+CHROME_PATH=/usr/bin/chromium node crashlab_runner.js contracts/checkout-lost-response.json
+CHROME_PATH=/usr/bin/chromium node crashlab_runner.js contracts/checkout-lost-response.json --base-url http://127.0.0.1:8766
 ```
 
 For the second fixture:
 
 ```bash
-PORT=8785 BUGGY=1 python3 booking.py
-PORT=8786 BUGGY=0 python3 booking.py
-node crashlab_runner.js contracts/booking-lost-response.json
+PORT=8785 BUGGY=1 CRASHLAB_DB=data/bookings-8785.db python3 booking.py
+PORT=8786 BUGGY=0 CRASHLAB_DB=data/bookings-8786.db python3 booking.py
+CHROME_PATH=/usr/bin/chromium node crashlab_runner.js contracts/booking-lost-response.json
+CHROME_PATH=/usr/bin/chromium node crashlab_runner.js contracts/booking-lost-response.json --base-url http://127.0.0.1:8786
 ```
 
 `BUGGY=0` is a prepared repaired fixture for comparison. The Day 3 gate is
@@ -109,12 +110,15 @@ A contract has:
 - `fault.route`, `fault.mode` and `fault.occurrence`.
 - `journey` — browser steps such as `goto`, `click`, `wait_for_text`, `text`
   and `screenshot`.
-- `state` — the `/state` URL, the array path and the expected length.
+- `state` — the expected length and the observer. `mode: "sqlite"` uses a
+  read-only database probe outside the app; `mode: "http"` uses the app's
+  `/state` endpoint and is not independent of the application under repair.
 - `control` — a separate journey and state expectation used to catch an
   over-restrictive repair.
 
-The runner exits non-zero when the primary or control assertion fails. A failed
-check is evidence, not a pass.
+The runner exits non-zero when the primary or control assertion fails, or when
+the configured fault did not match and commit a write. A failed check is
+evidence, not a pass.
 
 ## Demo
 
@@ -130,7 +134,8 @@ a live screen capture; the opening frame says so. The source is in
   run. See `docs/desktop-pane.png`.
 - The runner requires a local Chromium and `playwright-core`.
 - The fault is a suppressed response after commit; this is not a general chaos
-  testing engine.
+  testing engine. `mode: "http"` is app-supplied and cannot prove the app did not
+  tamper with its own state; use `sqlite` for the bundled fixtures.
 - The repair evidence covers the checkout fixture. It is one known defect class,
   not a claim of general repair.
 

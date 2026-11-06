@@ -15,6 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 DB = Path(os.environ.get("CRASHLAB_DB", ROOT / "data" / "orders.db"))
 BUGGY = os.environ.get("BUGGY", "1") == "1"
+FAIL_FIRST = os.environ.get("FAIL_FIRST", "0") == "1"
+FAILED_FIRST = False
 PORT = int(os.environ.get("PORT", "8765"))
 
 
@@ -28,6 +30,17 @@ def connect():
         "item TEXT NOT NULL,"
         "created_at TEXT NOT NULL DEFAULT (datetime('now')))"
     )
+    if not BUGGY:
+        try:
+            con.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS orders_intent_key_uq "
+                "ON orders(intent_key) WHERE intent_key <> ''"
+            )
+            con.commit()
+        except sqlite3.IntegrityError:
+            # A legacy database can contain duplicates; the transactional
+            # lookup below still handles new writes.
+            con.rollback()
     return con
 
 
@@ -108,15 +121,30 @@ class Handler(BaseHTTPRequestHandler):
             return
         intent = str(body.get("intent_key") or "")
         item = str(body.get("item") or "Unknown item")
+        global FAILED_FIRST
+        if FAIL_FIRST and not FAILED_FIRST:
+            FAILED_FIRST = True
+            self._send(503, {"error": "temporary upstream failure"})
+            return
         con = connect()
         try:
             if not BUGGY:
+                con.execute("BEGIN IMMEDIATE")
                 row = con.execute("SELECT id FROM orders WHERE intent_key=?", (intent,)).fetchone()
                 if row:
+                    con.commit()
                     self._send(200, {"id": row[0], "deduplicated": True})
                     return
-            cur = con.execute("INSERT INTO orders(intent_key,item) VALUES(?,?)", (intent, item))
-            con.commit()
+            try:
+                cur = con.execute("INSERT INTO orders(intent_key,item) VALUES(?,?)", (intent, item))
+                con.commit()
+            except sqlite3.IntegrityError:
+                con.rollback()
+                row = con.execute("SELECT id FROM orders WHERE intent_key=?", (intent,)).fetchone()
+                if not row:
+                    raise
+                self._send(200, {"id": row[0], "deduplicated": True})
+                return
             self._send(200, {"id": cur.lastrowid, "deduplicated": False})
         finally:
             con.close()
