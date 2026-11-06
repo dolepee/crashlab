@@ -54,7 +54,7 @@ def contract_for(app: Path, python: str) -> dict:
             {"action": "wait_for_function", "expression": "() => document.querySelector('#gName')?.value === 'CRASHLAB_KIST_ONE_INTENT'"},
             {"action": "screenshot", "as": "lost-response"},
             {"action": "click", "selector": "#gAdd"},
-            {"action": "wait_for_function", "expression": "() => Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_ONE_INTENT').length === 2"},
+            {"action": "wait_for_function", "expression": "() => { const n = Array.from(document.querySelectorAll('#gList h3')).filter(x => x.textContent === 'CRASHLAB_KIST_ONE_INTENT').length; const v = document.querySelector('#gName')?.value; return n >= 1 && (v === '' || n >= 2); }"},
             {"action": "screenshot", "as": "after-retry"},
         ],
         "fault": {

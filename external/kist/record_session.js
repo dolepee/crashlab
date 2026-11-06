@@ -75,7 +75,7 @@ async function record(app, output, suppress) {
       recordVideo: { dir: path.join(run, 'video'), size: { width: 1280, height: 1200 } },
     })
     const page = await context.newPage()
-    if (suppress) {
+    {
       let done = false
       await context.route('**/*', async (route) => {
         const request = route.request()
@@ -98,18 +98,19 @@ async function record(app, output, suppress) {
     await page.locator('#gMonthly').fill('50')
     await page.waitForTimeout(700)
     await page.locator('#gAdd').click()
+    await page.waitForFunction(
+      (name) => document.querySelector('#gName')?.value === name, NAME)
+    await page.waitForTimeout(600)
+    await page.locator('#gAdd').click()
     if (suppress) {
-      await page.waitForFunction(
-        (name) => document.querySelector('#gName')?.value === name, NAME)
-      await page.waitForTimeout(600)
-      await page.locator('#gAdd').click()
       await page.waitForFunction(
         (name) => Array.from(document.querySelectorAll('#gList h3')).filter((x) => x.textContent === name).length === 2,
         NAME,
       )
     } else {
       await page.waitForFunction(
-        (name) => Array.from(document.querySelectorAll('#gList h3')).filter((x) => x.textContent === name).length === 1,
+        (name) => Array.from(document.querySelectorAll('#gList h3')).filter((x) => x.textContent === name).length === 1
+          && document.querySelector('#gName')?.value === '',
         NAME,
       )
     }

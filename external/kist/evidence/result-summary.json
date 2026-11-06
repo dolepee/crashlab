@@ -21,32 +21,32 @@
     },
     "records": [
       {
-        "id": "e2a2b1ef-d29c-4f57-bcdb-ec1660ed23ba",
+        "id": "18d85a03-5ee6-40be-ae95-53bfe79e4c92",
         "name": "CRASHLAB_KIST_ONE_INTENT",
         "target_amount": 1000,
         "current_amount": 100,
         "target_date": null,
         "currency": "PLN",
         "status": "active",
-        "created_at": "2026-11-06T22:00:08",
-        "updated_at": "2026-11-06T22:00:08"
+        "created_at": "2026-11-06T22:04:10",
+        "updated_at": "2026-11-06T22:04:10"
       },
       {
-        "id": "28b4c1e4-cb49-419a-9e6c-02f9e2cb1d6e",
+        "id": "dd7822d5-7d18-465e-b181-e71b8e28d870",
         "name": "CRASHLAB_KIST_ONE_INTENT",
         "target_amount": 1000,
         "current_amount": 100,
         "target_date": null,
         "currency": "PLN",
         "status": "active",
-        "created_at": "2026-11-06T22:00:08",
-        "updated_at": "2026-11-06T22:00:08"
+        "created_at": "2026-11-06T22:04:10",
+        "updated_at": "2026-11-06T22:04:10"
       }
     ],
     "screenshots": [
-      "kist-one-intent-2026-11-06T22-00-07-808Z-lost-response.png",
-      "kist-one-intent-2026-11-06T22-00-07-808Z-after-retry.png",
-      "kist-one-intent-2026-11-06T22-00-07-808Z-two-intents.png"
+      "kist-one-intent-2026-11-06T22-04-10-210Z-lost-response.png",
+      "kist-one-intent-2026-11-06T22-04-10-210Z-after-retry.png",
+      "kist-one-intent-2026-11-06T22-04-10-210Z-two-intents.png"
     ]
   },
   "after": {
@@ -67,25 +67,25 @@
     },
     "records": [
       {
-        "id": "25a60dfd-8d82-4177-978d-728cb5a8d268",
+        "id": "8d8faaa0-071c-4011-b3db-0cf6586c37b2",
         "name": "CRASHLAB_KIST_ONE_INTENT",
         "target_amount": 1000,
         "current_amount": 100,
         "target_date": null,
         "currency": "PLN",
         "status": "active",
-        "created_at": "2026-11-06T22:00:03",
-        "updated_at": "2026-11-06T22:00:03",
-        "client_request_id": "187cebe6-1140-42df-87e1-0c0f63972f1e"
+        "created_at": "2026-11-06T22:04:05",
+        "updated_at": "2026-11-06T22:04:05",
+        "client_request_id": "6fbbcebc-4c8e-442f-8ce3-ad0023cb20cc"
       }
     ],
     "screenshots": [
-      "kist-one-intent-2026-11-06T22-00-02-579Z-lost-response.png",
-      "kist-one-intent-2026-11-06T22-00-02-579Z-after-retry.png",
-      "kist-one-intent-2026-11-06T22-00-02-579Z-two-intents.png"
+      "kist-one-intent-2026-11-06T22-04-05-143Z-lost-response.png",
+      "kist-one-intent-2026-11-06T22-04-05-143Z-after-retry.png",
+      "kist-one-intent-2026-11-06T22-04-05-143Z-two-intents.png"
     ]
   },
   "repair": "external/kist/repair.patch",
   "repair_log": "external/kist/repair-live.log",
-  "note": "Both runs were started through CrashLab app.start and the registered crashlab_run path. The contract is unchanged. The after run is a fresh Hermes one-shot repair on a clean upstream copy."
+  "note": "Both runs use the same contract and the same suppressed first POST. The after run is a fresh Hermes one-shot repair on a clean upstream copy. The journey waits for the settled UI; the database assertion is unchanged."
 }

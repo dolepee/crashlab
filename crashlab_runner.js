@@ -97,7 +97,13 @@ function nowId() {
       } else if (step.action === 'wait_for_url') {
         await page.waitForURL(step.pattern, { timeout: step.timeout || 10000 });
       } else if (step.action === 'wait_for_function') {
-        await page.waitForFunction(step.expression, { timeout: step.timeout || 10000 });
+        // Contracts write JavaScript function source. Passing the string to
+        // Playwright makes it eval the source inside the page, which the Kist
+        // CSP forbids. Compile it to a function in Node and hand Playwright the
+        // function; it then runs in the page context without string evaluation.
+        const source = String(step.expression).trim();
+        const check = new Function(`return (${source});`)();
+        await page.waitForFunction(check, { timeout: step.timeout || 10000 });
       } else if (step.action === 'wait_for_load_state') {
         await page.waitForLoadState(step.state, { timeout: step.timeout || 10000 });
       } else if (step.action === 'wait_for_timeout') {
