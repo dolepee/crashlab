@@ -40,3 +40,14 @@ class CaseSchemaTests(unittest.TestCase):
             with self.subTest(step=step):
                 case=copy.deepcopy(self.case);case['journey']=[step]
                 with self.assertRaises(jsonschema.ValidationError):jsonschema.validate(case,self.schema)
+
+    def test_observer_modes_expose_and_require_their_arguments(self):
+        case=copy.deepcopy(self.case)
+        case['state']={'mode':'http','url':'/state','path':'data.orders','expect':1}
+        jsonschema.validate(case,self.schema);workflow.core.validate_contract(case)
+        for state in [{'mode':'http','expect':1},{'mode':'http','url':'/state','expect':1},{'mode':'sqlite','expect':1}]:
+            with self.subTest(state=state):
+                case['state']=state
+                with self.assertRaises(jsonschema.ValidationError):jsonschema.validate(case,self.schema)
+        case=copy.deepcopy(self.case);case['app']={}
+        with self.assertRaises(jsonschema.ValidationError):jsonschema.validate(case,self.schema)
