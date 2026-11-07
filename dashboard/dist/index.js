@@ -5,7 +5,7 @@
   if (!SDK || !window.__HERMES_PLUGINS__) return
   const React = SDK.React
   const h = React.createElement
-  const { useEffect, useState } = React
+  const { useEffect, useState, useRef } = React
 
   async function api(path, options) {
     const response = await SDK.authedFetch('/api/plugins/crashlab' + path, {
@@ -56,13 +56,16 @@
     const [experiments, setExperiments] = useState([])
     const [experimentError, setExperimentError] = useState(null)
     const [activeExperiment, setActiveExperiment] = useState(null)
+    const loadSequence = useRef(0)
     const [selected, setSelected] = useState('')
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState('')
 
     async function load() {
+      const sequence = ++loadSequence.current
       try {
         const [state, list, repairs] = await Promise.all([api('/overview'), api('/contracts'), api('/experiments')])
+        if (sequence !== loadSequence.current) return
         setExperiments(repairs.experiments || [])
         setOverview(state)
         const rows = list.contracts || []
@@ -70,16 +73,27 @@
         setSelected(current => current || ((rows.find(row => !row.error && row.auto_start) || rows.find(row => !row.error) || {}).path || ''))
         setError('')
       } catch (err) {
+        if (sequence !== loadSequence.current) return
         setError(String(err.message || err))
         setExperiments(rows => rows.map(row => ({ ...row, status: 'UNAVAILABLE' })))
       }
     }
 
     useEffect(() => {
-      load()
-      const refresh = () => load()
+      const refresh = () => {
+        if (document.visibilityState === 'hidden') return
+        // A return event must supersede even an unfinished pre-edit request.
+        // loadSequence prevents that older response from replacing current proof.
+        load()
+      }
+      refresh()
       window.addEventListener('focus', refresh)
-      return () => window.removeEventListener('focus', refresh)
+      document.addEventListener('visibilitychange', refresh)
+      return () => {
+        window.removeEventListener('focus', refresh)
+        document.removeEventListener('visibilitychange', refresh)
+        loadSequence.current++
+      }
     }, [])
 
     async function experimentAction(row, action) {
