@@ -55,7 +55,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "crashlab_list",
-        "description": "List bundled saved cases, including self-starting fixtures and setup requirements.",
+        "description": "List bundled and configured workspace cases, including self-starting fixtures and setup requirements.",
         "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
     },
 ]

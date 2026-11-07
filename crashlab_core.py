@@ -33,6 +33,8 @@ def explain_run(result: dict) -> str:
     scenario = result.get("scenario") or {}
     if scenario.get("valid") is False:
         return "The fault did not commit a write, so this run is not evidence."
+    if (result.get('recovery') or {}).get('ok') is False:
+        return 'Recovery was not established: ' + result['recovery'].get('reason', 'Inspect the captured requests.')
     observed, expected = result.get("observed"), result.get("expected")
     if not isinstance(observed, (int, float)) or not isinstance(expected, (int, float)):
         return "No persisted state was measured."
@@ -199,6 +201,8 @@ def _validate_journey(journey: list, where: str) -> None:
                     raise ValueError(f"{name}.max must be a non-negative integer")
                 if "text" in step and not isinstance(step["text"], str):
                     raise ValueError(f"{name}.text must be a string")
+                if step.get('max', float('inf')) < step.get('min', 0):
+                    raise ValueError(f"{name}.max must be at least min")
             else:
                 if "empty" in step and not isinstance(step["empty"], bool):
                     raise ValueError(f"{name}.empty must be a boolean")
@@ -213,6 +217,7 @@ def _validate_journey(journey: list, where: str) -> None:
                     raise ValueError(f"{name}.conditions must contain count/value objects")
                 if not isinstance(condition.get("selector"), str) or not condition["selector"]:
                     raise ValueError(f"{name}.conditions selector is required")
+                _validate_journey([{**condition, 'action': 'wait_for_' + condition['kind']}], name + '.conditions')
         if action == "wait_for_load_state" and step.get("state") not in ("load", "domcontentloaded", "networkidle"):
             raise ValueError(f"{name}.state must be load, domcontentloaded or networkidle")
         if action == "wait_for_timeout":
@@ -255,6 +260,16 @@ def validate_contract(contract: dict) -> dict:
             raise ValueError("fault.method must be an HTTP method")
         if fault.get("occurrence", 1) != 1:
             raise ValueError("only fault.occurrence=1 is supported")
+    recovery = contract.get('recovery')
+    if recovery is not None:
+        if not fault or not isinstance(recovery, dict) or recovery.get('mode') not in ('retry', 'reconcile'):
+            raise ValueError('recovery requires a fault and mode retry or reconcile')
+        if recovery['mode'] == 'reconcile':
+            for field in ('route', 'initial_field', 'query_parameter', 'response_id_path', 'record_id_field'):
+                if not isinstance(recovery.get(field), str) or not recovery[field]:
+                    raise ValueError(f'recovery.{field} is required for reconciliation')
+            if recovery['route'] == fault['route']:
+                raise ValueError('recovery.route must differ from the interrupted write route')
     control = contract.get("control")
     if control is not None:
         if not isinstance(control, dict):
@@ -522,8 +537,8 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
         result = json.loads(proc.stdout)
     except json.JSONDecodeError:
         return {
-            "ok": False, "contract": contract.get("id"), "returncode": proc.returncode,
-            "error": "runner did not return JSON",
+            "ok": False, "status": "ERROR", "contract": contract.get("id"), "returncode": proc.returncode,
+            "error": "Browser runner could not start or return a result. Check npm ci, Chrome/Chromium and CHROME_PATH. " + proc.stderr[-1200:],
             "stdout": proc.stdout[-2000:], "stderr": proc.stderr[-2000:],
         }
     result["returncode"] = proc.returncode
@@ -594,9 +609,13 @@ def run_and_persist(contract_path: str | Path, base_url: str | None = None) -> d
     return persist_run(result)
 
 
+def case_directory() -> Path:
+    return Path(os.environ.get('CRASHLAB_CASE_DIR', ROOT / 'cases')).expanduser().resolve()
+
+
 def list_contracts(case_dir: str | Path | None = None) -> list[dict]:
     rows = []
-    directories = (ROOT / "contracts", Path(case_dir) if case_dir is not None else ROOT / "cases")
+    directories = (ROOT / "contracts", Path(case_dir) if case_dir is not None else case_directory())
     paths = sorted({path.resolve() for directory in directories for path in directory.glob("*.json")})
     for path in paths:
         row = {"id": path.stem, "path": str(path),
@@ -609,4 +628,5 @@ def list_contracts(case_dir: str | Path | None = None) -> list[dict]:
         except Exception as exc:
             row["error"] = str(exc)
         rows.append(row)
-    return rows
+    # Lead a first run with a reproduced failure, rather than a pre-fixed example.
+    return sorted(rows, key=lambda row: (row['id'] != 'checkout-local-start', row['id']))

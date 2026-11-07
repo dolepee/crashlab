@@ -17,7 +17,6 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 DATA = Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local" / "share" / "crashlab"))
-CASE_DIR = Path(os.environ.get("CRASHLAB_CASE_DIR", ROOT / "cases"))
 RUN_ID = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
 
 
@@ -82,17 +81,14 @@ async def run_detail(run_id: str) -> dict:
 
 
 def _case_paths() -> list[Path]:
-    paths = []
-    for directory in (ROOT / "contracts", CASE_DIR):
-        if directory.is_dir():
-            paths.extend(sorted(directory.glob("*.json")))
-    return paths
+    from crashlab_core import list_contracts
+    return [Path(row['path']) for row in list_contracts()]
 
 
 @router.get("/contracts")
 async def contracts() -> dict:
     from crashlab_core import list_contracts
-    return {"contracts": list_contracts(CASE_DIR)}
+    return {"contracts": list_contracts()}
 
 
 @router.post("/run")
@@ -119,8 +115,9 @@ def _experiments() -> dict:
         value = _read(watch)
         if value.get('experiment_id'):
             watched.add(value['experiment_id'])
-    paths = sorted((workflow.core._data_dir() / 'experiments').glob('*/experiment.json'),
-                   key=lambda path: path.stat().st_mtime, reverse=True)[:5]
+    all_paths = sorted((workflow.core._data_dir() / 'experiments').glob('*/experiment.json'),
+                       key=lambda path: path.stat().st_mtime, reverse=True)
+    paths = [path for index, path in enumerate(all_paths) if index < 5 or path.parent.name in watched]
     for path in paths:
         eid = path.parent.name
         try:

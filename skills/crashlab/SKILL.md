@@ -52,3 +52,5 @@ answer. Disable with enabled=false when the user stops that experiment.
 Preserve existing database compatibility when repairing schema. If migration is
 not implemented and tested, explicitly limit the result to fresh databases. Run
 available app regression tests and report unavailable dependencies accurately.
+
+A recovery check is required, not just a final row count. Default retry needs a successful repeated write after interruption with the same request identity/payload. For server reconciliation, declare recovery mode reconcile plus route, initial_field, query_parameter, response_id_path and record_id_field; the GET must confirm the original intent and observed record ID. Never repair a retry by merely showing local success. Count waits default to at least one element; max-only waits have an implicit minimum of zero.

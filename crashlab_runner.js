@@ -32,6 +32,18 @@ function nowId() {
   let baseline = null;
   let requests = [];
   let phase = "primary";
+  const network = [];
+  const recoverySpec = contract.recovery || { mode: 'retry' };
+  let initialRequest = null;
+  let faultAbortStarted = false;
+  const reconciliations = [];
+
+  function requestEvidence(request) {
+    let body = null;
+    try { body = request.postDataJSON(); } catch {}
+    return { sequence: network.length + 1, phase, method: request.method(),
+      url: request.url(), body, raw_body: request.postData(), after_interruption: faultAbortStarted };
+  }
 
   const browser = await chromium.launch({
     executablePath: process.env.CHROME_PATH || ['/usr/bin/chromium', '/usr/bin/google-chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(file => fs.existsSync(file)) || chromium.executablePath(),
@@ -45,22 +57,46 @@ function nowId() {
   });
   const page = await browser.newPage({ viewport: { width: 1000, height: 760 } });
 
+  if (contract.fault && recoverySpec.mode === 'reconcile') {
+    await page.route(recoverySpec.route, async route => {
+      const request = route.request();
+      if (phase !== 'primary' || !faultAbortStarted || request.method() !== 'GET') return route.continue();
+      const event = { ...requestEvidence(request), kind: 'reconciliation' };
+      network.push(event);
+      const response = await route.fetch();
+      event.status = response.status();
+      try { event.response = await response.json(); } catch { event.response = null; }
+      reconciliations.push(event);
+      await route.fulfill({ response });
+    });
+  }
+
   if (contract.fault) {
     await page.route(contract.fault.route, async (route) => {
       if (contract.fault.method && route.request().method() !== contract.fault.method) {
-        return route.continue();
+        return route.fallback();
       }
       const spec = phase === 'primary' ? contract.state : contract.control.state;
+      const event = { ...requestEvidence(route.request()), kind: 'write' };
+      network.push(event);
       if (spec.request_fields) {
         try { requests.push(route.request().postDataJSON()); }
         catch { requests.push(null); }
       }
-      if (phase !== 'primary' || interrupted) return route.continue();
+      if (phase !== 'primary') return route.continue();
+      if (interrupted) {
+        const response = await route.fetch({ maxRedirects: 0 });
+        event.status = response.status();
+        await route.fulfill({ response });
+        return;
+      }
       interrupted = true;
       faultMatched = true;
+      initialRequest = event;
       if (contract.fault.mode === 'suppress_after_upstream') {
         const response = await route.fetch();
         upstreamStatus = response.status();
+        event.status = upstreamStatus;
         // Probe durable state immediately after the upstream call, before the
         // browser sees a failure and before the retry can run.
         try {
@@ -78,6 +114,7 @@ function nowId() {
               faultError = new Error('Interrupted navigation did not settle: ' + error.message);
             })
           : Promise.resolve();
+        faultAbortStarted = true;
         await route.abort('failed');
         await navigationSettled;
         faultDelivered = !faultError;
@@ -96,12 +133,12 @@ function nowId() {
 
   async function conditionMet(condition) {
     if (!condition || typeof condition !== 'object') return false;
-    if (condition.kind === 'count' || condition.selector && condition.min !== undefined) {
+    if (condition.kind === 'count' || condition.action === 'wait_for_count') {
       const texts = await page.locator(condition.selector).allTextContents();
       const count = condition.text === undefined
         ? texts.length
         : texts.filter((text) => text.trim() === condition.text).length;
-      const min = condition.min === undefined ? 1 : Number(condition.min);
+      const min = condition.min === undefined ? (condition.max === undefined ? 1 : 0) : Number(condition.min);
       const max = condition.max === undefined ? Infinity : Number(condition.max);
       return count >= min && count <= max;
     }
@@ -231,6 +268,42 @@ function nowId() {
     return true;
   }
 
+  function recoveryEvidence(primary) {
+    if (!contract.fault) return { mode: 'none', ok: true };
+    const writes = network.filter(event => event.phase === 'primary' && event.kind === 'write');
+    if (recoverySpec.mode === 'retry') {
+      const sameBody = event => {
+        if (event.body && initialRequest?.body) {
+          const keys = Object.values(contract.state.request_fields || {});
+          if (keys.length) return keys.every(key => initialRequest.body[key] !== undefined
+            && initialRequest.body[key] !== null && initialRequest.body[key] !== ''
+            && JSON.stringify(event.body[key]) === JSON.stringify(initialRequest.body[key]));
+          const canonical = body => JSON.stringify(Object.entries(body).sort(([a], [b]) => a.localeCompare(b)));
+          return canonical(event.body) === canonical(initialRequest.body);
+        }
+        return event.raw_body === initialRequest?.raw_body;
+      };
+      const retries = writes.filter(event => event.after_interruption && event !== initialRequest
+        && event.status >= 200 && event.status < 400
+        && event.method === initialRequest?.method && event.url === initialRequest?.url && sameBody(event));
+      return { mode: 'retry', ok: retries.length > 0, matching_retries: retries.length,
+        write_requests: writes.length, initial_request: initialRequest,
+        reason: retries.length ? 'Observed a repeated write with the original request identity and payload.' : 'No matching recovery write occurred after interruption. A local success message is insufficient.' };
+    }
+    const initialIdentity = initialRequest?.body?.[recoverySpec.initial_field];
+    const ids = primary.records.map(row => row[recoverySpec.record_id_field]);
+    const confirmations = reconciliations.filter(event => {
+      const identity = new URL(event.url).searchParams.get(recoverySpec.query_parameter);
+      const id = recoverySpec.response_id_path.split('.').reduce((v, key) => v?.[key], event.response);
+      return initialIdentity !== undefined && initialIdentity !== null && initialIdentity !== ''
+        && identity === String(initialIdentity) && event.status >= 200 && event.status < 300
+        && id !== undefined && id !== null && ids.length === 1 && ids[0] === id;
+    });
+    return { mode: 'reconcile', ok: confirmations.length > 0, confirmations: confirmations.length,
+      initial_request: initialRequest, responses: reconciliations,
+      reason: confirmations.length ? 'Server readback confirmed the original intent and independently observed record ID.' : 'No successful server readback linked the original intent to the observed record ID.' };
+  }
+
   try {
     await reset();
     baseline = await readState(contract.state);
@@ -238,7 +311,8 @@ function nowId() {
     await run(contract.journey);
     // Keep interception for request identity capture; fault only fires once.
     const primary = await readState(contract.state);
-    const primaryOK = matches(primary, contract.state);
+    const recovery = recoveryEvidence(primary);
+    const primaryOK = matches(primary, contract.state) && recovery.ok;
     const scenario = contract.fault
         ? {
             matched: faultMatched,
@@ -277,6 +351,10 @@ function nowId() {
       status: primaryOK && (!control || control.ok) ? "PASS" : "FAIL",
       upstream_status: upstreamStatus,
       scenario,
+      recovery,
+      network,
+      baseline,
+      state_after_interruption: faultState,
       screenshots,
       records: primary.records,
       control,
@@ -292,6 +370,6 @@ function nowId() {
     process.exit(2);
   }
 })().catch((err) => {
-  console.error(JSON.stringify({ ok: false, error: String(err) }, null, 2));
+  console.log(JSON.stringify({ ok: false, status: 'ERROR', error: 'Browser runner startup failed: ' + String(err) + '. Check Node dependencies, local Chrome/Chromium and CHROME_PATH.' }, null, 2));
   process.exit(3);
 });
