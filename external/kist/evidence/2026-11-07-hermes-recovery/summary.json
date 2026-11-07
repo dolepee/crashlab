@@ -1,0 +1,104 @@
+{
+  "source_commit": "9eea43be57521ff1aec2fb4061cb92fd65e93e64",
+  "experiment_id": "a6e931a37347453d9ddc49fabfb6cfa9",
+  "contract_sha256": "1d9d3f5f5f915c5a92f973adea2fa42ba23926f6e7ea3e5dbbf2780bc71942f1",
+  "evaluator_sha256": {
+    "crashlab_core.py": "f19be936bf2047c1ec22f422e5218c001e64f6e858c30a3554ddcb61a998a442",
+    "crashlab_runner.js": "b5af67d56c3c75ac48903af1a0857e526349460820323b217b0120413eb7d3b2",
+    "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
+    "repair_workflow.py": "f42e4a7d582934cfe53d52a8e6e7acce9715ecaaaccd0c35ddfe65a2b8abf6a6"
+  },
+  "tool_calls": 31,
+  "duration_ms": 297910,
+  "exit_code": 0,
+  "patch_sha256": "01fafa50a00024f9be19c17d30d5e321339b685b4df6c51b7f0ab2e2911b4e8c",
+  "full_private_trace_sha256": "a14caf67796d5f140c92a8e1b87fd5d113138d7034db3077042674b6f6e9f7be",
+  "scope": "Fresh Hermes model built its own case and durable repair from operator-injected memory-only negative control on pinned Kist; not an observed model-created initial mistake, arbitrary discovery or independent-user adoption.",
+  "host": "Hermes Agent v0.23.0",
+  "model": "gpt-6.1-sol",
+  "upstream_commit": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+  "source_state": "Clean committed plugin candidate throughout the session; subsequent review fixes and final installed-pin replay are separate.",
+  "baseline": "Operator-injected memory-only retry negative control; frontend intent handling supplied as part of seed, not newly authored by model.",
+  "model_changes": [
+    "server/planner_core.py additive receipt-table initialization",
+    "server/planner_goals.py transactional durable receipt handling",
+    "tests/test_goal_recovery.py six new tests"
+  ],
+  "tests": "279 application tests independently pass; includes six model-authored regression tests. No application dependency installation needed.",
+  "outcomes": [
+    {
+      "status": "REPRODUCED",
+      "project_sha256": "0e0420fc7f227ebea82410f772193be3dec3b103a295756731bcfba55975f3ec",
+      "boundaries": [
+        {
+          "name": "before_delivery",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "control_observed": 2,
+          "control_expected": 2,
+          "control_ok": true
+        },
+        {
+          "name": "after_commit",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "control_observed": 2,
+          "control_expected": 2,
+          "control_ok": true
+        },
+        {
+          "name": "restart_after_commit",
+          "status": "FAIL",
+          "observed": 2,
+          "expected": 1,
+          "control_observed": 2,
+          "control_expected": 2,
+          "control_ok": true
+        }
+      ]
+    },
+    {
+      "status": "VERIFIED",
+      "project_sha256": "6c97b596c17c11a660290793a68125ff5ed83b0427c34dca9150fcb5fcb1189b",
+      "boundaries": [
+        {
+          "name": "before_delivery",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "control_observed": 2,
+          "control_expected": 2,
+          "control_ok": true
+        },
+        {
+          "name": "after_commit",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "control_observed": 2,
+          "control_expected": 2,
+          "control_ok": true
+        },
+        {
+          "name": "restart_after_commit",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "control_observed": 2,
+          "control_expected": 2,
+          "control_ok": true
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "The initial bad fix was deliberately injected by operator, not an observed model error.",
+    "Full patch from upstream includes operator-seeded frontend retry handling plus model-authored backend and tests.",
+    "Scoped direct SQLite content/cardinality; primary mapping covers content, not a stable per-intent goal column.",
+    "Legacy tokenless callers remain accepted without retry protection. Existing schema upgrade has a focused test, not a general production-migration claim.",
+    "Selected actual stream events may contain host-truncated text; canonical measurements are separate. Local paths normalized; full private trace identified by hash.",
+    "One operator-controlled model session, not independent-user adoption, general bug discovery, speed/cost superiority or proof of all application correctness."
+  ]
+}

@@ -1,0 +1,230 @@
+diff --git a/server/planner_core.py b/server/planner_core.py
+index 23b212f..dac2c47 100644
+--- a/server/planner_core.py
++++ b/server/planner_core.py
+@@ -26,6 +26,11 @@ def ensure_tables():
+         value real not null, created_at text not null)""")
+     eb._exec("""create table if not exists goal_meta (
+         goal_id text primary key, monthly_contribution real)""")
++    # Additive upgrade: existing goals need no synthetic intent IDs. Keep receipts
++    # after deletion so a delayed retry cannot resurrect a deliberately deleted goal.
++    eb._exec("""create table if not exists goal_create_receipts (
++        intent_id text primary key, goal_id text not null,
++        payload text not null)""")
+     eb._exec("""create table if not exists job_offers (
+         id text primary key, company text not null, role text default '',
+         recruiter text default '', total_monthly real not null,
+diff --git a/server/planner_goals.py b/server/planner_goals.py
+index b2ebfea..33f431f 100644
+--- a/server/planner_goals.py
++++ b/server/planner_goals.py
+@@ -2,11 +2,14 @@
+ 
+ Split out of planner.py on 2026-09-05 (code moved 1:1; other modules are reached through `P`).
+ """
++import json
+ import uuid
+ from datetime import date, datetime
+ 
++import db
+ import engine_bridge as eb
+ from planner_proxy import P
++from werkzeug.exceptions import BadRequest, Conflict
+ 
+ # ---------- goals ----------
+ 
+@@ -47,17 +50,47 @@ def _project(goal, cfg):
+ 
+ 
+ def add_goal(data):
+-    goal_id = str(uuid.uuid4())
+-    eb._exec(
+-        "insert into goals (id, name, target_amount, current_amount, target_date, "
+-        "currency, status, created_at, updated_at) values (?,?,?,?,?,?,?,?,?)",
+-        (goal_id, data["name"], float(data["target_amount"]),
+-         float(data.get("current_amount", 0)), data.get("target_date"),
+-         data.get("currency", "PLN"), "active", P._now(), P._now()))
+-    if data.get("monthly_contribution") is not None:
+-        eb._exec("insert into goal_meta (goal_id, monthly_contribution) values (?,?)",
+-                 (goal_id, float(data["monthly_contribution"])))
+-    P._audit("goal", goal_id, "add", data)
++    key = data.get("create_intent_id")
++    if key is not None and (not isinstance(key, str) or not key.strip() or len(key) > 200):
++        raise BadRequest("create_intent_id must be a nonempty string of at most 200 characters")
++    payload = {
++        "name": data["name"], "target_amount": float(data["target_amount"]),
++        "current_amount": float(data.get("current_amount", 0)),
++        "target_date": data.get("target_date"), "currency": data.get("currency", "PLN"),
++        "monthly_contribution": (float(data["monthly_contribution"])
++                                 if data.get("monthly_contribution") is not None else None),
++    }
++    encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False)
++    # Serialize concurrent retries BEFORE checking the receipt. Goal, metadata,
++    # audit and receipt commit together; any failure rolls the whole intent back.
++    with db.get_conn() as conn:
++        conn.execute("BEGIN IMMEDIATE")
++        if key is not None:
++            receipt = conn.execute(
++                "select goal_id, payload from goal_create_receipts where intent_id = ?",
++                (key,)).fetchone()
++            if receipt:
++                if receipt["payload"] != encoded:
++                    raise Conflict("create_intent_id already used for different goal content")
++                return receipt["goal_id"]
++        goal_id = str(uuid.uuid4())
++        now = P._now()
++        conn.execute(
++            "insert into goals (id, name, target_amount, current_amount, target_date, "
++            "currency, status, created_at, updated_at) values (?,?,?,?,?,?,?,?,?)",
++            (goal_id, payload["name"], payload["target_amount"], payload["current_amount"],
++             payload["target_date"], payload["currency"], "active", now, now))
++        if payload["monthly_contribution"] is not None:
++            conn.execute("insert into goal_meta (goal_id, monthly_contribution) values (?,?)",
++                         (goal_id, payload["monthly_contribution"]))
++        conn.execute(
++            "insert into app_audit (id, ts, entity, entity_id, action, payload) values (?,?,?,?,?,?)",
++            (str(uuid.uuid4()), now, "goal", goal_id, "add",
++             json.dumps(data, ensure_ascii=False, default=str)))
++        if key is not None:
++            conn.execute(
++                "insert into goal_create_receipts (intent_id, goal_id, payload) values (?,?,?)",
++                (key, goal_id, encoded))
+     return goal_id
+ 
+ 
+diff --git a/static/js/views/goals.js b/static/js/views/goals.js
+index 00eefee..0cce7e6 100644
+--- a/static/js/views/goals.js
++++ b/static/js/views/goals.js
+@@ -66,17 +66,36 @@ async function renderGoals(el) {
+     await api.put("/api/settings", { monthly_savings: parseNum(document.getElementById("gSavings")) || "" });
+     route();
+   });
+-  document.getElementById("gAdd").addEventListener("click", async () => {
++  let pendingCreate = null;
++  try { pendingCreate = JSON.parse(sessionStorage.getItem("goalPendingCreate")); } catch (_) { /* optional storage */ }
++  const addButton = document.getElementById("gAdd");
++  addButton.addEventListener("click", async () => {
+     const name = document.getElementById("gName").value.trim();
+     const target = parseNum(document.getElementById("gTarget"));
+     if (!name || !target) { alert("Enter a name and target amount"); return; }
+     const monthly = parseNum(document.getElementById("gMonthly"));
+-    await api.post("/api/goals", {
++    const payload = {
+       name, target_amount: target,
+       current_amount: parseNum(document.getElementById("gCurrent")) || 0,
+       monthly_contribution: isNaN(monthly) ? undefined : monthly,
+-    });
+-    route();
++    };
++    const encoded = JSON.stringify(payload);
++    if (!pendingCreate || pendingCreate.payload !== encoded) {
++      pendingCreate = { payload: encoded, id: crypto.randomUUID() };
++    }
++    try { sessionStorage.setItem("goalPendingCreate", JSON.stringify(pendingCreate)); } catch (_) { /* optional storage */ }
++    addButton.disabled = true;
++    try {
++      await api.post("/api/goals", { ...payload, create_intent_id: pendingCreate.id });
++      pendingCreate = null;
++      try { sessionStorage.removeItem("goalPendingCreate"); } catch (_) { /* optional storage */ }
++      route();
++    } catch (err) {
++      // An error may mean the response was lost AFTER commit. Reuse the intent.
++      alert("Goal not confirmed. Retry to confirm it: " + err.message);
++    } finally {
++      addButton.disabled = false;
++    }
+   });
+   list.querySelectorAll("[data-gupd]").forEach((b) =>
+     b.addEventListener("click", async () => {
+diff --git a/tests/test_goal_recovery.py b/tests/test_goal_recovery.py
+new file mode 100644
+index 0000000..a523cf6
+--- /dev/null
++++ b/tests/test_goal_recovery.py
+@@ -0,0 +1,85 @@
++"""Durable goal-create intent receipts, including existing databases."""
++import importlib
++import uuid
++from concurrent.futures import ThreadPoolExecutor
++
++import pytest
++
++
++def payload(**changes):
++    return {"name": "durable-goal-test-" + str(uuid.uuid4()), "target_amount": 12000,
++            "current_amount": 250, "monthly_contribution": 100,
++            "create_intent_id": str(uuid.uuid4()), **changes}
++
++
++def test_receipt_survives_module_reload(client):
++    import planner_goals as goals
++    import db
++    data = payload()
++    first = goals.add_goal(data)
++    importlib.reload(goals)
++    assert goals.add_goal(data) == first
++    with db.get_conn() as conn:
++        assert conn.execute("select count(*) from goals where id = ?", (first,)).fetchone()[0] == 1
++        assert conn.execute("select monthly_contribution from goal_meta where goal_id = ?", (first,)).fetchone()[0] == 100
++        assert conn.execute("select count(*) from app_audit where entity_id = ? and action = 'add'", (first,)).fetchone()[0] == 1
++
++
++def test_identical_deliberate_creates_and_legacy_clients(client):
++    import planner_goals as goals
++    data = payload()
++    assert goals.add_goal(data) != goals.add_goal({**data, "create_intent_id": str(uuid.uuid4())})
++    data.pop("create_intent_id")
++    assert goals.add_goal(data) != goals.add_goal(data)
++
++
++def test_intent_payload_conflict(client):
++    data = payload()
++    first = client.post("/api/goals", json=data)
++    assert first.status_code == 201
++    assert client.post("/api/goals", json={**data, "target_amount": 13000}).status_code == 409
++    assert client.post("/api/goals", json=data).get_json()["id"] == first.get_json()["id"]
++
++
++def test_concurrent_retries(client):
++    import planner_goals as goals
++    data = payload()
++    with ThreadPoolExecutor(max_workers=6) as pool:
++        ids = list(pool.map(lambda _: goals.add_goal(data), range(12)))
++    assert len(set(ids)) == 1
++
++
++def test_failed_metadata_rolls_back_goal_and_receipt(client):
++    import planner_goals as goals
++    import db
++    data = payload()
++    with db.get_conn() as conn:
++        conn.execute("create trigger fail_goal_meta before insert on goal_meta begin select raise(ABORT, 'injected metadata failure'); end")
++    try:
++        with pytest.raises(Exception, match="injected metadata failure"):
++            goals.add_goal(data)
++        with db.get_conn() as conn:
++            assert conn.execute("select count(*) from goals where name = ?", (data["name"],)).fetchone()[0] == 0
++            assert conn.execute("select count(*) from goal_create_receipts where intent_id = ?", (data["create_intent_id"],)).fetchone()[0] == 0
++    finally:
++        with db.get_conn() as conn:
++            conn.execute("drop trigger fail_goal_meta")
++    assert goals.add_goal(data)
++
++
++def test_existing_database_upgrade(client, monkeypatch, tmp_path):
++    import db
++    import planner_core
++    import planner_goals as goals
++    monkeypatch.setenv("FINANCE_PROJECT_DIR", str(tmp_path))
++    db.init_db()
++    with db.get_conn() as conn:
++        conn.execute("insert into goals (id, name, target_amount, created_at, updated_at) values ('existing', 'existing goal', 10, 'old', 'old')")
++    planner_core.ensure_tables()
++    planner_core.ensure_tables()
++    data = payload()
++    first = goals.add_goal(data)
++    importlib.reload(goals)
++    assert goals.add_goal(data) == first
++    with db.get_conn() as conn:
++        assert conn.execute("select name from goals where id = 'existing'").fetchone()[0] == "existing goal"

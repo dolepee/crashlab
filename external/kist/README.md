@@ -85,3 +85,56 @@ The earlier `repair.patch`, `repair-live.log`, top-level `evidence/` summaries a
 `demo/crashlab-kist-live.mp4` remain historical artifacts from a different repair.
 They are not the November 7 model trace or a final submission video. The new
 patch and evidence above are explicitly named to keep those releases distinct.
+
+## Recovery campaign and fresh-session regression
+
+The latest recovery examples extend the same create operation across delivery
+uncertainty and process restart; they do not claim unrelated bug families.
+
+- [Native registry comparison](evidence/2026-11-07-recovery/summary.json): unmodified
+  upstream, deliberately injected memory-only negative control, and the older
+  retained real-Hermes durable patch. The memory-only variant passes acknowledgement
+  loss but duplicates after actual process restart. It is explicitly synthetic.
+- [New Hermes-constructed case and repair](evidence/2026-11-07-hermes-recovery/summary.json):
+  a fresh model session built its own case, found the restart failure, edited the
+  application and reran the same case. This record includes actual selected stream
+  events, complete normalized measurements and the full patch including six new
+  tests. The seeded frontend retry code is identified separately from model edits.
+  279 application tests pass independently; the older 281-test result concerns a
+  different patch with a different set of added tests.
+- [Reusable regression bundle](recovery-regression.json): derived from the
+  model-constructed behavior, explicitly prepared and replayed with the corrected
+  evaluator. Its assertions and journey are preserved; application paths are bindings.
+  The historical model run names its own verifier, and does not pretend to have used
+  the later release. Install the evaluator source pin recorded in this bundle, or a
+  release with identical evaluator hashes. Import refuses a mismatch.
+
+Start from the same pinned public upstream checkout and the documented Kist
+application environment. From the installed plugin directory, create a local
+bindings file containing `project_path` and absolute executable `app_python`, then:
+
+```bash
+python crashlab_replay.py import --bundle external/kist/recovery-regression.json --bindings /path/to/bindings.json
+python crashlab_replay.py run --experiment RETURNED_EXPERIMENT_ID
+# The reproduced failure is expected to return exit code 1.
+git -C /path/to/kist apply /path/to/installed/crashlab/external/kist/evidence/2026-11-07-hermes-recovery/repair-from-upstream.patch
+python crashlab_replay.py run --experiment RETURNED_EXPERIMENT_ID
+python crashlab_replay.py report --experiment RETURNED_EXPERIMENT_ID
+```
+
+The fresh upstream baseline here is unmodified Kist, rather than the injected
+memory-only source used in the model session. The same frozen behavior reproduces
+its after-commit and restart failures; the retained model patch passes all three
+boundaries with each legitimate-use control at 2/2. A separate interpreter process
+runs each command. This is operator-controlled replay, not an independent end-user
+trial. Application dependencies are preinstalled and not packaged in the bundle.
+
+For a case generated from this repository's developer example instead, add
+`--recovery-campaign` to `run_kist.py`. Do not modify its assertions after preparing
+an experiment. A restart is owned by CrashLab, uses the same port/data directory,
+retains the observed records and does not repeat setup or reset. External URL
+overrides cannot own that restart. A startup command that wipes the records fails.
+
+The new repair's legacy tokenless callers remain unprotected. The additive schema
+upgrade has focused tests; these examples do not establish a generally safe
+production migration or correctness outside the configured operation.

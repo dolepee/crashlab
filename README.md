@@ -1,14 +1,41 @@
 # CrashLab
 
-CrashLab is a Hermes plugin that checks what an application saved after a
-response was lost. A browser can show an error even after the server committed:
-retrying may create a duplicate record. CrashLab reproduces that interruption,
-reads the persisted state, and verifies the repair against the same case.
+CrashLab helps Hermes check whether an uncertain operation recovers correctly.
+Prevent delivery, lose an acknowledgement after commit, or restart the app before
+retry; inspect what was actually saved, repair the app and rerun the same frozen
+behavior. Keep the regression for the next conversation or checkout.
 
 A legitimate-use control checks that fixing a retry still allows two deliberate
 operations. The comparison freezes the contract and checks evaluator identity
 across the before/after runs. Results cover the configured assertions, not every
 possible application failure.
+
+## A retry fix that survived restart
+
+A fresh Hermes session constructed its own recovery case on public Kist Finance
+with a deliberately injected memory-only fix. That negative control was supplied
+by the operator, not an observed model mistake.
+
+| Same frozen operation | Memory-only negative control | Hermes durable repair |
+| --- | --- | --- |
+| Prevent delivery, then retry | PASS · 1 saved | PASS · 1 saved |
+| Lose acknowledgement after commit | PASS · 1 saved | PASS · 1 saved |
+| Restart with database retained, then retry | **FAIL · 2 saved** | **PASS · 1 saved** |
+| Two deliberate identical creates | PASS · 2 in each boundary | PASS · 2 in each boundary |
+
+The model replaced memory receipts with an additive SQLite receipt table and an
+atomic goal/receipt transaction. It reran the same experiment to VERIFIED; an
+independent run of its application tests passed 279 tests. The full patch retains
+its six new tests and identifies the frontend code supplied in the initial seed.
+See the [actual selected tool events, measurements and patch](external/kist/evidence/2026-11-07-hermes-recovery/summary.json).
+
+The [operator-controlled boundary comparison](external/kist/evidence/2026-11-07-recovery/summary.json)
+also includes unmodified upstream Kist and the older retained repair. A separate
+fresh-checkout replay of the new model repair reproduces the upstream failure and
+passes all three boundaries. These are bounded engineering examples, not adoption,
+general autonomous discovery, production safety or a measured speed advantage.
+
+![Recovery evidence in the actual Hermes dashboard](docs/dashboard-desktop.png)
 
 ## A reproduced external repair
 
