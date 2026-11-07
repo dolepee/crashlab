@@ -1,0 +1,140 @@
+{
+  "source_pin": "6eaf34f3e0d121f1e035decd3cc48299e555e412",
+  "upstream_commit": "49943b5a94413a530761350f04e896f76e8d620e",
+  "host": "Hermes Agent v0.23 plugin discovery and native registry dispatch",
+  "experiment_id": "0d4e21b060df4fe1bcef1d1f3fff1410",
+  "contract_sha256": "fa0d59b78feb0d301c7f95e0b87ae02e43247b38312b3e864a523475a12bae2e",
+  "evaluator_sha256": {
+    "crashlab_core.py": "31f172aefac2a5e90faa8ebae761acc9b403faadd1f638c7c812ab2442e3184c",
+    "crashlab_runner.js": "1ea6b8fdf776987478a8a24877f0f104d7dbdcd1afa55816ec52884d4be0ad31",
+    "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
+    "repair_workflow.py": "67c095b1e54f6a246a10781928abd6b45c8de3c2697e82eb785c232f29210e24"
+  },
+  "scope": "Native Hermes replay of retained Flaskr patch and configured template extended to same three recovery boundaries. Not a new model repair or independent-user trial. Startup initializes only a missing disposable database, preserving it on restart. Existing production DB migration and legacy tokenless requests remain outside repair guarantee.",
+  "results": [
+    {
+      "workflow_status": "REPRODUCED",
+      "boundaries": [
+        {
+          "name": "before_delivery",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": null,
+            "committed_after_fault": 0,
+            "mode": "prevent_before_delivery",
+            "valid": true
+          },
+          "recovery_ok": true,
+          "control_ok": true,
+          "control_observed": 2,
+          "control_expected": 2,
+          "restart_count": 0
+        },
+        {
+          "name": "after_commit",
+          "status": "FAIL",
+          "observed": 2,
+          "expected": 1,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": 200,
+            "committed_after_fault": 1,
+            "mode": "suppress_after_upstream",
+            "valid": true
+          },
+          "recovery_ok": true,
+          "control_ok": true,
+          "control_observed": 2,
+          "control_expected": 2,
+          "restart_count": 0
+        },
+        {
+          "name": "restart_after_commit",
+          "status": "FAIL",
+          "observed": 2,
+          "expected": 1,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": 200,
+            "committed_after_fault": 1,
+            "mode": "suppress_after_upstream",
+            "valid": true
+          },
+          "recovery_ok": true,
+          "control_ok": true,
+          "control_observed": 2,
+          "control_expected": 2,
+          "restart_count": 1
+        }
+      ]
+    },
+    {
+      "workflow_status": "VERIFIED",
+      "boundaries": [
+        {
+          "name": "before_delivery",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": null,
+            "committed_after_fault": 0,
+            "mode": "prevent_before_delivery",
+            "valid": true
+          },
+          "recovery_ok": true,
+          "control_ok": true,
+          "control_observed": 2,
+          "control_expected": 2,
+          "restart_count": 0
+        },
+        {
+          "name": "after_commit",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": 200,
+            "committed_after_fault": 1,
+            "mode": "suppress_after_upstream",
+            "valid": true
+          },
+          "recovery_ok": true,
+          "control_ok": true,
+          "control_observed": 2,
+          "control_expected": 2,
+          "restart_count": 0
+        },
+        {
+          "name": "restart_after_commit",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": 200,
+            "committed_after_fault": 1,
+            "mode": "suppress_after_upstream",
+            "valid": true
+          },
+          "recovery_ok": true,
+          "control_ok": true,
+          "control_observed": 2,
+          "control_expected": 2,
+          "restart_count": 1
+        }
+      ]
+    }
+  ]
+}

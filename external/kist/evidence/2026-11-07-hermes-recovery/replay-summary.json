@@ -1,0 +1,77 @@
+{
+  "source_pin": "6eaf34f3e0d121f1e035decd3cc48299e555e412",
+  "evaluator_sha256": {
+    "crashlab_core.py": "31f172aefac2a5e90faa8ebae761acc9b403faadd1f638c7c812ab2442e3184c",
+    "crashlab_runner.js": "1ea6b8fdf776987478a8a24877f0f104d7dbdcd1afa55816ec52884d4be0ad31",
+    "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
+    "repair_workflow.py": "67c095b1e54f6a246a10781928abd6b45c8de3c2697e82eb785c232f29210e24"
+  },
+  "patch_sha256": "01fafa50a00024f9be19c17d30d5e321339b685b4df6c51b7f0ab2e2911b4e8c",
+  "upstream_commit": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+  "case_origin": "Original Hermes-constructed case; only launch project cwd rebound before explicitly preparing under the corrected evaluator. Assertions, journeys, control and recovery boundaries unchanged.",
+  "native_registry": {
+    "before": "REPRODUCED",
+    "after": "VERIFIED",
+    "final_project_sha256": "6c97b596c17c11a660290793a68125ff5ed83b0427c34dca9150fcb5fcb1189b",
+    "same_source_fingerprint_as_original_model": true,
+    "boundaries": [
+      {
+        "name": "before_delivery",
+        "status": "PASS",
+        "observed": 1,
+        "expected": 1,
+        "control_ok": true,
+        "control_observed": 2,
+        "control_expected": 2
+      },
+      {
+        "name": "after_commit",
+        "status": "PASS",
+        "observed": 1,
+        "expected": 1,
+        "control_ok": true,
+        "control_observed": 2,
+        "control_expected": 2
+      },
+      {
+        "name": "restart_after_commit",
+        "status": "PASS",
+        "observed": 1,
+        "expected": 1,
+        "control_ok": true,
+        "control_observed": 2,
+        "control_expected": 2
+      }
+    ]
+  },
+  "documented_cli": {
+    "execution": "Fresh interpreter process for each documented CLI command; separate pristine public upstream checkout. Operator-controlled replay, not independent-user adoption.",
+    "import_status": "PREPARED",
+    "before": "REPRODUCED",
+    "after": "VERIFIED",
+    "behavior_sha256": "f379c258e1b9557c140f1bafb0f8cc307eefd2d9c1d95ad434f9e9287b84f6e8",
+    "per_boundary": [
+      [
+        "before_delivery",
+        "PASS",
+        true
+      ],
+      [
+        "after_commit",
+        "PASS",
+        true
+      ],
+      [
+        "restart_after_commit",
+        "PASS",
+        true
+      ]
+    ]
+  },
+  "notes": [
+    "Independent replay from pristine upstream, not the injected memory-only starting source of the original model session.",
+    "Each CLI command ran in a separate interpreter process and application checkout; operator-controlled, not end-user adoption.",
+    "This replay pin precedes the public artifact packaging commit; final release install and catalog parity are separately verified.",
+    "Corrected restart guard rejects numeric-only HTTP observation and checks actual counts/record identities; this fresh replay uses direct SQLite records."
+  ]
+}

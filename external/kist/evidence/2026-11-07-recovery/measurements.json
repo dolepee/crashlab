@@ -1,0 +1,3715 @@
+[
+  {
+    "label": "unmodified upstream",
+    "workflow_status": "REPRODUCED",
+    "project_sha256": "5a1c4a2896bcbb11f7f41429f3f78927ab4843e28fc9301b7537476d9cb2ebaa",
+    "cases": [
+      {
+        "name": "before_delivery",
+        "result": {
+          "contract": "kist-one-intent-before_delivery",
+          "run_id": "kist-one-intent-before_delivery-2026-11-07T20-42-04-716Z",
+          "base_url": "http://127.0.0.1:60818",
+          "ok": true,
+          "primary_ok": true,
+          "expected": 1,
+          "observed": 1,
+          "observations": {},
+          "status": "PASS",
+          "upstream_status": null,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": null,
+            "committed_after_fault": 0,
+            "mode": "prevent_before_delivery",
+            "valid": true
+          },
+          "recovery": {
+            "mode": "retry",
+            "ok": true,
+            "matching_retries": 1,
+            "write_requests": 2,
+            "initial_request": {
+              "sequence": 2,
+              "elapsed_ms": 583,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60818/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": false
+            },
+            "reason": "Observed a repeated write with the original request identity and payload."
+          },
+          "network": [
+            {
+              "sequence": 2,
+              "elapsed_ms": 583,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60818/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": false
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 831,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60818/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1114,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60818/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1381,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60818/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            }
+          ],
+          "events": [
+            {
+              "sequence": 1,
+              "elapsed_ms": 390,
+              "phase": "primary",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 2,
+              "elapsed_ms": 583,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60818/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": false
+            },
+            {
+              "sequence": 3,
+              "elapsed_ms": 615,
+              "phase": "primary",
+              "kind": "undelivered_state",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 4,
+              "elapsed_ms": 615,
+              "phase": "primary",
+              "kind": "interruption",
+              "mode": "prevent_before_delivery",
+              "completed": true
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 831,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60818/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 1035,
+              "phase": "primary",
+              "kind": "final_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "f62c7e24-ef64-449c-8cfd-376279066f76",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:05",
+                    "updated_at": "2026-11-07T21:42:05"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 7,
+              "elapsed_ms": 1066,
+              "phase": "control",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 2,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1114,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60818/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1381,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60818/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1584,
+              "phase": "control",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 2,
+                "records": [
+                  {
+                    "id": "ea15b74d-6965-4068-ac21-a149ef7e9439",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:05",
+                    "updated_at": "2026-11-07T21:42:05"
+                  },
+                  {
+                    "id": "6a96fbb2-b893-48cb-ae76-b7187176ea48",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:06",
+                    "updated_at": "2026-11-07T21:42:06"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            }
+          ],
+          "baseline": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "state_after_interruption": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "screenshots": [
+            "{RUN_DATA}/shots/kist-one-intent-before_delivery-2026-11-07T20-42-04-716Z-lost-response.png",
+            "{RUN_DATA}/shots/kist-one-intent-before_delivery-2026-11-07T20-42-04-716Z-after-retry.png",
+            "{RUN_DATA}/shots/kist-one-intent-before_delivery-2026-11-07T20-42-04-716Z-two-intents.png"
+          ],
+          "records": [
+            {
+              "id": "f62c7e24-ef64-449c-8cfd-376279066f76",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:05",
+              "updated_at": "2026-11-07T21:42:05"
+            }
+          ],
+          "control": {
+            "observed": 2,
+            "expected": 2,
+            "records": [
+              {
+                "id": "ea15b74d-6965-4068-ac21-a149ef7e9439",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:05",
+                "updated_at": "2026-11-07T21:42:05"
+              },
+              {
+                "id": "6a96fbb2-b893-48cb-ae76-b7187176ea48",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:06",
+                "updated_at": "2026-11-07T21:42:06"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db",
+            "ok": true
+          },
+          "returncode": 0,
+          "app_lifecycle": [],
+          "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+          "case_sha256": "cc3182b6569de57aa611e88962d5caaa180570833109dff34980363d1a1602a4"
+        }
+      },
+      {
+        "name": "after_commit",
+        "result": {
+          "contract": "kist-one-intent-after_commit",
+          "run_id": "kist-one-intent-after_commit-2026-11-07T20-42-06-953Z",
+          "base_url": "http://127.0.0.1:60938",
+          "ok": false,
+          "primary_ok": false,
+          "expected": 1,
+          "observed": 2,
+          "observations": {},
+          "status": "FAIL",
+          "upstream_status": 201,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": 201,
+            "committed_after_fault": 1,
+            "mode": "suppress_after_upstream",
+            "valid": true
+          },
+          "recovery": {
+            "mode": "retry",
+            "ok": true,
+            "matching_retries": 1,
+            "write_requests": 2,
+            "initial_request": {
+              "sequence": 2,
+              "elapsed_ms": 495,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60938/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": false,
+              "status": 201
+            },
+            "reason": "Observed a repeated write with the original request identity and payload."
+          },
+          "network": [
+            {
+              "sequence": 2,
+              "elapsed_ms": 495,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60938/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 711,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60938/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 977,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60938/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1244,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60938/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            }
+          ],
+          "events": [
+            {
+              "sequence": 1,
+              "elapsed_ms": 320,
+              "phase": "primary",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 2,
+              "elapsed_ms": 495,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60938/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 3,
+              "elapsed_ms": 536,
+              "phase": "primary",
+              "kind": "committed_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "4dc480a0-5fff-42b2-8a94-1138c8e7247d",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:07",
+                    "updated_at": "2026-11-07T21:42:07"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 4,
+              "elapsed_ms": 536,
+              "phase": "primary",
+              "kind": "interruption",
+              "mode": "suppress_after_upstream",
+              "completed": true
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 711,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60938/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 902,
+              "phase": "primary",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "4dc480a0-5fff-42b2-8a94-1138c8e7247d",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:07",
+                    "updated_at": "2026-11-07T21:42:07"
+                  },
+                  {
+                    "id": "329f5590-489a-4c86-bc70-7bc790ca1436",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:07",
+                    "updated_at": "2026-11-07T21:42:07"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 7,
+              "elapsed_ms": 933,
+              "phase": "control",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 2,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 977,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60938/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1244,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:60938/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1437,
+              "phase": "control",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 2,
+                "records": [
+                  {
+                    "id": "0e9e62e1-6c5e-47c6-b3ec-863d3046fb9e",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:07",
+                    "updated_at": "2026-11-07T21:42:07"
+                  },
+                  {
+                    "id": "050fa2ed-75b5-424b-94fe-708325269289",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:08",
+                    "updated_at": "2026-11-07T21:42:08"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            }
+          ],
+          "baseline": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "state_after_interruption": {
+            "observed": 1,
+            "expected": 1,
+            "records": [
+              {
+                "id": "4dc480a0-5fff-42b2-8a94-1138c8e7247d",
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:07",
+                "updated_at": "2026-11-07T21:42:07"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "screenshots": [
+            "{RUN_DATA}/shots/kist-one-intent-after_commit-2026-11-07T20-42-06-953Z-lost-response.png",
+            "{RUN_DATA}/shots/kist-one-intent-after_commit-2026-11-07T20-42-06-953Z-after-retry.png",
+            "{RUN_DATA}/shots/kist-one-intent-after_commit-2026-11-07T20-42-06-953Z-two-intents.png"
+          ],
+          "records": [
+            {
+              "id": "4dc480a0-5fff-42b2-8a94-1138c8e7247d",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:07",
+              "updated_at": "2026-11-07T21:42:07"
+            },
+            {
+              "id": "329f5590-489a-4c86-bc70-7bc790ca1436",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:07",
+              "updated_at": "2026-11-07T21:42:07"
+            }
+          ],
+          "control": {
+            "observed": 2,
+            "expected": 2,
+            "records": [
+              {
+                "id": "0e9e62e1-6c5e-47c6-b3ec-863d3046fb9e",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:07",
+                "updated_at": "2026-11-07T21:42:07"
+              },
+              {
+                "id": "050fa2ed-75b5-424b-94fe-708325269289",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:08",
+                "updated_at": "2026-11-07T21:42:08"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db",
+            "ok": true
+          },
+          "returncode": 1,
+          "app_lifecycle": [],
+          "diagnosis": "Duplicate write: one intent produced 2 persisted records, expected 1.",
+          "case_sha256": "6f172017ecbbf5c88d56ff9a54a60972a15b5c6d7c67cc5dde6350387bf35f5b"
+        }
+      },
+      {
+        "name": "restart_after_commit",
+        "result": {
+          "contract": "kist-one-intent-restart_after_commit",
+          "run_id": "kist-one-intent-restart_after_commit-2026-11-07T20-42-08-896Z",
+          "base_url": "http://127.0.0.1:61060",
+          "ok": false,
+          "primary_ok": false,
+          "expected": 1,
+          "observed": 2,
+          "observations": {},
+          "status": "FAIL",
+          "upstream_status": 201,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": 201,
+            "committed_after_fault": 1,
+            "mode": "suppress_after_upstream",
+            "valid": true
+          },
+          "recovery": {
+            "mode": "retry",
+            "ok": true,
+            "matching_retries": 1,
+            "write_requests": 2,
+            "initial_request": {
+              "sequence": 2,
+              "elapsed_ms": 539,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61060/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": false,
+              "status": 201
+            },
+            "reason": "Observed a repeated write with the original request identity and payload."
+          },
+          "network": [
+            {
+              "sequence": 2,
+              "elapsed_ms": 539,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61060/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 1005,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61060/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1255,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61060/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1539,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61060/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            }
+          ],
+          "events": [
+            {
+              "sequence": 1,
+              "elapsed_ms": 358,
+              "phase": "primary",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 2,
+              "elapsed_ms": 539,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61060/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 3,
+              "elapsed_ms": 585,
+              "phase": "primary",
+              "kind": "committed_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "921912aa-d2ba-45c6-930d-aa8171d9d080",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:09",
+                    "updated_at": "2026-11-07T21:42:09"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 4,
+              "elapsed_ms": 585,
+              "phase": "primary",
+              "kind": "interruption",
+              "mode": "suppress_after_upstream",
+              "completed": true
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 672,
+              "phase": "primary",
+              "kind": "restart",
+              "completed": true,
+              "state_before": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "921912aa-d2ba-45c6-930d-aa8171d9d080",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:09",
+                    "updated_at": "2026-11-07T21:42:09"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              },
+              "state_after": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "921912aa-d2ba-45c6-930d-aa8171d9d080",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:09",
+                    "updated_at": "2026-11-07T21:42:09"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              },
+              "lifecycle": {
+                "ok": true,
+                "old_pid": 82324,
+                "new_pid": 82370,
+                "same_port": true,
+                "same_data_directory": true,
+                "setup_replayed": false,
+                "reset_replayed": false
+              },
+              "scoped_records_preserved": true
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 1005,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61060/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 7,
+              "elapsed_ms": 1192,
+              "phase": "primary",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "921912aa-d2ba-45c6-930d-aa8171d9d080",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:09",
+                    "updated_at": "2026-11-07T21:42:09"
+                  },
+                  {
+                    "id": "e4138f7e-d898-42ab-9283-0c33d5a1f301",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:09",
+                    "updated_at": "2026-11-07T21:42:09"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1221,
+              "phase": "control",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 2,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1255,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61060/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1539,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61060/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 11,
+              "elapsed_ms": 1732,
+              "phase": "control",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 2,
+                "records": [
+                  {
+                    "id": "ef2c4a4b-62ed-4a2b-b09d-f3aa8d181787",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:10",
+                    "updated_at": "2026-11-07T21:42:10"
+                  },
+                  {
+                    "id": "e09dd73c-8569-4177-a20c-6e0f53a7354f",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:10",
+                    "updated_at": "2026-11-07T21:42:10"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            }
+          ],
+          "baseline": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "state_after_interruption": {
+            "observed": 1,
+            "expected": 1,
+            "records": [
+              {
+                "id": "921912aa-d2ba-45c6-930d-aa8171d9d080",
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:09",
+                "updated_at": "2026-11-07T21:42:09"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "screenshots": [
+            "{RUN_DATA}/shots/kist-one-intent-restart_after_commit-2026-11-07T20-42-08-896Z-lost-response.png",
+            "{RUN_DATA}/shots/kist-one-intent-restart_after_commit-2026-11-07T20-42-08-896Z-after-retry.png",
+            "{RUN_DATA}/shots/kist-one-intent-restart_after_commit-2026-11-07T20-42-08-896Z-two-intents.png"
+          ],
+          "records": [
+            {
+              "id": "921912aa-d2ba-45c6-930d-aa8171d9d080",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:09",
+              "updated_at": "2026-11-07T21:42:09"
+            },
+            {
+              "id": "e4138f7e-d898-42ab-9283-0c33d5a1f301",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:09",
+              "updated_at": "2026-11-07T21:42:09"
+            }
+          ],
+          "control": {
+            "observed": 2,
+            "expected": 2,
+            "records": [
+              {
+                "id": "ef2c4a4b-62ed-4a2b-b09d-f3aa8d181787",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:10",
+                "updated_at": "2026-11-07T21:42:10"
+              },
+              {
+                "id": "e09dd73c-8569-4177-a20c-6e0f53a7354f",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:10",
+                "updated_at": "2026-11-07T21:42:10"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db",
+            "ok": true
+          },
+          "returncode": 1,
+          "app_lifecycle": [
+            {
+              "old_pid": 82324,
+              "new_pid": 82370,
+              "same_port": true,
+              "same_data_directory": true,
+              "setup_replayed": false,
+              "reset_replayed": false
+            }
+          ],
+          "diagnosis": "Duplicate write: one intent produced 2 persisted records, expected 1.",
+          "case_sha256": "0e345d09bac6bedf2cd7430f7fed8b772bb68e1668490d66443531920bb2d199"
+        }
+      }
+    ],
+    "source_review": {
+      "git_head": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+      "diff_against_head": "",
+      "truncated": false,
+      "untracked_files": [],
+      "basis": "Actual tracked-file diff against this run's Git HEAD; may include pre-existing edits. Untracked content is not included. This is not an attributed baseline-to-repair patch."
+    }
+  },
+  {
+    "label": "injected memory-only negative control (not a model mistake)",
+    "workflow_status": "REPRODUCED",
+    "project_sha256": "0e0420fc7f227ebea82410f772193be3dec3b103a295756731bcfba55975f3ec",
+    "cases": [
+      {
+        "name": "before_delivery",
+        "result": {
+          "contract": "kist-one-intent-before_delivery",
+          "run_id": "kist-one-intent-before_delivery-2026-11-07T20-42-11-234Z",
+          "base_url": "http://127.0.0.1:61185",
+          "ok": true,
+          "primary_ok": true,
+          "expected": 1,
+          "observed": 1,
+          "observations": {},
+          "status": "PASS",
+          "upstream_status": null,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": null,
+            "committed_after_fault": 0,
+            "mode": "prevent_before_delivery",
+            "valid": true
+          },
+          "recovery": {
+            "mode": "retry",
+            "ok": true,
+            "matching_retries": 1,
+            "write_requests": 2,
+            "initial_request": {
+              "sequence": 2,
+              "elapsed_ms": 540,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61185/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "4426531b-53ae-4c48-887a-5af3d5430e3b"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"4426531b-53ae-4c48-887a-5af3d5430e3b\"}",
+              "after_interruption": false
+            },
+            "reason": "Observed a repeated write with the original request identity and payload."
+          },
+          "network": [
+            {
+              "sequence": 2,
+              "elapsed_ms": 540,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61185/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "4426531b-53ae-4c48-887a-5af3d5430e3b"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"4426531b-53ae-4c48-887a-5af3d5430e3b\"}",
+              "after_interruption": false
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 756,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61185/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "4426531b-53ae-4c48-887a-5af3d5430e3b"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"4426531b-53ae-4c48-887a-5af3d5430e3b\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1023,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61185/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "2ca43c1c-b6a2-498f-9998-eae5323d82dd"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"2ca43c1c-b6a2-498f-9998-eae5323d82dd\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1290,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61185/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "81e69b8b-d8e6-4e56-bfbe-9da2a80553da"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"81e69b8b-d8e6-4e56-bfbe-9da2a80553da\"}",
+              "after_interruption": true
+            }
+          ],
+          "events": [
+            {
+              "sequence": 1,
+              "elapsed_ms": 361,
+              "phase": "primary",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 2,
+              "elapsed_ms": 540,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61185/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "4426531b-53ae-4c48-887a-5af3d5430e3b"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"4426531b-53ae-4c48-887a-5af3d5430e3b\"}",
+              "after_interruption": false
+            },
+            {
+              "sequence": 3,
+              "elapsed_ms": 566,
+              "phase": "primary",
+              "kind": "undelivered_state",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 4,
+              "elapsed_ms": 566,
+              "phase": "primary",
+              "kind": "interruption",
+              "mode": "prevent_before_delivery",
+              "completed": true
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 756,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61185/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "4426531b-53ae-4c48-887a-5af3d5430e3b"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"4426531b-53ae-4c48-887a-5af3d5430e3b\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 959,
+              "phase": "primary",
+              "kind": "final_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "ea05c573-8b22-4fe0-87fa-b3dba7692b13",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:11",
+                    "updated_at": "2026-11-07T21:42:11"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 7,
+              "elapsed_ms": 989,
+              "phase": "control",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 2,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1023,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61185/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "2ca43c1c-b6a2-498f-9998-eae5323d82dd"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"2ca43c1c-b6a2-498f-9998-eae5323d82dd\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1290,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61185/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "81e69b8b-d8e6-4e56-bfbe-9da2a80553da"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"81e69b8b-d8e6-4e56-bfbe-9da2a80553da\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1483,
+              "phase": "control",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 2,
+                "records": [
+                  {
+                    "id": "5bb1c023-f8c9-4bd5-8cf7-db8cf7708875",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:12",
+                    "updated_at": "2026-11-07T21:42:12"
+                  },
+                  {
+                    "id": "c07ba513-c1a5-4d74-869e-8ce431279d7d",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:12",
+                    "updated_at": "2026-11-07T21:42:12"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            }
+          ],
+          "baseline": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "state_after_interruption": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "screenshots": [
+            "{RUN_DATA}/shots/kist-one-intent-before_delivery-2026-11-07T20-42-11-234Z-lost-response.png",
+            "{RUN_DATA}/shots/kist-one-intent-before_delivery-2026-11-07T20-42-11-234Z-after-retry.png",
+            "{RUN_DATA}/shots/kist-one-intent-before_delivery-2026-11-07T20-42-11-234Z-two-intents.png"
+          ],
+          "records": [
+            {
+              "id": "ea05c573-8b22-4fe0-87fa-b3dba7692b13",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:11",
+              "updated_at": "2026-11-07T21:42:11"
+            }
+          ],
+          "control": {
+            "observed": 2,
+            "expected": 2,
+            "records": [
+              {
+                "id": "5bb1c023-f8c9-4bd5-8cf7-db8cf7708875",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:12",
+                "updated_at": "2026-11-07T21:42:12"
+              },
+              {
+                "id": "c07ba513-c1a5-4d74-869e-8ce431279d7d",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:12",
+                "updated_at": "2026-11-07T21:42:12"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db",
+            "ok": true
+          },
+          "returncode": 0,
+          "app_lifecycle": [],
+          "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+          "case_sha256": "cc3182b6569de57aa611e88962d5caaa180570833109dff34980363d1a1602a4"
+        }
+      },
+      {
+        "name": "after_commit",
+        "result": {
+          "contract": "kist-one-intent-after_commit",
+          "run_id": "kist-one-intent-after_commit-2026-11-07T20-42-13-378Z",
+          "base_url": "http://127.0.0.1:61299",
+          "ok": true,
+          "primary_ok": true,
+          "expected": 1,
+          "observed": 1,
+          "observations": {},
+          "status": "PASS",
+          "upstream_status": 201,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": 201,
+            "committed_after_fault": 1,
+            "mode": "suppress_after_upstream",
+            "valid": true
+          },
+          "recovery": {
+            "mode": "retry",
+            "ok": true,
+            "matching_retries": 1,
+            "write_requests": 2,
+            "initial_request": {
+              "sequence": 2,
+              "elapsed_ms": 499,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61299/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "6fb320d3-9e66-40d0-aa42-503e7a5f911a"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"6fb320d3-9e66-40d0-aa42-503e7a5f911a\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            "reason": "Observed a repeated write with the original request identity and payload."
+          },
+          "network": [
+            {
+              "sequence": 2,
+              "elapsed_ms": 499,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61299/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "6fb320d3-9e66-40d0-aa42-503e7a5f911a"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"6fb320d3-9e66-40d0-aa42-503e7a5f911a\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 730,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61299/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "6fb320d3-9e66-40d0-aa42-503e7a5f911a"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"6fb320d3-9e66-40d0-aa42-503e7a5f911a\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1030,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61299/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "baec95db-6f70-4da0-8bfc-34eba0b68e52"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"baec95db-6f70-4da0-8bfc-34eba0b68e52\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1296,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61299/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "c94edb81-4f96-4f64-8de8-054e3d4dce58"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"c94edb81-4f96-4f64-8de8-054e3d4dce58\"}",
+              "after_interruption": true
+            }
+          ],
+          "events": [
+            {
+              "sequence": 1,
+              "elapsed_ms": 323,
+              "phase": "primary",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 2,
+              "elapsed_ms": 499,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61299/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "6fb320d3-9e66-40d0-aa42-503e7a5f911a"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"6fb320d3-9e66-40d0-aa42-503e7a5f911a\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 3,
+              "elapsed_ms": 544,
+              "phase": "primary",
+              "kind": "committed_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "25ad5cbd-0ce9-4b1d-8ffb-e089974ed209",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:13",
+                    "updated_at": "2026-11-07T21:42:13"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 4,
+              "elapsed_ms": 544,
+              "phase": "primary",
+              "kind": "interruption",
+              "mode": "suppress_after_upstream",
+              "completed": true
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 730,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61299/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "6fb320d3-9e66-40d0-aa42-503e7a5f911a"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"6fb320d3-9e66-40d0-aa42-503e7a5f911a\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 944,
+              "phase": "primary",
+              "kind": "final_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "25ad5cbd-0ce9-4b1d-8ffb-e089974ed209",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:13",
+                    "updated_at": "2026-11-07T21:42:13"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 7,
+              "elapsed_ms": 982,
+              "phase": "control",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 2,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1030,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61299/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "baec95db-6f70-4da0-8bfc-34eba0b68e52"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"baec95db-6f70-4da0-8bfc-34eba0b68e52\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1296,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61299/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "c94edb81-4f96-4f64-8de8-054e3d4dce58"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"c94edb81-4f96-4f64-8de8-054e3d4dce58\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1489,
+              "phase": "control",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 2,
+                "records": [
+                  {
+                    "id": "11f065cf-13a3-41d4-88dc-126dfd44668d",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:14",
+                    "updated_at": "2026-11-07T21:42:14"
+                  },
+                  {
+                    "id": "47d45192-ac38-49bf-b8d5-7df56ed6175c",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:14",
+                    "updated_at": "2026-11-07T21:42:14"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            }
+          ],
+          "baseline": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "state_after_interruption": {
+            "observed": 1,
+            "expected": 1,
+            "records": [
+              {
+                "id": "25ad5cbd-0ce9-4b1d-8ffb-e089974ed209",
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:13",
+                "updated_at": "2026-11-07T21:42:13"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "screenshots": [
+            "{RUN_DATA}/shots/kist-one-intent-after_commit-2026-11-07T20-42-13-378Z-lost-response.png",
+            "{RUN_DATA}/shots/kist-one-intent-after_commit-2026-11-07T20-42-13-378Z-after-retry.png",
+            "{RUN_DATA}/shots/kist-one-intent-after_commit-2026-11-07T20-42-13-378Z-two-intents.png"
+          ],
+          "records": [
+            {
+              "id": "25ad5cbd-0ce9-4b1d-8ffb-e089974ed209",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:13",
+              "updated_at": "2026-11-07T21:42:13"
+            }
+          ],
+          "control": {
+            "observed": 2,
+            "expected": 2,
+            "records": [
+              {
+                "id": "11f065cf-13a3-41d4-88dc-126dfd44668d",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:14",
+                "updated_at": "2026-11-07T21:42:14"
+              },
+              {
+                "id": "47d45192-ac38-49bf-b8d5-7df56ed6175c",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:14",
+                "updated_at": "2026-11-07T21:42:14"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db",
+            "ok": true
+          },
+          "returncode": 0,
+          "app_lifecycle": [],
+          "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+          "case_sha256": "6f172017ecbbf5c88d56ff9a54a60972a15b5c6d7c67cc5dde6350387bf35f5b"
+        }
+      },
+      {
+        "name": "restart_after_commit",
+        "result": {
+          "contract": "kist-one-intent-restart_after_commit",
+          "run_id": "kist-one-intent-restart_after_commit-2026-11-07T20-42-15-396Z",
+          "base_url": "http://127.0.0.1:61424",
+          "ok": false,
+          "primary_ok": false,
+          "expected": 1,
+          "observed": 2,
+          "observations": {},
+          "status": "FAIL",
+          "upstream_status": 201,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": 201,
+            "committed_after_fault": 1,
+            "mode": "suppress_after_upstream",
+            "valid": true
+          },
+          "recovery": {
+            "mode": "retry",
+            "ok": true,
+            "matching_retries": 1,
+            "write_requests": 2,
+            "initial_request": {
+              "sequence": 2,
+              "elapsed_ms": 518,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61424/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "c377f7a2-1377-4296-ad78-9dd8d3c2d894"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"c377f7a2-1377-4296-ad78-9dd8d3c2d894\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            "reason": "Observed a repeated write with the original request identity and payload."
+          },
+          "network": [
+            {
+              "sequence": 2,
+              "elapsed_ms": 518,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61424/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "c377f7a2-1377-4296-ad78-9dd8d3c2d894"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"c377f7a2-1377-4296-ad78-9dd8d3c2d894\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 964,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61424/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "c377f7a2-1377-4296-ad78-9dd8d3c2d894"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"c377f7a2-1377-4296-ad78-9dd8d3c2d894\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1217,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61424/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "5e69d8ea-96f5-4e04-9f5e-f0b527a886a0"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"5e69d8ea-96f5-4e04-9f5e-f0b527a886a0\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1502,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61424/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "ca7ee254-e05a-4559-9ce7-7b1119860513"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"ca7ee254-e05a-4559-9ce7-7b1119860513\"}",
+              "after_interruption": true
+            }
+          ],
+          "events": [
+            {
+              "sequence": 1,
+              "elapsed_ms": 343,
+              "phase": "primary",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 2,
+              "elapsed_ms": 518,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61424/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "c377f7a2-1377-4296-ad78-9dd8d3c2d894"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"c377f7a2-1377-4296-ad78-9dd8d3c2d894\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 3,
+              "elapsed_ms": 585,
+              "phase": "primary",
+              "kind": "committed_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "0b616ee7-8db0-44a9-aa5e-9ea3a4d98738",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:15",
+                    "updated_at": "2026-11-07T21:42:15"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 4,
+              "elapsed_ms": 585,
+              "phase": "primary",
+              "kind": "interruption",
+              "mode": "suppress_after_upstream",
+              "completed": true
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 649,
+              "phase": "primary",
+              "kind": "restart",
+              "completed": true,
+              "state_before": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "0b616ee7-8db0-44a9-aa5e-9ea3a4d98738",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:15",
+                    "updated_at": "2026-11-07T21:42:15"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              },
+              "state_after": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "0b616ee7-8db0-44a9-aa5e-9ea3a4d98738",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:15",
+                    "updated_at": "2026-11-07T21:42:15"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              },
+              "lifecycle": {
+                "ok": true,
+                "old_pid": 82585,
+                "new_pid": 82628,
+                "same_port": true,
+                "same_data_directory": true,
+                "setup_replayed": false,
+                "reset_replayed": false
+              },
+              "scoped_records_preserved": true
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 964,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61424/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "c377f7a2-1377-4296-ad78-9dd8d3c2d894"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"c377f7a2-1377-4296-ad78-9dd8d3c2d894\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 7,
+              "elapsed_ms": 1153,
+              "phase": "primary",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "0b616ee7-8db0-44a9-aa5e-9ea3a4d98738",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:15",
+                    "updated_at": "2026-11-07T21:42:15"
+                  },
+                  {
+                    "id": "3ab935a5-103e-4763-bbfd-3ac0305b60ef",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:16",
+                    "updated_at": "2026-11-07T21:42:16"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1183,
+              "phase": "control",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 2,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1217,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61424/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "5e69d8ea-96f5-4e04-9f5e-f0b527a886a0"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"5e69d8ea-96f5-4e04-9f5e-f0b527a886a0\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1502,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61424/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "ca7ee254-e05a-4559-9ce7-7b1119860513"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"ca7ee254-e05a-4559-9ce7-7b1119860513\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 11,
+              "elapsed_ms": 1694,
+              "phase": "control",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 2,
+                "records": [
+                  {
+                    "id": "08e152df-fd13-4263-a43f-4ea8c83ec27e",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:16",
+                    "updated_at": "2026-11-07T21:42:16"
+                  },
+                  {
+                    "id": "9e167de8-b05f-4192-b74d-039e97e9d672",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:16",
+                    "updated_at": "2026-11-07T21:42:16"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            }
+          ],
+          "baseline": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "state_after_interruption": {
+            "observed": 1,
+            "expected": 1,
+            "records": [
+              {
+                "id": "0b616ee7-8db0-44a9-aa5e-9ea3a4d98738",
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:15",
+                "updated_at": "2026-11-07T21:42:15"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "screenshots": [
+            "{RUN_DATA}/shots/kist-one-intent-restart_after_commit-2026-11-07T20-42-15-396Z-lost-response.png",
+            "{RUN_DATA}/shots/kist-one-intent-restart_after_commit-2026-11-07T20-42-15-396Z-after-retry.png",
+            "{RUN_DATA}/shots/kist-one-intent-restart_after_commit-2026-11-07T20-42-15-396Z-two-intents.png"
+          ],
+          "records": [
+            {
+              "id": "0b616ee7-8db0-44a9-aa5e-9ea3a4d98738",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:15",
+              "updated_at": "2026-11-07T21:42:15"
+            },
+            {
+              "id": "3ab935a5-103e-4763-bbfd-3ac0305b60ef",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:16",
+              "updated_at": "2026-11-07T21:42:16"
+            }
+          ],
+          "control": {
+            "observed": 2,
+            "expected": 2,
+            "records": [
+              {
+                "id": "08e152df-fd13-4263-a43f-4ea8c83ec27e",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:16",
+                "updated_at": "2026-11-07T21:42:16"
+              },
+              {
+                "id": "9e167de8-b05f-4192-b74d-039e97e9d672",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:16",
+                "updated_at": "2026-11-07T21:42:16"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db",
+            "ok": true
+          },
+          "returncode": 1,
+          "app_lifecycle": [
+            {
+              "old_pid": 82585,
+              "new_pid": 82628,
+              "same_port": true,
+              "same_data_directory": true,
+              "setup_replayed": false,
+              "reset_replayed": false
+            }
+          ],
+          "diagnosis": "Duplicate write: one intent produced 2 persisted records, expected 1.",
+          "case_sha256": "0e345d09bac6bedf2cd7430f7fed8b772bb68e1668490d66443531920bb2d199"
+        }
+      }
+    ],
+    "source_review": {
+      "git_head": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+      "diff_against_head": "diff --git a/server/planner_goals.py b/server/planner_goals.py\nindex b2ebfea..f63aa4d 100644\n--- a/server/planner_goals.py\n+++ b/server/planner_goals.py\n@@ -46,7 +46,12 @@ def _project(goal, cfg):\n             \"eta_band\": band}\n \n \n+_memory_receipts = {}\n+\n def add_goal(data):\n+    key = data.get(\"create_intent_id\")\n+    if key and key in _memory_receipts:\n+        return _memory_receipts[key]\n     goal_id = str(uuid.uuid4())\n     eb._exec(\n         \"insert into goals (id, name, target_amount, current_amount, target_date, \"\n@@ -58,6 +63,7 @@ def add_goal(data):\n         eb._exec(\"insert into goal_meta (goal_id, monthly_contribution) values (?,?)\",\n                  (goal_id, float(data[\"monthly_contribution\"])))\n     P._audit(\"goal\", goal_id, \"add\", data)\n+    if key: _memory_receipts[key] = goal_id\n     return goal_id\n \n \ndiff --git a/static/js/views/goals.js b/static/js/views/goals.js\nindex 00eefee..0cce7e6 100644\n--- a/static/js/views/goals.js\n+++ b/static/js/views/goals.js\n@@ -66,17 +66,36 @@ async function renderGoals(el) {\n     await api.put(\"/api/settings\", { monthly_savings: parseNum(document.getElementById(\"gSavings\")) || \"\" });\n     route();\n   });\n-  document.getElementById(\"gAdd\").addEventListener(\"click\", async () => {\n+  let pendingCreate = null;\n+  try { pendingCreate = JSON.parse(sessionStorage.getItem(\"goalPendingCreate\")); } catch (_) { /* optional storage */ }\n+  const addButton = document.getElementById(\"gAdd\");\n+  addButton.addEventListener(\"click\", async () => {\n     const name = document.getElementById(\"gName\").value.trim();\n     const target = parseNum(document.getElementById(\"gTarget\"));\n     if (!name || !target) { alert(\"Enter a name and target amount\"); return; }\n     const monthly = parseNum(document.getElementById(\"gMonthly\"));\n-    await api.post(\"/api/goals\", {\n+    const payload = {\n       name, target_amount: target,\n       current_amount: parseNum(document.getElementById(\"gCurrent\")) || 0,\n       monthly_contribution: isNaN(monthly) ? undefined : monthly,\n-    });\n-    route();\n+    };\n+    const encoded = JSON.stringify(payload);\n+    if (!pendingCreate || pendingCreate.payload !== encoded) {\n+      pendingCreate = { payload: encoded, id: crypto.randomUUID() };\n+    }\n+    try { sessionStorage.setItem(\"goalPendingCreate\", JSON.stringify(pendingCreate)); } catch (_) { /* optional storage */ }\n+    addButton.disabled = true;\n+    try {\n+      await api.post(\"/api/goals\", { ...payload, create_intent_id: pendingCreate.id });\n+      pendingCreate = null;\n+      try { sessionStorage.removeItem(\"goalPendingCreate\"); } catch (_) { /* optional storage */ }\n+      route();\n+    } catch (err) {\n+      // An error may mean the response was lost AFTER commit. Reuse the intent.\n+      alert(\"Goal not confirmed. Retry to confirm it: \" + err.message);\n+    } finally {\n+      addButton.disabled = false;\n+    }\n   });\n   list.querySelectorAll(\"[data-gupd]\").forEach((b) =>\n     b.addEventListener(\"click\", async () => {\n",
+      "truncated": false,
+      "untracked_files": [],
+      "basis": "Actual tracked-file diff against this run's Git HEAD; may include pre-existing edits. Untracked content is not included. This is not an attributed baseline-to-repair patch."
+    }
+  },
+  {
+    "label": "retained Hermes durable repair",
+    "workflow_status": "VERIFIED",
+    "project_sha256": "91a6dab73ec57efb67789a42b3a486ba947d92ec5b5caf9a6a7117c604d07eda",
+    "cases": [
+      {
+        "name": "before_delivery",
+        "result": {
+          "contract": "kist-one-intent-before_delivery",
+          "run_id": "kist-one-intent-before_delivery-2026-11-07T20-42-17-706Z",
+          "base_url": "http://127.0.0.1:61545",
+          "ok": true,
+          "primary_ok": true,
+          "expected": 1,
+          "observed": 1,
+          "observations": {},
+          "status": "PASS",
+          "upstream_status": null,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": null,
+            "committed_after_fault": 0,
+            "mode": "prevent_before_delivery",
+            "valid": true
+          },
+          "recovery": {
+            "mode": "retry",
+            "ok": true,
+            "matching_retries": 1,
+            "write_requests": 2,
+            "initial_request": {
+              "sequence": 2,
+              "elapsed_ms": 501,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61545/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "36e862d1-adc5-481a-8c80-d2989fb70339"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"36e862d1-adc5-481a-8c80-d2989fb70339\"}",
+              "after_interruption": false
+            },
+            "reason": "Observed a repeated write with the original request identity and payload."
+          },
+          "network": [
+            {
+              "sequence": 2,
+              "elapsed_ms": 501,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61545/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "36e862d1-adc5-481a-8c80-d2989fb70339"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"36e862d1-adc5-481a-8c80-d2989fb70339\"}",
+              "after_interruption": false
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 747,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61545/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "36e862d1-adc5-481a-8c80-d2989fb70339"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"36e862d1-adc5-481a-8c80-d2989fb70339\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 999,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61545/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "0b90ad8c-5e69-45ee-9048-a182b799e516"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"0b90ad8c-5e69-45ee-9048-a182b799e516\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1266,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61545/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "314c9c97-ffed-469b-a31e-6020deaa8a16"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"314c9c97-ffed-469b-a31e-6020deaa8a16\"}",
+              "after_interruption": true
+            }
+          ],
+          "events": [
+            {
+              "sequence": 1,
+              "elapsed_ms": 322,
+              "phase": "primary",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 2,
+              "elapsed_ms": 501,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61545/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "36e862d1-adc5-481a-8c80-d2989fb70339"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"36e862d1-adc5-481a-8c80-d2989fb70339\"}",
+              "after_interruption": false
+            },
+            {
+              "sequence": 3,
+              "elapsed_ms": 532,
+              "phase": "primary",
+              "kind": "undelivered_state",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 4,
+              "elapsed_ms": 532,
+              "phase": "primary",
+              "kind": "interruption",
+              "mode": "prevent_before_delivery",
+              "completed": true
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 747,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61545/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "36e862d1-adc5-481a-8c80-d2989fb70339"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"36e862d1-adc5-481a-8c80-d2989fb70339\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 933,
+              "phase": "primary",
+              "kind": "final_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "b6202f49-a994-470a-9125-9aad4f714092",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:18",
+                    "updated_at": "2026-11-07T21:42:18"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 7,
+              "elapsed_ms": 963,
+              "phase": "control",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 2,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 999,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61545/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "0b90ad8c-5e69-45ee-9048-a182b799e516"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"0b90ad8c-5e69-45ee-9048-a182b799e516\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1266,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61545/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "314c9c97-ffed-469b-a31e-6020deaa8a16"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"314c9c97-ffed-469b-a31e-6020deaa8a16\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1457,
+              "phase": "control",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 2,
+                "records": [
+                  {
+                    "id": "9552fb7f-d504-4395-9db5-2b8c2e5523c7",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:18",
+                    "updated_at": "2026-11-07T21:42:18"
+                  },
+                  {
+                    "id": "6be04de4-d700-43ca-9c08-355848f0783f",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:18",
+                    "updated_at": "2026-11-07T21:42:18"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            }
+          ],
+          "baseline": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "state_after_interruption": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "screenshots": [
+            "{RUN_DATA}/shots/kist-one-intent-before_delivery-2026-11-07T20-42-17-706Z-lost-response.png",
+            "{RUN_DATA}/shots/kist-one-intent-before_delivery-2026-11-07T20-42-17-706Z-after-retry.png",
+            "{RUN_DATA}/shots/kist-one-intent-before_delivery-2026-11-07T20-42-17-706Z-two-intents.png"
+          ],
+          "records": [
+            {
+              "id": "b6202f49-a994-470a-9125-9aad4f714092",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:18",
+              "updated_at": "2026-11-07T21:42:18"
+            }
+          ],
+          "control": {
+            "observed": 2,
+            "expected": 2,
+            "records": [
+              {
+                "id": "9552fb7f-d504-4395-9db5-2b8c2e5523c7",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:18",
+                "updated_at": "2026-11-07T21:42:18"
+              },
+              {
+                "id": "6be04de4-d700-43ca-9c08-355848f0783f",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:18",
+                "updated_at": "2026-11-07T21:42:18"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db",
+            "ok": true
+          },
+          "returncode": 0,
+          "app_lifecycle": [],
+          "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+          "case_sha256": "cc3182b6569de57aa611e88962d5caaa180570833109dff34980363d1a1602a4"
+        }
+      },
+      {
+        "name": "after_commit",
+        "result": {
+          "contract": "kist-one-intent-after_commit",
+          "run_id": "kist-one-intent-after_commit-2026-11-07T20-42-19-779Z",
+          "base_url": "http://127.0.0.1:61661",
+          "ok": true,
+          "primary_ok": true,
+          "expected": 1,
+          "observed": 1,
+          "observations": {},
+          "status": "PASS",
+          "upstream_status": 201,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": 201,
+            "committed_after_fault": 1,
+            "mode": "suppress_after_upstream",
+            "valid": true
+          },
+          "recovery": {
+            "mode": "retry",
+            "ok": true,
+            "matching_retries": 1,
+            "write_requests": 2,
+            "initial_request": {
+              "sequence": 2,
+              "elapsed_ms": 587,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61661/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "2bd98b74-c4d4-43ef-87b5-a6cf3f6d2631"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"2bd98b74-c4d4-43ef-87b5-a6cf3f6d2631\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            "reason": "Observed a repeated write with the original request identity and payload."
+          },
+          "network": [
+            {
+              "sequence": 2,
+              "elapsed_ms": 587,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61661/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "2bd98b74-c4d4-43ef-87b5-a6cf3f6d2631"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"2bd98b74-c4d4-43ef-87b5-a6cf3f6d2631\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 818,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61661/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "2bd98b74-c4d4-43ef-87b5-a6cf3f6d2631"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"2bd98b74-c4d4-43ef-87b5-a6cf3f6d2631\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1101,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61661/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "913e3ff6-2370-4729-bd85-8a72d81d8ca6"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"913e3ff6-2370-4729-bd85-8a72d81d8ca6\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1318,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61661/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "9dce4dcf-a4df-4531-9d7f-ffe083547203"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"9dce4dcf-a4df-4531-9d7f-ffe083547203\"}",
+              "after_interruption": true
+            }
+          ],
+          "events": [
+            {
+              "sequence": 1,
+              "elapsed_ms": 388,
+              "phase": "primary",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 2,
+              "elapsed_ms": 587,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61661/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "2bd98b74-c4d4-43ef-87b5-a6cf3f6d2631"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"2bd98b74-c4d4-43ef-87b5-a6cf3f6d2631\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 3,
+              "elapsed_ms": 648,
+              "phase": "primary",
+              "kind": "committed_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "f691f787-ff91-4369-97a2-6e96795e126f",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:20",
+                    "updated_at": "2026-11-07T21:42:20"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 4,
+              "elapsed_ms": 648,
+              "phase": "primary",
+              "kind": "interruption",
+              "mode": "suppress_after_upstream",
+              "completed": true
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 818,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61661/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "2bd98b74-c4d4-43ef-87b5-a6cf3f6d2631"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"2bd98b74-c4d4-43ef-87b5-a6cf3f6d2631\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 1020,
+              "phase": "primary",
+              "kind": "final_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "f691f787-ff91-4369-97a2-6e96795e126f",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:20",
+                    "updated_at": "2026-11-07T21:42:20"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 7,
+              "elapsed_ms": 1050,
+              "phase": "control",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 2,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1101,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61661/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "913e3ff6-2370-4729-bd85-8a72d81d8ca6"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"913e3ff6-2370-4729-bd85-8a72d81d8ca6\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1318,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61661/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "9dce4dcf-a4df-4531-9d7f-ffe083547203"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"9dce4dcf-a4df-4531-9d7f-ffe083547203\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1510,
+              "phase": "control",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 2,
+                "records": [
+                  {
+                    "id": "f58d0e60-fb72-49da-87d6-d0034906e95e",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:20",
+                    "updated_at": "2026-11-07T21:42:20"
+                  },
+                  {
+                    "id": "be5262eb-8d57-406a-b851-87dd13bd4043",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:21",
+                    "updated_at": "2026-11-07T21:42:21"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            }
+          ],
+          "baseline": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "state_after_interruption": {
+            "observed": 1,
+            "expected": 1,
+            "records": [
+              {
+                "id": "f691f787-ff91-4369-97a2-6e96795e126f",
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:20",
+                "updated_at": "2026-11-07T21:42:20"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "screenshots": [
+            "{RUN_DATA}/shots/kist-one-intent-after_commit-2026-11-07T20-42-19-779Z-lost-response.png",
+            "{RUN_DATA}/shots/kist-one-intent-after_commit-2026-11-07T20-42-19-779Z-after-retry.png",
+            "{RUN_DATA}/shots/kist-one-intent-after_commit-2026-11-07T20-42-19-779Z-two-intents.png"
+          ],
+          "records": [
+            {
+              "id": "f691f787-ff91-4369-97a2-6e96795e126f",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:20",
+              "updated_at": "2026-11-07T21:42:20"
+            }
+          ],
+          "control": {
+            "observed": 2,
+            "expected": 2,
+            "records": [
+              {
+                "id": "f58d0e60-fb72-49da-87d6-d0034906e95e",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:20",
+                "updated_at": "2026-11-07T21:42:20"
+              },
+              {
+                "id": "be5262eb-8d57-406a-b851-87dd13bd4043",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:21",
+                "updated_at": "2026-11-07T21:42:21"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db",
+            "ok": true
+          },
+          "returncode": 0,
+          "app_lifecycle": [],
+          "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+          "case_sha256": "6f172017ecbbf5c88d56ff9a54a60972a15b5c6d7c67cc5dde6350387bf35f5b"
+        }
+      },
+      {
+        "name": "restart_after_commit",
+        "result": {
+          "contract": "kist-one-intent-restart_after_commit",
+          "run_id": "kist-one-intent-restart_after_commit-2026-11-07T20-42-21-957Z",
+          "base_url": "http://127.0.0.1:61786",
+          "ok": true,
+          "primary_ok": true,
+          "expected": 1,
+          "observed": 1,
+          "observations": {},
+          "status": "PASS",
+          "upstream_status": 201,
+          "scenario": {
+            "matched": true,
+            "delivered": true,
+            "upstream_status": 201,
+            "committed_after_fault": 1,
+            "mode": "suppress_after_upstream",
+            "valid": true
+          },
+          "recovery": {
+            "mode": "retry",
+            "ok": true,
+            "matching_retries": 1,
+            "write_requests": 2,
+            "initial_request": {
+              "sequence": 2,
+              "elapsed_ms": 525,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61786/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "50495945-9277-4592-8b14-618642368055"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"50495945-9277-4592-8b14-618642368055\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            "reason": "Observed a repeated write with the original request identity and payload."
+          },
+          "network": [
+            {
+              "sequence": 2,
+              "elapsed_ms": 525,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61786/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "50495945-9277-4592-8b14-618642368055"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"50495945-9277-4592-8b14-618642368055\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 1122,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61786/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "50495945-9277-4592-8b14-618642368055"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"50495945-9277-4592-8b14-618642368055\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1389,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61786/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "642e177b-bf60-485c-bd2f-99cd4feb46bb"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"642e177b-bf60-485c-bd2f-99cd4feb46bb\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1656,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61786/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "bb1ba01b-9b5a-4d01-927b-f03dcdc82d3f"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"bb1ba01b-9b5a-4d01-927b-f03dcdc82d3f\"}",
+              "after_interruption": true
+            }
+          ],
+          "events": [
+            {
+              "sequence": 1,
+              "elapsed_ms": 349,
+              "phase": "primary",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 1,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 2,
+              "elapsed_ms": 525,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61786/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "50495945-9277-4592-8b14-618642368055"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"50495945-9277-4592-8b14-618642368055\"}",
+              "after_interruption": false,
+              "status": 201
+            },
+            {
+              "sequence": 3,
+              "elapsed_ms": 569,
+              "phase": "primary",
+              "kind": "committed_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "a24bf59b-0919-4fc8-9bbb-50a4086957df",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:22",
+                    "updated_at": "2026-11-07T21:42:22"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 4,
+              "elapsed_ms": 569,
+              "phase": "primary",
+              "kind": "interruption",
+              "mode": "suppress_after_upstream",
+              "completed": true
+            },
+            {
+              "sequence": 5,
+              "elapsed_ms": 661,
+              "phase": "primary",
+              "kind": "restart",
+              "completed": true,
+              "state_before": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "a24bf59b-0919-4fc8-9bbb-50a4086957df",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:22",
+                    "updated_at": "2026-11-07T21:42:22"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              },
+              "state_after": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "a24bf59b-0919-4fc8-9bbb-50a4086957df",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:22",
+                    "updated_at": "2026-11-07T21:42:22"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              },
+              "lifecycle": {
+                "ok": true,
+                "old_pid": 82858,
+                "new_pid": 82905,
+                "same_port": true,
+                "same_data_directory": true,
+                "setup_replayed": false,
+                "reset_replayed": false
+              },
+              "scoped_records_preserved": true
+            },
+            {
+              "sequence": 6,
+              "elapsed_ms": 1122,
+              "phase": "primary",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61786/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "50495945-9277-4592-8b14-618642368055"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_ONE_INTENT\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"50495945-9277-4592-8b14-618642368055\"}",
+              "after_interruption": true,
+              "status": 201
+            },
+            {
+              "sequence": 7,
+              "elapsed_ms": 1310,
+              "phase": "primary",
+              "kind": "final_state",
+              "state": {
+                "observed": 1,
+                "expected": 1,
+                "records": [
+                  {
+                    "id": "a24bf59b-0919-4fc8-9bbb-50a4086957df",
+                    "name": "CRASHLAB_KIST_ONE_INTENT",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:22",
+                    "updated_at": "2026-11-07T21:42:22"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 8,
+              "elapsed_ms": 1339,
+              "phase": "control",
+              "kind": "baseline",
+              "state": {
+                "observed": 0,
+                "expected": 2,
+                "records": [],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            },
+            {
+              "sequence": 9,
+              "elapsed_ms": 1389,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61786/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "642e177b-bf60-485c-bd2f-99cd4feb46bb"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"642e177b-bf60-485c-bd2f-99cd4feb46bb\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 10,
+              "elapsed_ms": 1656,
+              "phase": "control",
+              "kind": "write",
+              "method": "POST",
+              "url": "http://127.0.0.1:61786/api/goals",
+              "body": {
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "monthly_contribution": 50,
+                "create_intent_id": "bb1ba01b-9b5a-4d01-927b-f03dcdc82d3f"
+              },
+              "raw_body": "{\"name\":\"CRASHLAB_KIST_TWO_INTENTS\",\"target_amount\":1000,\"current_amount\":100,\"monthly_contribution\":50,\"create_intent_id\":\"bb1ba01b-9b5a-4d01-927b-f03dcdc82d3f\"}",
+              "after_interruption": true
+            },
+            {
+              "sequence": 11,
+              "elapsed_ms": 1848,
+              "phase": "control",
+              "kind": "final_state",
+              "state": {
+                "observed": 2,
+                "expected": 2,
+                "records": [
+                  {
+                    "id": "d748922c-be0d-4580-a5d4-9da17754d5d4",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:23",
+                    "updated_at": "2026-11-07T21:42:23"
+                  },
+                  {
+                    "id": "586ea6be-f70e-4a90-a5d5-913a009224dd",
+                    "name": "CRASHLAB_KIST_TWO_INTENTS",
+                    "target_amount": 1000,
+                    "current_amount": 100,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-07T21:42:23",
+                    "updated_at": "2026-11-07T21:42:23"
+                  }
+                ],
+                "observer": "sqlite",
+                "db": "{RUN_DATA}/.finance/finance.db"
+              }
+            }
+          ],
+          "baseline": {
+            "observed": 0,
+            "expected": 1,
+            "records": [],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "state_after_interruption": {
+            "observed": 1,
+            "expected": 1,
+            "records": [
+              {
+                "id": "a24bf59b-0919-4fc8-9bbb-50a4086957df",
+                "name": "CRASHLAB_KIST_ONE_INTENT",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:22",
+                "updated_at": "2026-11-07T21:42:22"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db"
+          },
+          "screenshots": [
+            "{RUN_DATA}/shots/kist-one-intent-restart_after_commit-2026-11-07T20-42-21-957Z-lost-response.png",
+            "{RUN_DATA}/shots/kist-one-intent-restart_after_commit-2026-11-07T20-42-21-957Z-after-retry.png",
+            "{RUN_DATA}/shots/kist-one-intent-restart_after_commit-2026-11-07T20-42-21-957Z-two-intents.png"
+          ],
+          "records": [
+            {
+              "id": "a24bf59b-0919-4fc8-9bbb-50a4086957df",
+              "name": "CRASHLAB_KIST_ONE_INTENT",
+              "target_amount": 1000,
+              "current_amount": 100,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-07T21:42:22",
+              "updated_at": "2026-11-07T21:42:22"
+            }
+          ],
+          "control": {
+            "observed": 2,
+            "expected": 2,
+            "records": [
+              {
+                "id": "d748922c-be0d-4580-a5d4-9da17754d5d4",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:23",
+                "updated_at": "2026-11-07T21:42:23"
+              },
+              {
+                "id": "586ea6be-f70e-4a90-a5d5-913a009224dd",
+                "name": "CRASHLAB_KIST_TWO_INTENTS",
+                "target_amount": 1000,
+                "current_amount": 100,
+                "target_date": null,
+                "currency": "PLN",
+                "status": "active",
+                "created_at": "2026-11-07T21:42:23",
+                "updated_at": "2026-11-07T21:42:23"
+              }
+            ],
+            "observer": "sqlite",
+            "db": "{RUN_DATA}/.finance/finance.db",
+            "ok": true
+          },
+          "returncode": 0,
+          "app_lifecycle": [
+            {
+              "old_pid": 82858,
+              "new_pid": 82905,
+              "same_port": true,
+              "same_data_directory": true,
+              "setup_replayed": false,
+              "reset_replayed": false
+            }
+          ],
+          "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+          "case_sha256": "0e345d09bac6bedf2cd7430f7fed8b772bb68e1668490d66443531920bb2d199"
+        }
+      }
+    ],
+    "source_review": {
+      "git_head": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+      "diff_against_head": "diff --git a/server/planner_core.py b/server/planner_core.py\nindex 23b212f..20a75ee 100644\n--- a/server/planner_core.py\n+++ b/server/planner_core.py\n@@ -26,6 +26,9 @@ def ensure_tables():\n         value real not null, created_at text not null)\"\"\")\n     eb._exec(\"\"\"create table if not exists goal_meta (\n         goal_id text primary key, monthly_contribution real)\"\"\")\n+    # Keep receipts even after a goal is deleted: replay must not resurrect it.\n+    eb._exec(\"\"\"create table if not exists goal_create_intents (\n+        intent_id text primary key, payload text not null, goal_id text not null)\"\"\")\n     eb._exec(\"\"\"create table if not exists job_offers (\n         id text primary key, company text not null, role text default '',\n         recruiter text default '', total_monthly real not null,\ndiff --git a/server/planner_goals.py b/server/planner_goals.py\nindex b2ebfea..97698bb 100644\n--- a/server/planner_goals.py\n+++ b/server/planner_goals.py\n@@ -2,11 +2,14 @@\n \n Split out of planner.py on 2026-09-05 (code moved 1:1; other modules are reached through `P`).\n \"\"\"\n+import json\n import uuid\n from datetime import date, datetime\n \n+import db\n import engine_bridge as eb\n from planner_proxy import P\n+from werkzeug.exceptions import BadRequest, Conflict\n \n # ---------- goals ----------\n \n@@ -47,17 +50,45 @@ def _project(goal, cfg):\n \n \n def add_goal(data):\n+    # Optional for legacy callers; only explicit intent identity deduplicates.\n+    intent_id = data.get(\"create_intent_id\")\n+    if intent_id is not None and (not isinstance(intent_id, str)\n+                                  or not intent_id.strip() or len(intent_id) > 200):\n+        raise BadRequest(\"invalid create_intent_id\")\n+    payload = {\"name\": data[\"name\"], \"target_amount\": float(data[\"target_amount\"]),\n+               \"current_amount\": float(data.get(\"current_amount\", 0)),\n+               \"target_date\": data.get(\"target_date\"), \"currency\": data.get(\"currency\", \"PLN\"),\n+               \"monthly_contribution\": (float(data[\"monthly_contribution\"])\n+                                        if data.get(\"monthly_contribution\") is not None else None)}\n+    encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False)\n     goal_id = str(uuid.uuid4())\n-    eb._exec(\n-        \"insert into goals (id, name, target_amount, current_amount, target_date, \"\n-        \"currency, status, created_at, updated_at) values (?,?,?,?,?,?,?,?,?)\",\n-        (goal_id, data[\"name\"], float(data[\"target_amount\"]),\n-         float(data.get(\"current_amount\", 0)), data.get(\"target_date\"),\n-         data.get(\"currency\", \"PLN\"), \"active\", P._now(), P._now()))\n-    if data.get(\"monthly_contribution\") is not None:\n-        eb._exec(\"insert into goal_meta (goal_id, monthly_contribution) values (?,?)\",\n-                 (goal_id, float(data[\"monthly_contribution\"])))\n-    P._audit(\"goal\", goal_id, \"add\", data)\n+    with db.get_conn() as conn:\n+        # Serialize receipt lookup and write across connections/processes.\n+        conn.execute(\"begin immediate\")\n+        if intent_id is not None:\n+            receipt = conn.execute(\n+                \"select payload, goal_id from goal_create_intents where intent_id = ?\",\n+                (intent_id,)).fetchone()\n+            if receipt:\n+                if receipt[\"payload\"] != encoded:\n+                    raise Conflict(\"create_intent_id already used for another goal payload\")\n+                return receipt[\"goal_id\"]\n+        now = P._now()\n+        conn.execute(\n+            \"insert into goals (id, name, target_amount, current_amount, target_date, \"\n+            \"currency, status, created_at, updated_at) values (?,?,?,?,?,?,?,?,?)\",\n+            (goal_id, payload[\"name\"], payload[\"target_amount\"], payload[\"current_amount\"],\n+             payload[\"target_date\"], payload[\"currency\"], \"active\", now, now))\n+        if payload[\"monthly_contribution\"] is not None:\n+            conn.execute(\"insert into goal_meta (goal_id, monthly_contribution) values (?,?)\",\n+                         (goal_id, payload[\"monthly_contribution\"]))\n+        conn.execute(\n+            \"insert into app_audit (id, ts, entity, entity_id, action, payload) values (?,?,?,?,?,?)\",\n+            (str(uuid.uuid4()), now, \"goal\", goal_id, \"add\",\n+             json.dumps(data, ensure_ascii=False, default=str)))\n+        if intent_id is not None:\n+            conn.execute(\"insert into goal_create_intents (intent_id, payload, goal_id) values (?,?,?)\",\n+                         (intent_id, encoded, goal_id))\n     return goal_id\n \n \ndiff --git a/static/js/views/goals.js b/static/js/views/goals.js\nindex 00eefee..0cce7e6 100644\n--- a/static/js/views/goals.js\n+++ b/static/js/views/goals.js\n@@ -66,17 +66,36 @@ async function renderGoals(el) {\n     await api.put(\"/api/settings\", { monthly_savings: parseNum(document.getElementById(\"gSavings\")) || \"\" });\n     route();\n   });\n-  document.getElementById(\"gAdd\").addEventListener(\"click\", async () => {\n+  let pendingCreate = null;\n+  try { pendingCreate = JSON.parse(sessionStorage.getItem(\"goalPendingCreate\")); } catch (_) { /* optional storage */ }\n+  const addButton = document.getElementById(\"gAdd\");\n+  addButton.addEventListener(\"click\", async () => {\n     const name = document.getElementById(\"gName\").value.trim();\n     const target = parseNum(document.getElementById(\"gTarget\"));\n     if (!name || !target) { alert(\"Enter a name and target amount\"); return; }\n     const monthly = parseNum(document.getElementById(\"gMonthly\"));\n-    await api.post(\"/api/goals\", {\n+    const payload = {\n       name, target_amount: target,\n       current_amount: parseNum(document.getElementById(\"gCurrent\")) || 0,\n       monthly_contribution: isNaN(monthly) ? undefined : monthly,\n-    });\n-    route();\n+    };\n+    const encoded = JSON.stringify(payload);\n+    if (!pendingCreate || pendingCreate.payload !== encoded) {\n+      pendingCreate = { payload: encoded, id: crypto.randomUUID() };\n+    }\n+    try { sessionStorage.setItem(\"goalPendingCreate\", JSON.stringify(pendingCreate)); } catch (_) { /* optional storage */ }\n+    addButton.disabled = true;\n+    try {\n+      await api.post(\"/api/goals\", { ...payload, create_intent_id: pendingCreate.id });\n+      pendingCreate = null;\n+      try { sessionStorage.removeItem(\"goalPendingCreate\"); } catch (_) { /* optional storage */ }\n+      route();\n+    } catch (err) {\n+      // An error may mean the response was lost AFTER commit. Reuse the intent.\n+      alert(\"Goal not confirmed. Retry to confirm it: \" + err.message);\n+    } finally {\n+      addButton.disabled = false;\n+    }\n   });\n   list.querySelectorAll(\"[data-gupd]\").forEach((b) =>\n     b.addEventListener(\"click\", async () => {\n",
+      "truncated": false,
+      "untracked_files": [
+        "tests/test_goal_intents.py"
+      ],
+      "basis": "Actual tracked-file diff against this run's Git HEAD; may include pre-existing edits. Untracked content is not included. This is not an attributed baseline-to-repair patch."
+    }
+  }
+]

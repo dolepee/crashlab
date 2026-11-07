@@ -1,0 +1,70 @@
+diff --git a/server/planner_goals.py b/server/planner_goals.py
+index b2ebfea..f63aa4d 100644
+--- a/server/planner_goals.py
++++ b/server/planner_goals.py
+@@ -46,7 +46,12 @@ def _project(goal, cfg):
+             "eta_band": band}
+ 
+ 
++_memory_receipts = {}
++
+ def add_goal(data):
++    key = data.get("create_intent_id")
++    if key and key in _memory_receipts:
++        return _memory_receipts[key]
+     goal_id = str(uuid.uuid4())
+     eb._exec(
+         "insert into goals (id, name, target_amount, current_amount, target_date, "
+@@ -58,6 +63,7 @@ def add_goal(data):
+         eb._exec("insert into goal_meta (goal_id, monthly_contribution) values (?,?)",
+                  (goal_id, float(data["monthly_contribution"])))
+     P._audit("goal", goal_id, "add", data)
++    if key: _memory_receipts[key] = goal_id
+     return goal_id
+ 
+ 
+diff --git a/static/js/views/goals.js b/static/js/views/goals.js
+index 00eefee..0cce7e6 100644
+--- a/static/js/views/goals.js
++++ b/static/js/views/goals.js
+@@ -66,17 +66,36 @@ async function renderGoals(el) {
+     await api.put("/api/settings", { monthly_savings: parseNum(document.getElementById("gSavings")) || "" });
+     route();
+   });
+-  document.getElementById("gAdd").addEventListener("click", async () => {
++  let pendingCreate = null;
++  try { pendingCreate = JSON.parse(sessionStorage.getItem("goalPendingCreate")); } catch (_) { /* optional storage */ }
++  const addButton = document.getElementById("gAdd");
++  addButton.addEventListener("click", async () => {
+     const name = document.getElementById("gName").value.trim();
+     const target = parseNum(document.getElementById("gTarget"));
+     if (!name || !target) { alert("Enter a name and target amount"); return; }
+     const monthly = parseNum(document.getElementById("gMonthly"));
+-    await api.post("/api/goals", {
++    const payload = {
+       name, target_amount: target,
+       current_amount: parseNum(document.getElementById("gCurrent")) || 0,
+       monthly_contribution: isNaN(monthly) ? undefined : monthly,
+-    });
+-    route();
++    };
++    const encoded = JSON.stringify(payload);
++    if (!pendingCreate || pendingCreate.payload !== encoded) {
++      pendingCreate = { payload: encoded, id: crypto.randomUUID() };
++    }
++    try { sessionStorage.setItem("goalPendingCreate", JSON.stringify(pendingCreate)); } catch (_) { /* optional storage */ }
++    addButton.disabled = true;
++    try {
++      await api.post("/api/goals", { ...payload, create_intent_id: pendingCreate.id });
++      pendingCreate = null;
++      try { sessionStorage.removeItem("goalPendingCreate"); } catch (_) { /* optional storage */ }
++      route();
++    } catch (err) {
++      // An error may mean the response was lost AFTER commit. Reuse the intent.
++      alert("Goal not confirmed. Retry to confirm it: " + err.message);
++    } finally {
++      addButton.disabled = false;
++    }
+   });
+   list.querySelectorAll("[data-gupd]").forEach((b) =>
+     b.addEventListener("click", async () => {
