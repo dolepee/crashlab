@@ -1,0 +1,64 @@
+{
+  "upstream": "pallets/flask examples/tutorial",
+  "upstream_commit": "49943b5a94413a530761350f04e896f76e8d620e",
+  "verifier_commit": "06e338889d470c02559d2e8c09340832e905fbe1",
+  "host": "Hermes Agent v0.23.0",
+  "model": "gpt-6.1-sol",
+  "experiment_id": "ba772ecce88649faa4be38c015ad46f0",
+  "contract_sha256": "b0509a46ff539467c4c6edff0a3d6c43c00c6069c09cb67855dd01d52d5d446e",
+  "evaluator_sha256": {
+    "crashlab_core.py": "e46695ff53970c1f25d59d8448abcfdec920482aa6deb1c1647eb9103a53e499",
+    "crashlab_runner.js": "c3527a48a8ba62a0123207a4306579335e6546cb867f53691a048ecc5a9a6e00",
+    "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
+    "repair_workflow.py": "bd520b83aba2b2ab060d9e720131729690185980b06c69d7ed187acd913cd59c"
+  },
+  "before": {
+    "status": "FAIL",
+    "ok": false,
+    "observed": 2,
+    "expected": 1,
+    "scenario": {
+      "matched": true,
+      "delivered": true,
+      "upstream_status": 200,
+      "committed_after_fault": 1,
+      "valid": true
+    },
+    "control": {
+      "ok": true,
+      "observed": 2,
+      "expected": 2
+    },
+    "project_sha256": "94ea8275bc046d0c506d45cf10ec09e1b183c419211e649a8a564f9fd72ecf8f"
+  },
+  "after": {
+    "status": "PASS",
+    "ok": true,
+    "observed": 1,
+    "expected": 1,
+    "scenario": {
+      "matched": true,
+      "delivered": true,
+      "upstream_status": 200,
+      "committed_after_fault": 1,
+      "valid": true
+    },
+    "control": {
+      "ok": true,
+      "observed": 2,
+      "expected": 2
+    },
+    "project_sha256": "72c3466d0d222f9e4cb366f9345589ec0cf5f59d612bdc1e26f4526353806cc3"
+  },
+  "patch_sha256": "2d6588175482e4028484170368d87a2624ea8817c5acc2211bcc0f4103a0f5a8",
+  "full_private_trace_sha256": "993b10c529cd59aaa4b025ef01bf0b2165c63263a364545e6bc4c85d291cfddd",
+  "tests": "29 Flaskr tutorial tests passed independently, using the already installed compatible test environment. The model supplied five focused unittest tests and accurately reported pytest missing in its application interpreter.",
+  "limits": [
+    "Fresh initialized databases only; existing databases need migration.",
+    "Legacy tokenless POSTs remain accepted but are not retry-protected.",
+    "The control checks cardinality and exact content, not per-intent identity.",
+    "This acceptance follows a prior failed guided trial that exposed a native navigation race and contradictory control identity mapping; PR9 fixes those issues.",
+    "A single ordinary Hermes+Playwright/SQLite baseline also succeeded; no general speed or cost advantage is established.",
+    "Original repair reconstructed without later comment-only probes and matched the final primary-session source fingerprint."
+  ]
+}

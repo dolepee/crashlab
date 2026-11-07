@@ -110,7 +110,7 @@ function EvidencePane({ ctx }) {
   if (latest) {
     items.push(jsx(Run, {
       key: 'latest',
-      title: latest.contract?.includes('kist') ? 'External Kist run' : 'Latest run',
+      title: latest.contract?.includes('kist') ? 'Last measured Kist run' : 'Last measured run',
       run: latest
     }))
     if (latest.control) {

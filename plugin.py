@@ -101,7 +101,7 @@ def _slash(raw_args: str) -> str:
         if not run:
             return "CrashLab: no saved run yet. Use /crashlab run <case.json>."
         state = _verdict(run)
-        return (f"CrashLab · {state} · {run.get('contract', '?')}\n"
+        return (f"CrashLab · last measured {state} · {run.get('contract', '?')}\n"
                 f"{run.get('observed', '?')} observed / {run.get('expected', '?')} expected\n"
                 f"{run.get('error') or run.get('diagnosis') or 'No diagnosis recorded.'}\n"
                 f"{run.get('evidence_path') or ''}").strip()

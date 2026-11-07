@@ -2,8 +2,8 @@
   "schema_version": 1,
   "files": {
     "__init__.py": "b34fac56f3bd5f6a3a384f3685dcb934cf7289840559c8a785e0d1fc9d1b1adb",
-    "plugin.py": "ca45d24cbe22c15e413279642abadfa572ca6774c1b76d27388044be31229e87",
-    "plugin.yaml": "3b84d8f244f69b8ebc34bdd73e440dae1228df0adb1c24617895af5082c34a92",
+    "plugin.py": "765ffea18eb9d09bc830895dc096517b71e9932ea7e0b3c87ee5704262970f48",
+    "plugin.yaml": "83c7a10533a520d20ce24a17cfe8a172f556accad1e34a5476c6fd4b16691eef",
     "campaign_plugin.py": "df52c8bb312641a96559564635cd12a556fe7ee50d2b75fcd805e55046f78773",
     "campaign.py": "e2f310a08bdc3867c5717ad41cb5f36fed50d822d25782e3080e6f065cd43950",
     "crashlab_core.py": "e46695ff53970c1f25d59d8448abcfdec920482aa6deb1c1647eb9103a53e499",

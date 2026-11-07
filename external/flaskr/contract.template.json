@@ -1,0 +1,173 @@
+{
+  "id": "flaskr-native-post-lost-response",
+  "app": {
+    "start": {
+      "cwd": "/path/to/flask-checkout/examples/tutorial",
+      "python": "/path/to/flask-venv/bin/python",
+      "command": [
+        "{PYTHON}",
+        "-c",
+        "from flaskr import create_app; from flaskr.db import init_db; app = create_app({'DATABASE': '{DATA_DIR}/flaskr.sqlite'}); ctx = app.app_context(); ctx.push(); init_db(); ctx.pop(); app.run(host='127.0.0.1', port={PORT}, use_reloader=False)"
+      ],
+      "base_url": "http://127.0.0.1:{PORT}",
+      "health_path": "/"
+    }
+  },
+  "journey": [
+    {
+      "action": "goto",
+      "path": "/auth/register"
+    },
+    {
+      "action": "fill",
+      "selector": "#username",
+      "value": "crashlab"
+    },
+    {
+      "action": "fill",
+      "selector": "#password",
+      "value": "disposable-test-password"
+    },
+    {
+      "action": "click",
+      "selector": "input[type=submit]"
+    },
+    {
+      "action": "wait_for_url",
+      "pattern": "**/auth/login"
+    },
+    {
+      "action": "fill",
+      "selector": "#username",
+      "value": "crashlab"
+    },
+    {
+      "action": "fill",
+      "selector": "#password",
+      "value": "disposable-test-password"
+    },
+    {
+      "action": "click",
+      "selector": "input[type=submit]"
+    },
+    {
+      "action": "wait_for_url",
+      "pattern": "**/"
+    },
+    {
+      "action": "goto",
+      "path": "/create"
+    },
+    {
+      "action": "fill",
+      "selector": "#title",
+      "value": "CRASHLAB_RETRY"
+    },
+    {
+      "action": "fill",
+      "selector": "#body",
+      "value": "One intended post after lost response."
+    },
+    {
+      "action": "click",
+      "selector": "input[type=submit]"
+    },
+    {
+      "action": "wait_for_fault"
+    },
+    {
+      "action": "reload"
+    },
+    {
+      "action": "wait_for_url",
+      "pattern": "**/"
+    },
+    {
+      "action": "wait_for_text",
+      "text": "CRASHLAB_RETRY"
+    }
+  ],
+  "fault": {
+    "route": "**/create",
+    "method": "POST",
+    "mode": "suppress_after_upstream",
+    "occurrence": 1
+  },
+  "state": {
+    "mode": "sqlite",
+    "db": "{DATA_DIR}/flaskr.sqlite",
+    "table": "post",
+    "where": "title='CRASHLAB_RETRY'",
+    "expect": 1,
+    "record_fields": {
+      "title": "CRASHLAB_RETRY",
+      "body": "One intended post after lost response.",
+      "author_id": 1
+    },
+    "request_fields": {
+      "title": "title",
+      "body": "body"
+    }
+  },
+  "control": {
+    "journey": [
+      {
+        "action": "goto",
+        "path": "/create"
+      },
+      {
+        "action": "fill",
+        "selector": "#title",
+        "value": "CRASHLAB_DELIBERATE"
+      },
+      {
+        "action": "fill",
+        "selector": "#body",
+        "value": "Identical content deliberately submitted twice."
+      },
+      {
+        "action": "click",
+        "selector": "input[type=submit]"
+      },
+      {
+        "action": "wait_for_url",
+        "pattern": "**/"
+      },
+      {
+        "action": "goto",
+        "path": "/create"
+      },
+      {
+        "action": "fill",
+        "selector": "#title",
+        "value": "CRASHLAB_DELIBERATE"
+      },
+      {
+        "action": "fill",
+        "selector": "#body",
+        "value": "Identical content deliberately submitted twice."
+      },
+      {
+        "action": "click",
+        "selector": "input[type=submit]"
+      },
+      {
+        "action": "wait_for_url",
+        "pattern": "**/"
+      }
+    ],
+    "state": {
+      "mode": "sqlite",
+      "db": "{DATA_DIR}/flaskr.sqlite",
+      "table": "post",
+      "where": "title='CRASHLAB_DELIBERATE'",
+      "expect": 2,
+      "record_fields": {
+        "title": "CRASHLAB_DELIBERATE",
+        "body": "Identical content deliberately submitted twice.",
+        "author_id": 1
+      }
+    }
+  },
+  "setup_required": "Clone the pinned Pallets Flask source and install the tutorial dependencies. Set app.start.cwd and app.start.python to that checkout and interpreter, then remove this field."
+}

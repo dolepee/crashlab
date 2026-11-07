@@ -26,6 +26,12 @@ The [patch, selected tool events, screenshots and replay summary](external/kist/
 are included. This is one measured application repair, not a general autonomous
 repair claim. Kist goals are savings records, not payments or money movement.
 
+A separate [Flaskr guided repair](external/flaskr/README.md) starts from a project
+and intended behavior, with Hermes constructing its own case. It reproduced a
+native POST retry duplicate, repaired it, and verified the same experiment.
+The record distinguishes the successful acceptance from a prior failed trial
+that exposed a navigation race, and states the fresh-database limitation.
+
 ## Use it in Hermes
 
 After installation, tell Hermes where your disposable local Git app lives and
@@ -74,7 +80,7 @@ boundary against an application or agent with the same filesystem privileges.
 The dashboard shows your five most recent repair experiments, their current
 source status, the last measured outcome and control. Use **Rerun frozen case**
 after edits and **Watch edits** for completion reminders. Status refreshes when
-you return to the browser window or press **Refresh cases and results**.
+you return to the browser tab or window or press **Refresh cases and results**.
 
 Call `crashlab_experiment_watch` with the ID and `enabled: true` to request a
 completion reminder while working on that project. After matching absolute-path
@@ -85,6 +91,10 @@ if the frozen experiment has become invalid. Other projects are unaffected.
 
 ## Included tools
 
+- `crashlab_prepare`: freeze an app-specific repair experiment.
+- `crashlab_experiment_run`: reproduce or verify the same experiment.
+- `crashlab_experiment_status`: check current source freshness.
+- `crashlab_experiment_watch`: request project-scoped completion reminders.
 - `crashlab_validate`: validate a case without running it.
 - `crashlab_run`: execute a saved browser case and persist its result.
 - `crashlab_compare`: run one frozen case against broken and repaired URLs.
@@ -127,7 +137,7 @@ The Desktop half is opt-in and appears in **Capabilities → Plugins**. It reads
 `CRASHLAB_DATA_DIR` (default `~/.local/share/crashlab`) and scans the bundled
 `contracts/` plus `CRASHLAB_CASE_DIR` (default `cases/`). Select a case and press
 **Run case**; the run starts the app when the case has an `app.start` block and
-persists `latest-run.json` for the pane. The same evidence is available from
+persists `latest-run.json` for the pane. Historical measured evidence is available from
 `/crashlab`, `/crashlab runs` and `/crashlab run <case.json>` in a Hermes chat.
 Quote paths containing spaces: `/crashlab run "/my project/case.json"`.
 `crashlab_list` includes self-starting cases and setup requirements. A template
@@ -224,8 +234,9 @@ capture.
 
 - Two local fixtures plus the external Kist example; Kist is one external app
   with a measured retry-failure repair, not proof of broad compatibility.
-- The second application check is Flaskr, a public tutorial app; the checkout
-  cases remain bundled fixtures.
+- Flaskr is a public tutorial app with a guided native-form repair and a separate
+  historical passing workflow. Its retained repair covers fresh databases and
+  needs migration work for existing installations. The checkout cases are fixtures.
 - The Desktop pane was launched in Hermes Desktop for the earlier evidence view
   in `docs/desktop-pane.png`; the newest run/comparison view is wired to the
   persisted run but has not been visually recaptured.
@@ -271,3 +282,7 @@ contract checks, then run `python -m unittest discover`. Real-browser acceptance
 requires the Node sidecar and `CRASHLAB_BROWSER_TESTS=1`. Runtime plugin tools do
 not require the test-only schema package. Completion reminders log experiment ID,
 session ID and current state through the Hermes diagnostic logger.
+
+Frozen experiments retain their evaluator identity. Updating the evaluator can
+make an earlier experiment unavailable; preserve its historical evidence and
+prepare a new experiment for the new version rather than editing frozen hashes.
