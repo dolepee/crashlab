@@ -2,8 +2,8 @@ import { host, PALETTE_AREA } from '@hermes/plugin-sdk'
 import { useEffect, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 
-function verdict(value) {
-  return value ? 'PASS' : 'FAIL'
+function verdict(run) {
+  return run?.status || (run?.error ? 'ERROR' : run?.ok ? 'PASS' : 'FAIL')
 }
 
 function Card({ title, children }) {
@@ -23,7 +23,7 @@ function Run({ title, run }) {
     children: [
       jsx('div', {
         className: 'mt-1 text-sm',
-        children: `${verdict(run?.ok)} · ${run?.observed ?? '?'} observed / ${run?.expected ?? '?'} expected`
+        children: `${verdict(run)} · ${run?.observed ?? '?'} observed / ${run?.expected ?? '?'} expected`
       }),
       run?.diagnosis
         ? jsx('div', { className: 'mt-1 text-xs', children: run.diagnosis })
@@ -51,7 +51,13 @@ function EvidencePane({ ctx }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
 
-  const refresh = () => ctx.rest('/overview').then(setData)
+  const refresh = () => Promise.all([ctx.rest('/overview'), ctx.rest('/contracts')])
+    .then(([overview, list]) => {
+      setData(overview)
+      setCases(list.contracts || [])
+      setSelected(current => current || (list.contracts || []).find(item => !item.error)?.path || '')
+      setError(null)
+    }).catch(err => setError(String(err)))
 
   useEffect(() => {
     let alive = true
@@ -81,12 +87,11 @@ function EvidencePane({ ctx }) {
     }
   }
 
-  if (error) return jsx('div', { className: 'p-3 text-sm text-(--ui-danger)', children: error })
-  if (!data) return jsx('div', { className: 'p-3 text-sm text-(--ui-text-tertiary)', children: 'Loading evidence…' })
+  if (!data && !error) return jsx('div', { className: 'p-3 text-sm text-(--ui-text-tertiary)', children: 'Loading evidence…' })
 
-  const comparison = data.comparison
-  const latest = data.latest_run
-  const campaign = data.campaign
+  const comparison = data?.comparison
+  const latest = data?.latest_run
+  const campaign = data?.campaign
   const items = []
   const caseOptions = cases.map((item) => jsx('option', {
     key: item.path,
@@ -136,33 +141,36 @@ function EvidencePane({ ctx }) {
   return jsxs('div', {
     className: 'flex h-full flex-col gap-3 overflow-auto p-3 text-sm',
     children: [
-      jsx('div', { className: 'font-medium', children: 'CrashLab evidence' }),
+      jsx('div', { className: 'font-medium', children: 'Test a saved journey' }),
       jsx('div', {
         className: 'text-xs text-(--ui-text-tertiary)',
-        children: 'A pass requires a valid scenario, observed = expected, and a passing control.'
+        children: 'Run a case on a disposable local app and inspect what was saved.'
       }),
       jsxs('div', {
         className: 'flex items-center gap-2',
         children: [
           jsx('select', {
+            'aria-label': 'Saved case',
             value: selected,
             onChange: (event) => setSelected(event.target.value),
             disabled: busy || caseOptions.length === 0,
-            className: 'min-w-0 flex-1 rounded border border-(--ui-stroke-secondary) bg-transparent px-2 py-1 text-xs',
+            className: 'min-h-11 min-w-0 flex-1 rounded border border-(--ui-stroke-secondary) bg-transparent px-2 py-1 text-xs',
             children: caseOptions.length ? caseOptions : [jsx('option', { value: '', children: 'No cases available' })]
           }),
           jsx('button', {
             onClick: startRun,
             disabled: busy || !selected,
-            className: 'rounded border border-(--ui-stroke-secondary) px-2 py-1 text-xs',
+            className: 'min-h-11 rounded border border-(--ui-stroke-secondary) px-2 py-1 text-xs',
             children: busy ? 'Running…' : 'Run case'
           })
         ]
       }),
-      ...items,
+      error ? jsx('div', { role: 'alert', className: 'text-sm text-(--ui-danger)', children: error }) : null,
+      jsx('button', { onClick: refresh, disabled: busy, className: 'min-h-11 self-start rounded border px-3', children: 'Refresh cases and results' }),
+      jsx('div', { 'aria-live': 'polite', className: 'flex flex-col gap-3', children: items }),
       jsx('div', {
         className: 'text-xs text-(--ui-text-tertiary)',
-        children: 'Records are read through the configured observer; the app cannot write the verdict.'
+        children: 'Results cover configured assertions. HTTP observers are supplied by the app; SQLite observers read its database directly.'
       })
     ]
   })
