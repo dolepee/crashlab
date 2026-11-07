@@ -79,6 +79,12 @@ class BrowserIntegrity(unittest.TestCase):
                 self.assertIs(result['recovery']['ok'],ok,result)
                 self.assertTrue(result['control']['ok'],result)
 
+        # A broad write-route glob must not bypass the earlier GET readback handler.
+        case['fault']['route']='**/*'
+        result=self.run_case(source,case)
+        self.assertTrue(result['ok'],result)
+        self.assertTrue(result['recovery']['ok'],result)
+
     def test_browser_launch_error_is_actionable(self):
         with patch.dict(os.environ,CHROME_PATH=str(self.root/'missing-chrome')):
             result=self.run_case()
