@@ -39,7 +39,8 @@ class RegistrationTests(unittest.TestCase):
 
     def test_original_contract_listing_stays_valid(self):
         listed = plugin.core.list_contracts()
-        self.assertEqual(len(listed), 2)
+        self.assertTrue({"booking-lost-response", "checkout-lost-response"} <= {item["id"] for item in listed})
+        self.assertTrue(any(item.get("auto_start") for item in listed))
         self.assertTrue(all("error" not in item for item in listed), listed)
 
     def test_campaign_schemas_expose_no_arbitrary_paths_or_sql(self):

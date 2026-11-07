@@ -32,6 +32,44 @@ class PluginHandlerTests(unittest.TestCase):
             compare.assert_called_once_with('case.json', 'http://localhost:8765', 'http://localhost:8766')
 
 
+class FirstUseTests(unittest.TestCase):
+    def test_setup_error_is_persisted_and_reported_as_error(self):
+        with patch.object(plugin.core, 'run_contract', side_effect=RuntimeError('interpreter missing')), \
+             patch.object(plugin.core, 'persist_run', side_effect=lambda value: value) as persist:
+            result = json.loads(plugin._handler('crashlab_run')({'contract_path': 'case.json'}))
+        self.assertEqual(result['status'], 'ERROR')
+        self.assertIn('interpreter missing', result['error'])
+        self.assertFalse(result['ok'])
+        persist.assert_called_once_with(result)
+
+    def test_slash_accepts_quoted_case_path(self):
+        result = {'status': 'PASS', 'ok': True, 'contract': 'test'}
+        with patch.object(plugin.core, 'run_and_persist', return_value=result) as run:
+            self.assertIn('PASS', plugin._slash('run "/my project/case.json"'))
+        run.assert_called_once_with('/my project/case.json')
+        self.assertIn('Usage:', plugin._slash('run "unclosed'))
+        self.assertIn('Usage:', plugin._slash('run /my project/case.json'))
+
+    def test_slash_preserves_error_and_invalid_statuses(self):
+        with patch.object(plugin.core, 'latest_run', return_value={'ok': False, 'error': 'setup failed'}):
+            self.assertIn('ERROR', plugin._slash('status'))
+            self.assertIn('setup failed', plugin._slash('status'))
+        with patch.object(plugin.core, 'list_runs', return_value=[{'status': 'INVALID', 'ok': False}]):
+            self.assertIn('INVALID', plugin._slash('runs'))
+
+    def test_list_includes_starting_cases_and_marks_external_setup(self):
+        rows = plugin.core.list_contracts()
+        fixed = next(row for row in rows if row['id'] == 'checkout-local-fixed')
+        flaskr = next(row for row in rows if row['id'] == 'flaskr-create')
+        self.assertTrue(fixed['auto_start'])
+        self.assertFalse(flaskr['auto_start'])
+        self.assertIn('Flask tutorial', flaskr['setup_required'])
+        with patch.object(plugin.core, '_start_app') as start:
+            with self.assertRaisesRegex(ValueError, 'Case setup required'):
+                plugin.core.run_contract(flaskr['path'])
+        start.assert_not_called()
+
+
 class RegisterTests(unittest.TestCase):
     def test_registers_tools_and_slash_command(self):
         calls = []

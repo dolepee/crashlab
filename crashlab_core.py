@@ -117,7 +117,7 @@ def list_runs(limit: int = 10) -> list[dict]:
             continue
         if isinstance(value, dict):
             rows.append({key: value.get(key) for key in
-                         ("run_id", "contract", "ok", "observed", "expected", "diagnosis", "evidence_path")})
+                         ("run_id", "contract", "ok", "status", "error", "observed", "expected", "diagnosis", "evidence_path")})
     return rows
 
 
@@ -231,6 +231,8 @@ def validate_contract(contract: dict) -> dict:
             raise ValueError(f"contract missing {key}")
     if not isinstance(contract["app"], dict):
         raise ValueError("app must be an object")
+    if "setup_required" in contract and not isinstance(contract["setup_required"], str):
+        raise ValueError("setup_required must be a setup instruction string")
     base = contract["app"].get("base_url")
     start = contract["app"].get("start")
     if base is None and start is None:
@@ -470,6 +472,8 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
 def run_contract(contract_path: str | Path, base_url: str | None = None,
                  timeout: int = 120, *, frozen_contract: dict | None = None) -> dict:
     contract = copy.deepcopy(frozen_contract) if frozen_contract is not None else load_contract(contract_path)
+    if contract.get("setup_required"):
+        raise ValueError(f"Case setup required: {contract['setup_required']}")
     contract_dir = Path(contract_path).expanduser().resolve().parent
     started = None
     try:
@@ -575,12 +579,29 @@ def compare(contract_path: str | Path, buggy_url: str, fixed_url: str,
     return _persist(result)
 
 
-def list_contracts() -> list[dict]:
+def run_and_persist(contract_path: str | Path, base_url: str | None = None) -> dict:
+    """Keep setup errors visible as the latest result across host surfaces."""
+    try:
+        result = run_contract(contract_path, base_url=base_url)
+    except Exception as exc:
+        result = {"ok": False, "status": "ERROR", "contract": Path(contract_path).stem,
+                  "error": f"{type(exc).__name__}: {exc}"}
+    return persist_run(result)
+
+
+def list_contracts(case_dir: str | Path | None = None) -> list[dict]:
     rows = []
-    for path in sorted((ROOT / "contracts").glob("*.json")):
+    directories = (ROOT / "contracts", Path(case_dir) if case_dir is not None else ROOT / "cases")
+    paths = sorted({path.resolve() for directory in directories for path in directory.glob("*.json")})
+    for path in paths:
+        row = {"id": path.stem, "path": str(path),
+               "source": "bundled" if path.is_relative_to(ROOT) else "workspace"}
         try:
             contract = load_contract(path)
-            rows.append({"id": contract["id"], "path": str(path)})
+            setup = contract.get("setup_required") or ""
+            row.update(id=contract["id"], setup_required=setup,
+                       auto_start=bool(contract["app"].get("start")) and not setup)
         except Exception as exc:
-            rows.append({"path": str(path), "error": str(exc)})
+            row["error"] = str(exc)
+        rows.append(row)
     return rows

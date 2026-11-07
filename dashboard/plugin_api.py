@@ -90,31 +90,17 @@ def _case_paths() -> list[Path]:
 
 @router.get("/contracts")
 async def contracts() -> dict:
-    rows = []
-    for path in _case_paths():
-        try:
-            from crashlab_core import load_contract
-            contract = load_contract(path)
-            rows.append({"id": contract.get("id", path.stem), "path": str(path),
-                         "auto_start": bool((contract.get("app") or {}).get("start")),
-                         "source": "bundled" if path.is_relative_to(ROOT / "contracts") else "workspace"})
-        except (OSError, ValueError) as exc:
-            rows.append({"id": path.stem, "path": str(path), "error": str(exc)})
-    return {"contracts": rows}
+    from crashlab_core import list_contracts
+    return {"contracts": list_contracts(CASE_DIR)}
 
 
 @router.post("/run")
 async def run(request: RunRequest) -> dict:
     """Start one saved case through the same core path as the agent tool."""
-    from crashlab_core import persist_run, run_contract
+    from crashlab_core import run_and_persist
 
     allowed = {path.resolve() for path in _case_paths()}
     path = Path(request.contract_path).expanduser().resolve()
     if path not in allowed:
         raise HTTPException(status_code=400, detail="contract must be in the case directory")
-    try:
-        result = await asyncio.to_thread(run_contract, str(path))
-    except Exception as exc:
-        result = {"ok": False, "status": "ERROR", "contract": path.stem,
-                  "error": f"{type(exc).__name__}: {exc}"}
-    return persist_run(result)
+    return await asyncio.to_thread(run_and_persist, str(path))

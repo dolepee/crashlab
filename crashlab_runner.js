@@ -33,7 +33,7 @@ function nowId() {
   let phase = "primary";
 
   const browser = await chromium.launch({
-    executablePath: process.env.CHROME_PATH || (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()),
+    executablePath: process.env.CHROME_PATH || ['/usr/bin/chromium', '/usr/bin/google-chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'].find(file => fs.existsSync(file)) || chromium.executablePath(),
     headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage'],
     env: {

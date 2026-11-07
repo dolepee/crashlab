@@ -25,14 +25,14 @@ function Run({ title, run }) {
         className: 'mt-1 text-sm',
         children: `${verdict(run)} · ${run?.observed ?? '?'} observed / ${run?.expected ?? '?'} expected`
       }),
-      run?.diagnosis
-        ? jsx('div', { className: 'mt-1 text-xs', children: run.diagnosis })
+      (run?.error || run?.diagnosis)
+        ? jsx('div', { className: 'mt-1 text-xs', children: run.error || run.diagnosis })
         : null,
       jsx('div', {
         className: 'mt-1 text-xs text-(--ui-text-tertiary)',
         children: run?.observations?.first_message
           ? `${run.observations.first_message} → ${run.observations.second_message ?? ''}`
-          : `${run?.records?.length ?? 0} persisted records`
+          : Array.isArray(run?.records) ? `${run.records.length} persisted records` : 'No records measured'
       }),
       scenario
         ? jsx('div', {
@@ -55,7 +55,7 @@ function EvidencePane({ ctx }) {
     .then(([overview, list]) => {
       setData(overview)
       setCases(list.contracts || [])
-      setSelected(current => current || (list.contracts || []).find(item => !item.error)?.path || '')
+      setSelected(current => current || ((list.contracts || []).find(item => !item.error && item.auto_start) || (list.contracts || []).find(item => !item.error))?.path || '')
       setError(null)
     }).catch(err => setError(String(err)))
 
@@ -66,7 +66,7 @@ function EvidencePane({ ctx }) {
         if (!alive) return
         setData(overview)
         setCases(list.contracts || [])
-        const first = (list.contracts || []).find((item) => !item.error)
+        const first = (list.contracts || []).find(item => !item.error && item.auto_start) || (list.contracts || []).find(item => !item.error)
         if (first) setSelected(first.path)
       })
       .catch((err) => { if (alive) setError(String(err)) })
@@ -89,6 +89,7 @@ function EvidencePane({ ctx }) {
 
   if (!data && !error) return jsx('div', { className: 'p-3 text-sm text-(--ui-text-tertiary)', children: 'Loading evidence…' })
 
+  const selectedCase = cases.find(item => item.path === selected)
   const comparison = data?.comparison
   const latest = data?.latest_run
   const campaign = data?.campaign
@@ -97,7 +98,7 @@ function EvidencePane({ ctx }) {
     key: item.path,
     value: item.path,
     disabled: item.error ? true : undefined,
-    children: item.error ? `${item.id} (invalid)` : item.id
+    children: item.error ? `${item.id} (invalid)` : `${item.id} · ${item.auto_start ? "starts app" : "setup required"}`
   }))
   if (!latest && !comparison && !campaign) {
     items.push(jsx('div', {
@@ -165,6 +166,7 @@ function EvidencePane({ ctx }) {
           })
         ]
       }),
+      selectedCase?.setup_required ? jsx('div', { role: 'status', children: selectedCase.setup_required }) : null,
       error ? jsx('div', { role: 'alert', className: 'text-sm text-(--ui-danger)', children: error }) : null,
       jsx('button', { onClick: refresh, disabled: busy, className: 'min-h-11 self-start rounded border px-3', children: 'Refresh cases and results' }),
       jsx('div', { 'aria-live': 'polite', className: 'flex flex-col gap-3', children: items }),
@@ -195,7 +197,12 @@ export default {
         id: 'crashlab.open',
         label: 'Open CrashLab evidence',
         keywords: ['crashlab', 'evidence', 'repair'],
-        run: () => host.notify({ kind: 'info', message: 'CrashLab evidence is in the right pane.' })
+        run: () => {
+          if (typeof host.openWorkspace === 'function') {
+            return host.openWorkspace('crashlab:evidence', { title: 'CrashLab', render: () => jsx(EvidencePane, { ctx }) })
+          }
+          host.notify({ kind: 'info', message: 'CrashLab evidence is in the right pane.' })
+        }
       }
     })
   }

@@ -85,6 +85,7 @@
       }
     }
 
+    const selectedCase = cases.find(row => row.path === selected)
     const latest = overview && overview.latest_run
     const comparison = overview && overview.comparison
     const campaign = overview && overview.campaign
@@ -127,6 +128,7 @@
           style: { minHeight: 44, padding: '6px 10px', borderRadius: 4, border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', cursor: busy ? 'wait' : 'pointer' }
         }, busy ? 'Running…' : 'Run case')
       ]),
+      selectedCase?.setup_required ? h('div', { key: 'setup', role: 'status' }, selectedCase.setup_required) : null,
       error ? h('div', { key: 'error', role: 'alert', style: { fontSize: 14, color: 'var(--text-primary, currentColor)' } }, error) : null,
       h('button', { key: 'refresh', onClick: load, disabled: busy, style: { alignSelf: 'flex-start', minHeight: 44, padding: '6px 10px' } }, 'Refresh cases and results'),
       h('div', { key: 'results', 'aria-live': 'polite' }, items),

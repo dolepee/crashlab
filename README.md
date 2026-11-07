@@ -69,14 +69,16 @@ Fresh install from the public repository:
 hermes plugins install dolepee/crashlab --enable
 # When Hermes asks to install the Node sidecar, answer yes.
 # If installed non-interactively, finish the sidecar once:
-cd "$HERMES_HOME/plugins/crashlab" && npm ci
+cd "${HERMES_HOME:-$HOME/.hermes}/plugins/crashlab" && npm ci
+# If no system Chromium/Chrome is available:
+npx playwright-core install chromium
 ```
 
 Then confirm:
 
 ```bash
-hermes plugins validate "$HERMES_HOME/plugins/crashlab" --install-deps
-hermes plugins doctor "$HERMES_HOME/plugins/crashlab"
+hermes plugins validate "${HERMES_HOME:-$HOME/.hermes}/plugins/crashlab" --install-deps
+hermes plugins doctor "${HERMES_HOME:-$HOME/.hermes}/plugins/crashlab"
 ```
 
 The Desktop half is opt-in and appears in **Capabilities → Plugins**. It reads
@@ -85,6 +87,11 @@ The Desktop half is opt-in and appears in **Capabilities → Plugins**. It reads
 **Run case**; the run starts the app when the case has an `app.start` block and
 persists `latest-run.json` for the pane. The same evidence is available from
 `/crashlab`, `/crashlab runs` and `/crashlab run <case.json>` in a Hermes chat.
+Quote paths containing spaces: `/crashlab run "/my project/case.json"`.
+`crashlab_list` includes self-starting cases and setup requirements. A template
+marked `setup_required` reports its instructions before launching anything;
+remove that field after configuring the external application. Setup errors are
+saved as `ERROR`, separately from measured assertion failures (`FAIL`).
 
 ## Run a fixture
 
@@ -136,27 +143,19 @@ The runner exits non-zero when the primary or control assertion fails, or when
 the configured fault did not match and commit a write. A failed check is
 evidence, not a pass.
 
-## Demo
+## Historical recordings
 
-`demo/crashlab-demo.mp4` is an 88-second terminal replay built from the real
-buggy run, the Hermes repair summary and the repaired run. It is a replay, not
-a live screen capture; the opening frame says so. Recording source is maintained privately.
-
-`demo/kist-demo.mp4` is an 88-second replay of the external Kist run: the
-unmodified before run, the frozen contract, the Hermes patch and the repaired
-run. Recording source is maintained privately.
-
-`demo/crashlab-kist-live.mp4` is a 26.5-second **live browser recording**, not
-an evidence replay. It shows the unmodified Kist checkout creating a second
-goal after a dropped response, then the same intent against the Hermes-repaired
-checkout creating one. Recording source is maintained privately.
+`demo/kist-demo.mp4` is an earlier evidence replay and
+`demo/crashlab-kist-live.mp4` is an earlier browser recording. They concern the
+historical repair, not the fresh November 7 patch, and are not final submission
+videos. Recording plans and source are maintained privately.
 
 ## External application example
 
 The `external/kist` directory contains a browser contract against an
 unmodified Kist checkout, the Hermes repair patch, before/after screenshots and
-the exact replay command. It is an external adoption example, not a bundled
-fixture. The contract checks one recovery intent against one goal and two
+the exact replay command. It is an external application verification example, not evidence of user
+adoption. The contract checks one recovery intent against one goal and two
 deliberate goals against two goals; the Kist database is observed directly.
 
 The contract now carries an `app.start` block. `crashlab_run` starts Kist
@@ -173,7 +172,7 @@ post and observes one row in SQLite through the same `app.start` path. See
 See [external/kist/README.md](external/kist/README.md). Do not describe the
 before run as repaired or the patch as a general autonomous repair.
 
-![CrashLab dashboard tab showing one passing Flaskr run and the Kist before/after pair](docs/dashboard-pane.png)
+![Current CrashLab dashboard showing a passing saved case and legitimate-use control](docs/dashboard-desktop.png)
 
 The image above is the actual Hermes dashboard tab, reading saved evidence. The
 Desktop pane is a separate surface and needs a running Hermes Desktop session to
@@ -181,8 +180,8 @@ capture.
 
 ## Scope and limitations
 
-- Two local fixtures plus the external Kist example; Kist is one app and one
-  Hermes one-shot repair, not proof of broad compatibility.
+- Two local fixtures plus the external Kist example; Kist is one external app
+  with a measured retry-failure repair, not proof of broad compatibility.
 - The second application check is Flaskr, a public tutorial app; the checkout
   cases remain bundled fixtures.
 - The Desktop pane was launched in Hermes Desktop for the earlier evidence view
@@ -200,10 +199,13 @@ capture.
 
 ## Disclosure
 
-CrashLab starts local fixture servers, launches headless Chromium, writes
-SQLite data and screenshots under `data/` and `evidence/`, and reads the saved
-evidence file through the Desktop backend. It makes no network calls to third
-parties and stores no credentials.
+CrashLab starts configured local applications, launches headless Chrome/Chromium,
+and reads their state. Run summaries are stored under `CRASHLAB_DATA_DIR`
+(default `~/.local/share/crashlab`); launched apps use temporary data directories,
+and screenshot locations come from the case. These files can contain application
+data. CrashLab needs no hosted testing service, but the configured application
+and browser journey can make network requests. Use trusted disposable apps and
+cases; the browser runner is not a network-confinement boundary.
 
 ## Browser verification guarantees
 
