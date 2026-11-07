@@ -27,6 +27,7 @@
         border: '1px solid var(--ui-stroke-secondary, #d4d4d8)',
         borderRadius: 6,
         padding: 12,
+        overflowWrap: 'anywhere',
         display: 'flex',
         flexDirection: 'column',
         gap: 4
@@ -52,13 +53,17 @@
   function CrashLabPage() {
     const [overview, setOverview] = useState(null)
     const [cases, setCases] = useState([])
+    const [experiments, setExperiments] = useState([])
+    const [experimentError, setExperimentError] = useState(null)
+    const [activeExperiment, setActiveExperiment] = useState(null)
     const [selected, setSelected] = useState('')
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState('')
 
     async function load() {
       try {
-        const [state, list] = await Promise.all([api('/overview'), api('/contracts')])
+        const [state, list, repairs] = await Promise.all([api('/overview'), api('/contracts'), api('/experiments')])
+        setExperiments(repairs.experiments || [])
         setOverview(state)
         const rows = list.contracts || []
         setCases(rows)
@@ -66,10 +71,30 @@
         setError('')
       } catch (err) {
         setError(String(err.message || err))
+        setExperiments(rows => rows.map(row => ({ ...row, status: 'UNAVAILABLE' })))
       }
     }
 
-    useEffect(() => { load() }, [])
+    useEffect(() => {
+      load()
+      const refresh = () => load()
+      window.addEventListener('focus', refresh)
+      return () => window.removeEventListener('focus', refresh)
+    }, [])
+
+    async function experimentAction(row, action) {
+      setBusy(true)
+      setExperimentError(null)
+      setActiveExperiment({ id: row.experiment_id, action })
+      try {
+        await api('/experiments/' + row.experiment_id + '/' + action, {
+          method: 'POST', body: JSON.stringify(action === 'watch' ? { enabled: !row.watching } : {})
+        })
+        await load()
+      } catch (err) {
+        setExperimentError({ id: row.experiment_id, message: String(err.message || err) })
+      } finally { setBusy(false); setActiveExperiment(null) }
+    }
 
     async function startRun() {
       if (!selected) return
@@ -90,7 +115,7 @@
     const comparison = overview && overview.comparison
     const campaign = overview && overview.campaign
     const items = []
-    if (latest) items.push(h('div', { key: 'latest' }, EvidenceCard('Latest run', latest)))
+    if (latest) items.push(h('div', { key: 'latest' }, EvidenceCard('Last measured run', latest)))
     if (comparison) {
       items.push(h('div', { key: 'before' }, EvidenceCard('Before repair', comparison.buggy)))
       items.push(h('div', { key: 'after' }, EvidenceCard('After repair', comparison.fixed)))
@@ -109,9 +134,33 @@
     }
 
     return h('div', { style: { display: 'flex', height: '100%', minHeight: 0, flexDirection: 'column', gap: 12, overflow: 'auto', padding: 16, fontSize: 14 } }, [
-      h('div', { key: 'heading', style: { fontSize: 18, fontWeight: 600 } }, 'Test a saved journey'),
+      h('div', { key: 'heading', style: { fontSize: 18, fontWeight: 600 } }, 'Verify an app repair'),
       h('div', { key: 'sub', style: { fontSize: 14, color: 'var(--text-secondary, currentColor)' } },
-        'Run a case on a disposable local app. Check what was saved after an interrupted action.'),
+        'Repair your local app, then rerun the same frozen case to check what it saved.'),
+      h('section', { key: 'experiments', 'aria-label': 'Repair experiments', style: { display: 'flex', flexDirection: 'column', gap: 12 } }, [
+        h('h2', { key: 'title', style: { fontSize: 16, fontWeight: 600 } }, 'Your repair experiments'),
+        h('p', { key: 'help', style: { color: 'var(--text-secondary, currentColor)' } }, 'Ask Hermes to check your local app and describe the behavior you expect. Your five most recent experiments appear here.'),
+        ...experiments.map(row => h('article', { key: row.experiment_id, 'aria-label': 'Experiment ' + row.experiment_id }, Card(row.intent || 'Repair experiment', [
+          h('div', { key: 'status', role: 'status', style: { fontWeight: 600 } }, row.status),
+          row.project_path ? h('div', { key: 'project', style: { overflowWrap: 'anywhere', color: 'var(--text-secondary, currentColor)' } }, row.project_path) : null,
+          row.status === 'STALE' ? h('p', { key: 'stale' }, 'The app changed after the last test. Rerun this frozen case before relying on its result.') : null,
+          row.runs?.length ? h('div', { key: 'last-result' }, [
+            h('div', { key: 'counts' }, 'Last measured: ' + row.runs.at(-1).result.status + ' · ' + (row.runs.at(-1).result.observed ?? '?') + '/' + (row.runs.at(-1).result.expected ?? '?')),
+            h('div', { key: 'diagnosis' }, row.runs.at(-1).result.diagnosis),
+            row.runs.at(-1).result.control ? h('div', { key: 'control' }, 'Control: ' + (row.runs.at(-1).result.control.ok ? 'PASS' : 'FAIL') + ' · ' + row.runs.at(-1).result.control.observed + '/' + row.runs.at(-1).result.control.expected) : null
+          ]) : null,
+          row.error ? h('div', { key: 'error', role: 'alert' }, row.error) : null,
+          row.error_detail ? h('details', { key: 'detail' }, [h('summary', { key: 'summary', style: { minHeight: 44, paddingTop: 10 } }, 'Technical details'), h('div', { key: 'body' }, row.error_detail)]) : null,
+          experimentError?.id === row.experiment_id ? h('div', { key: 'action-error', role: 'alert' }, experimentError.message) : null,
+          h('div', { key: 'buttons', style: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 } }, [
+            h('button', { key: 'run', disabled: busy, onClick: () => experimentAction(row, 'run'), style: { minHeight: 44, padding: '6px 10px', border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', borderRadius: 4 } }, activeExperiment?.id === row.experiment_id && activeExperiment.action === 'run' ? 'Running experiment…' : 'Rerun frozen case'),
+            h('button', { key: 'watch', disabled: busy, onClick: () => experimentAction(row, 'watch'), style: { minHeight: 44, padding: '6px 10px', border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', borderRadius: 4 } }, activeExperiment?.id === row.experiment_id && activeExperiment.action === 'watch' ? 'Updating reminders…' : row.watching ? 'Stop completion reminders' : 'Watch edits')
+          ]),
+          h('div', { key: 'id', style: { overflowWrap: 'anywhere', fontSize: 12, color: 'var(--text-secondary, currentColor)' } }, 'Experiment ' + row.experiment_id)
+        ]))),
+        !experiments.length ? h('p', { key: 'empty' }, 'No repair experiment yet. Ask Hermes to prepare one for your local app.') : null
+      ]),
+      h('h2', { key: 'examples', style: { fontSize: 16, fontWeight: 600 } }, 'Run a saved example'),
       h('div', { key: 'controls', style: { display: 'flex', gap: 8, alignItems: 'center' } }, [
         h('select', {
           key: 'select',
@@ -126,7 +175,7 @@
           onClick: startRun,
           disabled: busy || !selected,
           style: { minHeight: 44, padding: '6px 10px', borderRadius: 4, border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', cursor: busy ? 'wait' : 'pointer' }
-        }, busy ? 'Running…' : 'Run case')
+        }, busy && !activeExperiment ? 'Running…' : 'Run case')
       ]),
       selectedCase?.setup_required ? h('div', { key: 'setup', role: 'status' }, selectedCase.setup_required) : null,
       error ? h('div', { key: 'error', role: 'alert', style: { fontSize: 14, color: 'var(--text-primary, currentColor)' } }, error) : null,

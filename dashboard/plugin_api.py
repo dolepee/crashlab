@@ -6,6 +6,7 @@ import json
 import os
 import re
 import sys
+import subprocess
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -104,3 +105,52 @@ async def run(request: RunRequest) -> dict:
     if path not in allowed:
         raise HTTPException(status_code=400, detail="contract must be in the case directory")
     return await asyncio.to_thread(run_and_persist, str(path))
+
+
+class WatchRequest(BaseModel):
+    enabled: bool
+
+
+def _experiments() -> dict:
+    import repair_workflow as workflow
+    rows = []
+    watched = set()
+    for watch in (workflow.core._data_dir() / 'watches').glob('*.json'):
+        value = _read(watch)
+        if value.get('experiment_id'):
+            watched.add(value['experiment_id'])
+    paths = sorted((workflow.core._data_dir() / 'experiments').glob('*/experiment.json'),
+                   key=lambda path: path.stat().st_mtime, reverse=True)[:5]
+    for path in paths:
+        eid = path.parent.name
+        try:
+            row = workflow.status(eid)
+        except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+            saved = _read(path)
+            row = {'experiment_id': eid, 'intent': saved.get('intent'), 'project_path': saved.get('project_path'), 'status': 'UNAVAILABLE', 'error': ('Cannot check the project source. Restore access to its Git repository, then refresh.' if isinstance(exc, subprocess.SubprocessError) else 'Experiment evidence is unavailable. Restore the saved case and project, or ask Hermes to prepare a new experiment.'), 'error_detail': str(exc)}
+        row['watching'] = eid in watched
+        rows.append(row)
+    return {'experiments': rows}
+
+
+@router.get('/experiments')
+async def experiments() -> dict:
+    return await asyncio.to_thread(_experiments)
+
+
+@router.post('/experiments/{experiment_id}/run')
+async def experiment_run(experiment_id: str) -> dict:
+    import repair_workflow as workflow
+    try:
+        return await asyncio.to_thread(workflow.run, experiment_id)
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post('/experiments/{experiment_id}/watch')
+async def experiment_watch(experiment_id: str, request: WatchRequest) -> dict:
+    import completion_reminder
+    try:
+        return await asyncio.to_thread(completion_reminder.watch, experiment_id, request.enabled)
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

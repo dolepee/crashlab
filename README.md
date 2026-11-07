@@ -28,11 +28,20 @@ repair claim. Kist goals are savings records, not payments or money movement.
 
 ## Use it in Hermes
 
-After installation, ask Hermes to run a saved case with `crashlab_run`. For a
-bundled first run, use `cases/checkout-local.json` to see the duplicate and
+After installation, tell Hermes where your disposable local Git app lives and
+what behavior you expect. For example:
+
+> Check the app at /path/to/my-app. Retrying one submission after its response
+> is lost should save one record; two deliberate submissions must remain allowed.
+
+The bundled skill guides app inspection and case preparation. Review the intended
+behavior and assertions, reproduce a failure, repair the application, then rerun
+the same experiment ID. The dashboard shows whether that evidence is current and
+lets you rerun the case or enable completion reminders.
+
+For a bundled first run, use `cases/checkout-local.json` to see the duplicate and
 `cases/checkout-local-fixed.json` to see the passing implementation. These cases
-start disposable local fixture apps automatically. The dashboard also lets you
-select and run a saved case, inspect its result, and retry after setup errors.
+start disposable local fixture apps automatically.
 
 For your own app, configure its launch command or loopback URL, browser journey,
 write endpoint and state assertion. SQLite observers read the database directly;
@@ -61,6 +70,11 @@ up to 5000 files / 100 MB. Ignored files, installed dependencies and runtime
 configuration are outside this check. Symlinks and non-Git roots are unsupported.
 These hashes detect drift in a trusted local workflow; they are not a security
 boundary against an application or agent with the same filesystem privileges.
+
+The dashboard shows your five most recent repair experiments, their current
+source status, the last measured outcome and control. Use **Rerun frozen case**
+after edits and **Watch edits** for completion reminders. Status refreshes when
+you return to the browser window or press **Refresh cases and results**.
 
 Call `crashlab_experiment_watch` with the ID and `enabled: true` to request a
 completion reminder while working on that project. After matching absolute-path
