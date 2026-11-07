@@ -64,6 +64,15 @@ class BrowserIntegrity(unittest.TestCase):
         self.assertEqual(result['scenario']['committed_after_fault'], 2)
         self.assertEqual(result['status'], 'FAIL')
 
+    def test_retry_content_corruption_is_valid_primary_failure(self):
+        source = self.source.replace('if row:\n                    con.commit()', 'if row:\n                    con.execute("UPDATE orders SET item=? WHERE id=?", ("Corrupted", row[0]))\n                    con.commit()')
+        result = self.run_case(source)
+        self.assertEqual(result["observed"], result["expected"], result)
+        self.assertTrue(result["scenario"]["valid"], result)
+        self.assertTrue(result["control"]["ok"], result)
+        self.assertFalse(result["primary_ok"], result)
+        self.assertTrue(core._completed_assertion(result, passed=False), result)
+
     def test_control_cannot_supply_missing_primary_fault(self):
         case = copy.deepcopy(self.case)
         case.pop('control')

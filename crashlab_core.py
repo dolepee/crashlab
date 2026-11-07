@@ -536,7 +536,9 @@ def _completed_assertion(run: dict, *, passed: bool) -> bool:
     if not all(type(value) in (int, float) and math.isfinite(value) and value >= 0
                for value in counts):
         return False
-    if (counts[0] == counts[1]) is not passed:
+    if run.get("primary_ok") is not passed:
+        return False
+    if passed and counts[0] != counts[1]:
         return False
     control = run.get("control")
     if control is not None:

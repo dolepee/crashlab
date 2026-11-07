@@ -16,12 +16,12 @@ class CompareTests(unittest.TestCase):
     def setUp(self):
         self.buggy = {
             "contract": "checkout-lost-response", "ok": False, "returncode": 1,
-            "observed": 2, "expected": 1,
+            "observed": 2, "expected": 1, "primary_ok": False,
             "scenario": {"valid": True},
             "control": {"ok": True, "observed": 2, "expected": 2},
         }
         self.fixed = copy.deepcopy(self.buggy)
-        self.fixed.update(ok=True, returncode=0, observed=1)
+        self.fixed.update(ok=True, returncode=0, observed=1, primary_ok=True)
 
     def compare(self, buggy=None, fixed=None):
         runs = [self.buggy if buggy is None else buggy,
@@ -57,6 +57,14 @@ class CompareTests(unittest.TestCase):
     def test_real_primary_failure_then_repair_passes(self):
         self.assertTrue(self.compare())
 
+    def test_content_only_failure_then_repair_passes(self):
+        self.buggy["observed"] = 1
+        self.assertTrue(self.compare())
+
+    def test_missing_primary_verdict_is_not_a_reproduction(self):
+        self.buggy.pop("primary_ok")
+        self.assertFalse(self.compare())
+
     def test_invalid_scenario_does_not_pass(self):
         for target in ("buggy", "fixed"):
             with self.subTest(target=target):
@@ -88,6 +96,7 @@ class CompareTests(unittest.TestCase):
 
     def test_control_only_failure_is_not_reproduction(self):
         self.buggy["observed"] = 1
+        self.buggy["primary_ok"] = True
         self.buggy["control"].update(ok=False, observed=1)
         self.assertFalse(self.compare())
 

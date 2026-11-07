@@ -259,6 +259,7 @@ function nowId() {
       run_id: runId,
       base_url: base,
       ok: primaryOK && (!control || control.ok),
+      primary_ok: primaryOK,
       expected: primary.expected,
       observed: primary.observed,
       observations,
