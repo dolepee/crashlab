@@ -3,7 +3,7 @@
   "files": {
     "__init__.py": "b34fac56f3bd5f6a3a384f3685dcb934cf7289840559c8a785e0d1fc9d1b1adb",
     "plugin.py": "3eb4479fd9b7badfad8210d297a2146a8b4e32d0bc2af2c6b7440de9089d2306",
-    "plugin.yaml": "d28e3e8b8e9e2d3e906263f9958ad8a3b428e6e57e7dcd54708f42aeecc1c992",
+    "plugin.yaml": "2ea74e62418e8b34fbc0b23362649e441785a3d74199c567f2a5ef2354b12b87",
     "campaign_plugin.py": "ab796ce7b108fa0b2dd0e36a73c92f45e78fe87bec2e39a4d4f6843f488b2e6d",
     "campaign.py": "e2f310a08bdc3867c5717ad41cb5f36fed50d822d25782e3080e6f065cd43950",
     "crashlab_core.py": "091a685f3ae9bf0118ce20c0acea26d96c7856a8989b4072e31d2fffad0b9be3",

@@ -16,7 +16,6 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 import crashlab_core as core  # noqa: E402
-import plugin  # noqa: E402
 
 NAME = "CRASHLAB_KIST_ONE_INTENT"
 CONTROL = "CRASHLAB_KIST_TWO_INTENTS"
@@ -72,6 +71,7 @@ def contract_for(app: Path, python: str) -> dict:
             "table": "goals",
             "where": f"name='{NAME}'",
             "expect": 1,
+            "record_fields": {"target_amount": 1000, "current_amount": 100, "status": "active"},
         },
         "evidence": {"screenshot_dir": "{DATA_DIR}/shots"},
         "control": {
@@ -94,6 +94,7 @@ def contract_for(app: Path, python: str) -> dict:
                 "table": "goals",
                 "where": f"name='{CONTROL}'",
                 "expect": 2,
+                "record_fields": {"target_amount": 1000, "current_amount": 100, "status": "active"},
             },
         },
     }
@@ -104,6 +105,7 @@ def main() -> int:
     parser.add_argument("--app", required=True, type=Path, help="Kist checkout at 7a196af9")
     parser.add_argument("--python", default=sys.executable, help="Python used to run Kist")
     parser.add_argument("--output", type=Path, default=Path("kist-run"))
+    parser.add_argument("--write-contract-only", action="store_true", help="Write the case for execution by the Hermes crashlab_run tool")
     args = parser.parse_args()
     app = args.app.expanduser().resolve()
     if not (app / "server/app.py").is_file():
@@ -114,11 +116,13 @@ def main() -> int:
     contract_path = run / "contract.json"
     contract = contract_for(app, args.python)
     contract_path.write_text(json.dumps(contract, indent=2) + "\n")
+    if args.write_contract_only:
+        print(str(contract_path))
+        return 0
     data_dir = run / "crashlab-data"
     data_dir.mkdir(exist_ok=True)
     os.environ["CRASHLAB_DATA_DIR"] = str(data_dir)
-    raw = plugin._handler("crashlab_run")({"contract_path": str(contract_path)})
-    result = json.loads(raw)
+    result = core.persist_run(core.run_contract(contract_path))
     (run / "result.json").write_text(json.dumps(result, indent=2) + "\n")
     summary = {
         "run": str(run),

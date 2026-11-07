@@ -102,7 +102,12 @@
     "db": "{DATA_DIR}/.finance/finance.db",
     "table": "goals",
     "where": "name='CRASHLAB_KIST_ONE_INTENT'",
-    "expect": 1
+    "expect": 1,
+    "record_fields": {
+      "target_amount": 1000,
+      "current_amount": 100,
+      "status": "active"
+    }
   },
   "evidence": {
     "screenshot_dir": "{DATA_DIR}/shots"
@@ -195,7 +200,12 @@
       "db": "{DATA_DIR}/.finance/finance.db",
       "table": "goals",
       "where": "name='CRASHLAB_KIST_TWO_INTENTS'",
-      "expect": 2
+      "expect": 2,
+      "record_fields": {
+        "target_amount": 1000,
+        "current_amount": 100,
+        "status": "active"
+      }
     }
   }
 }

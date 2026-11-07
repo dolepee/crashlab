@@ -1,60 +1,59 @@
 # CrashLab
 
-## Isolated campaign integration
+CrashLab is a Hermes plugin that checks what an application saved after a
+response was lost. A browser can show an error even after the server committed:
+retrying may create a duplicate record. CrashLab reproduces that interruption,
+reads the persisted state, and verifies the repair against the same case.
 
-This copy adds registered campaign list/validate/run tools while retaining the
-original four tools. See [CAMPAIGNS.md](CAMPAIGNS.md) for setup, safe target
-configuration, verification and limitations. Inventory contention execution is
-supported; mixed browser campaign execution is intentionally blocked pending
-network confinement. The original project README follows below.
+A legitimate-use control checks that fixing a retry still allows two deliberate
+operations. The comparison freezes the contract and checks evaluator identity
+across the before/after runs. Results cover the configured assertions, not every
+possible application failure.
 
-CrashLab is a Hermes plugin for reproducing and repairing a failure that normal
-browser tests miss: the server commits a write, the response is lost, the user
-retries, and the application ends up with two records for one intent.
+## A reproduced external repair
 
-It is deliberately narrow. One contract describes the journey, the fault, the
-state probe and the expected result. The same contract must fail on the broken
-application and pass on the repaired one. A control journey checks that the
-repair did not simply block legitimate later purchases.
+On November 7, 2026, a fresh Hermes 0.23 session used CrashLab on the unmodified
+[Kist Finance](https://github.com/grzella/kist-finance) savings-goal application,
+then wrote a repair in a separate checkout:
 
-> CrashLab is a working vertical slice, not a finished testing product. The
-> fixtures are small, deliberately buggy applications. It proves one failure
-> class across two example applications; it does not discover arbitrary bugs or
-> guarantee general autonomous repair.
+- Before: retrying one interrupted create saved **two goals**, expected one.
+- After: the same saved case produced **one goal**, and the control still
+  created **two deliberate goals**, including identical values.
+- A separate Hermes registry comparison reproduced both results using one frozen
+  contract. The evaluator and the agent's case remained unchanged.
 
-## What is in the box
+The [patch, selected tool events, screenshots and replay summary](external/kist/README.md)
+are included. This is one measured application repair, not a general autonomous
+repair claim. Kist goals are savings records, not payments or money movement.
 
-- `crashlab_validate` — validate a saved contract without running it.
-- `crashlab_run` — run a contract and read persisted state through `/state`.
-- `crashlab_compare` — run the same contract against a buggy and a repaired URL.
-- `crashlab_list` — list bundled contracts.
-- `crashlab_runner.js` — Playwright runner. It suppresses the response after the
-  upstream server has processed the request, proves the write committed, then
-  records screenshots and the persisted records.
-- `contracts/checkout-lost-response.json` — checkout fixture.
-- `contracts/booking-lost-response.json` — booking fixture.
-- `server.py` and `booking.py` — the two deliberately buggy fixture apps.
-- `desktop/plugin.js` — a native Hermes Desktop pane that displays the latest
-  run, the comparison and campaign evidence through `ctx.rest`.
-- `dashboard/plugin_api.py` — the pane's `/overview`, `/latest` and `/evidence`
-  endpoints. `crashlab_run` persists `latest-run.json` for this view.
+## Use it in Hermes
 
-## Evidence from the development run
+After installation, ask Hermes to run a saved case with `crashlab_run`. For a
+bundled first run, use `cases/checkout-local.json` to see the duplicate and
+`cases/checkout-local-fixed.json` to see the passing implementation. These cases
+start disposable local fixture apps automatically. The dashboard also lets you
+select and run a saved case, inspect its result, and retry after setup errors.
 
-The checkout comparison produced:
+For your own app, configure its launch command or loopback URL, browser journey,
+write endpoint and state assertion. SQLite observers read the database directly;
+HTTP observers trust the state returned by the app. JSON request-field mappings
+can bind stored rows to the submitted intent and payload. See the external Kist
+example for a real application and the contract notes below for the supported
+surface.
 
-- Buggy application: 2 persisted orders; expected 1; fail.
-- Hermes-repaired application: 1 persisted order; expected 1; pass.
-- Control: 2 distinct purchases; 2 orders; pass.
+## Included tools
 
-The booking fixture reproduced the same pattern:
+- `crashlab_validate`: validate a case without running it.
+- `crashlab_run`: execute a saved browser case and persist its result.
+- `crashlab_compare`: run one frozen case against broken and repaired URLs.
+- `crashlab_list`: list bundled contracts.
+- Campaign list/validate/run tools: an optional, separate inventory-contention
+  experiment. See [CAMPAIGNS.md](CAMPAIGNS.md); mixed browser campaigns remain
+  validation-only pending network confinement.
 
-- Buggy: 2 bookings; expected 1; fail.
-- Fixed: 1 booking; expected 1; pass.
-- Control: 2 distinct bookings; 2 bookings; pass.
-
-See `DAY2.md`, `DAY3.md`, `DAY4.md` and `proof/README.md` for the runs, and `docs/repair-report.png` and `docs/booking-report.png` for the rendered evidence. The checked-in HTML/PNG evidence is
-outside the plugin runtime; generated evidence is ignored by git.
+The checkout and booking apps are deliberately buggy fixtures. Historical
+fixture reports remain in `proof/` and the day-by-day development notes; they
+should not be confused with the external Kist application.
 
 ## Install
 
