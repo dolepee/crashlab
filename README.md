@@ -41,6 +41,27 @@ can bind stored rows to the submitted intent and payload. See the external Kist
 example for a real application and the contract notes below for the supported
 surface.
 
+## Follow a repair experiment
+
+Tell Hermes the path to a disposable local Git application and the behavior you
+expect. The bundled CrashLab skill guides app inspection and case construction.
+Hermes calls `crashlab_prepare` with the app path, intended behavior and case
+object; it stores the frozen case outside the editable app. Review the proposed
+assertions before relying on them. Setup still requires the application's own
+runtime and dependencies; this does not discover arbitrary application semantics.
+
+Call `crashlab_experiment_run` with the returned experiment ID. A valid failing
+run establishes `REPRODUCED`. After editing the app, rerun that ID: `VERIFIED`
+requires a changed source fingerprint, a passing frozen case and a passing
+legitimate-use control. An initial pass is `PASS_WITHOUT_REPAIR_PROOF`.
+`crashlab_experiment_status` marks evidence `STALE` after project edits.
+
+Freshness covers Git-tracked and nonignored untracked files, including deletions,
+up to 5000 files / 100 MB. Ignored files, installed dependencies and runtime
+configuration are outside this check. Symlinks and non-Git roots are unsupported.
+These hashes detect drift in a trusted local workflow; they are not a security
+boundary against an application or agent with the same filesystem privileges.
+
 ## Included tools
 
 - `crashlab_validate`: validate a case without running it.

@@ -7,9 +7,11 @@ import shlex
 try:
     from . import crashlab_core as core
     from . import campaign_plugin
+    from . import repair_workflow
 except ImportError:
     import crashlab_core as core
     import campaign_plugin
+    import repair_workflow
 
 TOOL_SCHEMAS = [
     {
@@ -56,10 +58,13 @@ TOOL_SCHEMAS = [
     },
 ]
 TOOL_SCHEMAS.extend(campaign_plugin.schemas())
+TOOL_SCHEMAS.extend(repair_workflow.schemas())
 
 
 def _handler(name: str):
     def invoke(kwargs):
+        if name in {schema["name"] for schema in repair_workflow.schemas()}:
+            return repair_workflow.invoke(name, kwargs)
         if name.startswith("crashlab_campaign_"):
             return campaign_plugin.invoke(name, kwargs)
         if name == "crashlab_validate":
@@ -118,6 +123,9 @@ def _slash(raw_args: str) -> str:
 
 
 def register(ctx):
+    from pathlib import Path
+    if hasattr(ctx, "register_skill"):
+        ctx.register_skill("crashlab", Path(__file__).parent / "skills" / "crashlab" / "SKILL.md", description="Reproduce and verify a local app repair with frozen assertions and current source evidence.")
     for schema in TOOL_SCHEMAS:
         ctx.register_tool(name=schema["name"], toolset="crashlab",
                           schema=schema, handler=_handler(schema["name"]))
