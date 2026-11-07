@@ -178,7 +178,67 @@ def _run(experiment_id):
 def contract_schema():
     state = {'type': 'object', 'description': 'Prefer SQLite for independent observation. Scope primary and control to different marker values; the control runs in the same app/browser after the primary. Assert content and captured intent, not only counts.',
              'properties': {'mode': {'type':'string','enum':['sqlite','http']}, 'db': {'type':'string','description':'SQLite path; use {DATA_DIR}/app.sqlite and configure app.start to use that same disposable database.'}, 'table': {'type':'string'}, 'where': {'type':'string','description':'SQLite WHERE expression scoping this experiment to its test records.'}, 'expect': {'type':'integer','minimum':0}, 'record_fields': {'type':'object','description':'Exact database field values expected on every scoped record.'}, 'request_fields': {'type':'object','additionalProperties':{'type':'string'},'description':'Database column -> captured top-level JSON or URL-encoded form field. One row is required per distinct mapped signature. Include a stable per-intent key where available. If two legitimate identical control payloads have no distinct intent key, omit control request_fields and assert cardinality/content only.'}}, 'required':['mode','expect']}
-    journey = {'type':'array','minItems':1,'items':{'type':'object','properties':{'action':{'type':'string','enum':['goto','click','fill','check','uncheck','select_option','press','wait_for_selector','wait_for_text','wait_for_url','wait_for_fault','wait_for_count','wait_for_value','wait_for_any','wait_for_load_state','wait_for_timeout','reload','text','screenshot']}, 'path':{'type':'string'},'selector':{'type':'string'},'value':{'type':'string'},'text':{'type':'string'},'pattern':{'type':'string'},'as':{'type':'string'},'min':{'type':'integer'},'max':{'type':'integer'}},'required':['action']},'description':'Declarative browser steps. For a native HTML POST lost response: click submit, wait_for_fault, reload to resubmit the POST, wait_for_url. For JSON fetch: click submit, wait_for_fault, click its retry button. No supplied JavaScript.'}
+    selector = {'type': 'string', 'minLength': 1}
+    value_match = [
+        {'required': ['empty'], 'properties': {'empty': {'const': True}}},
+        {'required': ['equals']},
+    ]
+    condition = {
+        'type': 'object',
+        'properties': {
+            'kind': {'type': 'string', 'enum': ['count', 'value']},
+            'selector': selector,
+            'min': {'type': 'integer', 'minimum': 0},
+            'max': {'type': 'integer', 'minimum': 0},
+            'text': {'type': 'string'},
+            'empty': {'type': 'boolean'},
+            'equals': {'type': 'string'},
+        },
+        'required': ['kind', 'selector'],
+        'anyOf': [
+            {'properties': {'kind': {'const': 'count'}}},
+            {'properties': {'kind': {'const': 'value'}}, 'anyOf': value_match},
+        ],
+    }
+    action_requirements = []
+    for actions, required in [
+        (['goto', 'reload', 'wait_for_fault', 'screenshot'], []),
+        (['click', 'check', 'uncheck', 'wait_for_selector', 'text', 'wait_for_count'], ['selector']),
+        (['fill', 'select_option'], ['selector', 'value']),
+        (['press'], ['selector', 'key']),
+        (['wait_for_text'], ['text']),
+        (['wait_for_url'], ['pattern']),
+        (['wait_for_any'], ['conditions']),
+        (['wait_for_load_state'], ['state']),
+        (['wait_for_timeout'], ['ms']),
+        (['wait_for_value'], ['selector']),
+    ]:
+        branch = {'properties': {'action': {'enum': actions}}, 'required': ['action'] + required}
+        if actions == ['wait_for_value']:
+            branch['anyOf'] = value_match
+        action_requirements.append(branch)
+    journey = {
+        'type': 'array', 'minItems': 1,
+        'items': {
+            'type': 'object',
+            'properties': {
+                'action': {'type': 'string'},
+                'path': {'type': 'string'}, 'selector': selector,
+                'value': {'type': 'string'}, 'text': {'type': 'string'},
+                'pattern': {'type': 'string', 'minLength': 1},
+                'as': {'type': 'string'}, 'key': {'type': 'string', 'minLength': 1},
+                'min': {'type': 'integer', 'minimum': 0},
+                'max': {'type': 'integer', 'minimum': 0},
+                'empty': {'type': 'boolean'}, 'equals': {'type': 'string'},
+                'conditions': {'type': 'array', 'minItems': 1, 'items': condition},
+                'state': {'type': 'string', 'enum': ['load', 'domcontentloaded', 'networkidle']},
+                'ms': {'type': 'integer', 'minimum': 0, 'maximum': 60000},
+                'timeout': {'type': 'integer', 'minimum': 1},
+            },
+            'required': ['action'], 'anyOf': action_requirements,
+        },
+        'description': 'Declarative browser steps with action-specific arguments. Native HTML POST retry: submit, wait_for_fault, reload, wait_for_url. JSON fetch: submit, wait_for_fault, click retry. Prefer observable waits; no supplied JavaScript.',
+    }
     return {'type':'object','description':'Construct from the inspected app and user intent. One suppressed response after commit, one retried intent, and two deliberate control operations. Review assertions before preparing.',
             'properties': {'id':{'type':'string'}, 'app':{'type':'object','properties':{'start':{'type':'object','properties':{'cwd':{'type':'string','description':'Absolute app directory inside project_path.'},'command':{'type':'array','items':{'type':'string'},'description':'App argv; placeholders {PYTHON}, {PORT}, {DATA_DIR} are expanded. Use shell explicitly only when required.'},'python':{'type':'string','description':'Installed application interpreter, not necessarily Hermes Python.'},'env':{'type':'object','additionalProperties':{'type':'string'}},'base_url':{'type':'string','description':'Normally http://127.0.0.1:{PORT}.'},'health_path':{'type':'string'}},'required':['cwd','command','base_url']}}}, 'journey':journey, 'fault':{'type':'object','properties':{'route':{'type':'string','description':'Playwright URL glob for the write endpoint, e.g. **/create.'},'method':{'type':'string','enum':['POST','PUT','PATCH','DELETE']},'mode':{'type':'string','enum':['suppress_after_upstream']},'occurrence':{'type':'integer','enum':[1]}},'required':['route','method','mode']}, 'state':state, 'control':{'type':'object','properties':{'journey':journey,'state':state},'required':['journey','state']}}, 'required':['id','app','journey','fault','state','control']}
 

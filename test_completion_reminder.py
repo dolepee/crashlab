@@ -44,3 +44,10 @@ class ReminderTests(unittest.TestCase):
                 result=reminder.pre_verify(changed_paths=[str(self.project/'app.py')])
                 self.assertEqual(result['action'],'continue')
                 self.assertIn('UNAVAILABLE',result['message'])
+
+    def test_issued_reminder_has_a_session_scoped_diagnostic_log(self):
+        reminder.watch(self.eid,True)
+        with patch.object(reminder.workflow,'status',return_value={'status':'STALE'}), self.assertLogs('crashlab.completion',level='INFO') as captured:
+            reminder.pre_verify(changed_paths=[str(self.project/'app.py')],session_id='test-session')
+        self.assertIn('session=test-session',captured.output[0])
+        self.assertIn('status=STALE',captured.output[0])
