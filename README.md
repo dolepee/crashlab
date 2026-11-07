@@ -166,9 +166,11 @@ through the same local-app path as every other case; `run_kist.py` builds that
 block and no longer runs a separate application launcher.
 
 `cases/checkout-local-start.json` and `cases/checkout-local-fixed.json` are the
-transfer check: the same case format starts the local checkout fixture, fails
-2/1 on the buggy build, and passes 1/1 on the fixed build. They are bundled
-fixtures, not a second external application.
+fixture transfer check. `cases/flaskr-create.json` is the independent application
+check against Pallets' Flaskr tutorial at commit
+`49943b5a94413a530761350f04e896f76e8d620e`; it registers a user, creates one
+post and observes one row in SQLite through the same `app.start` path. See
+[external/flaskr/README.md](external/flaskr/README.md).
 
 See [external/kist/README.md](external/kist/README.md). Do not describe the
 before run as repaired or the patch as a general autonomous repair.
@@ -177,8 +179,8 @@ before run as repaired or the patch as a general autonomous repair.
 
 - Two local fixtures plus the external Kist example; Kist is one app and one
   Hermes one-shot repair, not proof of broad compatibility.
-- The second workflow is a bundled checkout fixture, not an independent
-  external application.
+- The second application check is Flaskr, a public tutorial app; the checkout
+  cases remain bundled fixtures.
 - The Desktop pane was launched in Hermes Desktop for the earlier evidence view
   in `docs/desktop-pane.png`; the newest run/comparison view is wired to the
   persisted run but has not been visually recaptured.
