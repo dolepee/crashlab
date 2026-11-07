@@ -265,3 +265,9 @@ integrity checks in a trusted local installation, not an operating-system sandbo
 Install a browser with `npx playwright-core install chromium`, or set
 `CHROME_PATH` to an existing Chromium/Chrome executable. Run real-browser
 regressions with `CRASHLAB_BROWSER_TESTS=1 python -m unittest test_browser_integrity`.
+
+For development checks, install `requirements-test.txt` to enable the JSON Schema
+contract checks, then run `python -m unittest discover`. Real-browser acceptance
+requires the Node sidecar and `CRASHLAB_BROWSER_TESTS=1`. Runtime plugin tools do
+not require the test-only schema package. Completion reminders log experiment ID,
+session ID and current state through the Hermes diagnostic logger.

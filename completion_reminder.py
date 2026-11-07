@@ -2,6 +2,7 @@
 from pathlib import Path
 import json
 import subprocess
+import logging
 try:
     from . import repair_workflow as workflow
 except ImportError:
@@ -48,6 +49,9 @@ def pre_verify(changed_paths=None, **kwargs):
             except (OSError, ValueError, KeyError, subprocess.SubprocessError):
                 state = 'UNAVAILABLE'
             if state != 'VERIFIED':
+                logging.getLogger('crashlab.completion').info(
+                    'Completion reminder: experiment=%s session=%s status=%s',
+                    eid, kwargs.get('session_id', ''), state)
                 return {'action': 'continue', 'message': (
                     f'CrashLab experiment {eid} is {state} for an edited project. '
                     'Run crashlab_experiment_run and inspect the primary assertion and control '

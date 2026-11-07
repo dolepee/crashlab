@@ -395,3 +395,14 @@ with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ControlIdentityValidationTests(unittest.TestCase):
+    def test_fixed_payload_cannot_be_a_two_intent_identity_signature(self):
+        case = json.loads((core.ROOT / 'cases/checkout-local-fixed.json').read_text())
+        case['control']['state']['request_fields'] = {'item':'item'}
+        with self.assertRaisesRegex(ValueError, 'fixed identity signature'):
+            core.validate_contract(case)
+        # A cardinality/content control without per-intent identity remains explicit and valid.
+        case['control']['state'].pop('request_fields')
+        core.validate_contract(case)

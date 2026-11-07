@@ -104,5 +104,26 @@ class BrowserIntegrity(unittest.TestCase):
         self.assertTrue(result['ok'], result)
         self.assertEqual(result['expected'], 1)
 
+
+    def test_native_post_reload_waits_for_failed_navigation(self):
+        for buggy, observed, ok in [('1',2,False),('0',1,True)]:
+            with self.subTest(buggy=buggy):
+                case = copy.deepcopy(self.case)
+                case['id']='native-form-retry'
+                case['app'].pop('reset_url',None)
+                case['app']['start']['command']=['{PYTHON}',str(core.ROOT/'native_form_fixture.py')]
+                case['app']['start']['env']['BUGGY']=buggy
+                case['fault']['route']='**/create'
+                case['journey']=[{'action':'goto','path':'/'},{'action':'fill','selector':'#item','value':'primary'},{'action':'click','selector':'#submit'},{'action':'wait_for_fault'},{'action':'reload'},{'action':'wait_for_url','pattern':'**/done'}]
+                case['state'].update(where="item='primary'",record_fields={'item':'primary'})
+                create=[{'action':'goto','path':'/'},{'action':'fill','selector':'#item','value':'control'},{'action':'click','selector':'#submit'},{'action':'wait_for_url','pattern':'**/done'}]
+                case['control']['journey']=create+copy.deepcopy(create)
+                case['control']['state'].update(where="item='control'",record_fields={'item':'control'})
+                result=self.run_case(case=case)
+                self.assertEqual(result.get('observed'),observed,result)
+                self.assertIs(result['ok'],ok,result)
+                self.assertTrue(result['scenario']['valid'],result)
+                self.assertTrue(result['control']['ok'],result)
+
 if __name__ == '__main__':
     unittest.main()
