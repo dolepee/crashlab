@@ -141,17 +141,16 @@ evidence, not a pass.
 
 `demo/crashlab-demo.mp4` is an 88-second terminal replay built from the real
 buggy run, the Hermes repair summary and the repaired run. It is a replay, not
-a live screen capture; the opening frame says so. The source is in
-`demo/index.html`; `demo/record_demo.js` records it with Playwright.
+a live screen capture; the opening frame says so. Recording source is maintained privately.
 
 `demo/kist-demo.mp4` is an 88-second replay of the external Kist run: the
 unmodified before run, the frozen contract, the Hermes patch and the repaired
-run. Its source is `demo/kist.html`; `demo/record_kist.js` records it.
+run. Recording source is maintained privately.
 
 `demo/crashlab-kist-live.mp4` is a 26.5-second **live browser recording**, not
 an evidence replay. It shows the unmodified Kist checkout creating a second
 goal after a dropped response, then the same intent against the Hermes-repaired
-checkout creating one. The recorder is `external/kist/record_session.js`.
+checkout creating one. Recording source is maintained privately.
 
 ## External application example
 
@@ -165,7 +164,7 @@ The contract now carries an `app.start` block. `crashlab_run` starts Kist
 through the same local-app path as every other case; `run_kist.py` builds that
 block and no longer runs a separate application launcher.
 
-`cases/checkout-local-start.json` and `cases/checkout-local-fixed.json` are the
+`cases/checkout-local.json` and `cases/checkout-local-fixed.json` are the
 fixture transfer check. `cases/flaskr-create.json` is the independent application
 check against Pallets' Flaskr tutorial at commit
 `49943b5a94413a530761350f04e896f76e8d620e`; it registers a user, creates one
@@ -206,3 +205,20 @@ CrashLab starts local fixture servers, launches headless Chromium, writes
 SQLite data and screenshots under `data/` and `evidence/`, and reads the saved
 evidence file through the Desktop backend. It makes no network calls to third
 parties and stores no credentials.
+
+## Browser verification guarantees
+
+Fault cases require an empty independently observed scoped baseline. A dirty
+baseline is INVALID, not a passing repair. `record_fields` checks exact stored
+values; `request_fields` maps database columns to top-level JSON request fields
+on the fault route, binding every observed row to a distinct captured request.
+Checkout cases check both the intent key and item. These checks are configured
+per application; cardinality alone does not establish full business correctness.
+
+Comparisons snapshot the contract once, use it for both runs, record its SHA-256
+and evaluator hashes, and reject evaluator changes during the pair. These are
+integrity checks in a trusted local installation, not an operating-system sandbox.
+
+Install a browser with `npx playwright-core install chromium`, or set
+`CHROME_PATH` to an existing Chromium/Chrome executable. Run real-browser
+regressions with `CRASHLAB_BROWSER_TESTS=1 python -m unittest test_browser_integrity`.

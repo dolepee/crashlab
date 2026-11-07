@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import copy
+import hashlib
 import math
 import os
 import shlex
@@ -42,8 +44,10 @@ def explain_run(result: dict) -> str:
     if control is not None and not control.get("ok"):
         return "The primary state matched, but the legitimate-use control failed; the change may block normal use."
     if result.get("ok"):
-        return f"Persisted state is correct ({observed:g}/{expected:g}) and the control passed."
-    return "Persisted state matched but the run is not marked as passing."
+        return (f"Persisted state is correct ({observed:g}/{expected:g})"
+                + (" and the control passed." if control is not None
+                   else "; no control was configured."))
+    return "Record count matched, but the configured content or intent assertions did not pass."
 
 
 def explain_comparison(result: dict) -> str:
@@ -66,6 +70,7 @@ def persist_run(result: dict) -> dict:
     runs.mkdir(parents=True, exist_ok=True)
     result["diagnosis"] = explain_run(result)
     path = runs / f"{run_id}.json"
+    result["evidence_path"] = str(path)
     raw = json.dumps(result, indent=2, default=str) + "\n"
     path.write_text(raw, encoding="utf-8")
     (data / "latest-run.json").write_text(raw, encoding="utf-8")
@@ -82,6 +87,7 @@ def _persist(result: dict) -> dict:
     runs.mkdir(parents=True, exist_ok=True)
     result["diagnosis"] = explain_comparison(result)
     path = runs / f"{run_id}.json"
+    result["evidence_path"] = str(path)
     path.write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
     (data / "latest.json").write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
     result["evidence_path"] = str(path)
@@ -126,6 +132,18 @@ def _validate_state(state: dict, where: str) -> None:
     expected = state.get("expect")
     if type(expected) is not int or expected < 0:
         raise ValueError(f"{where}.expect must be a non-negative integer")
+    for field in ("record_fields", "request_fields"):
+        if field in state:
+            mapping = state[field]
+            if not isinstance(mapping, dict) or not mapping:
+                raise ValueError(f"{where}.{field} must be a non-empty object")
+            for key, value in mapping.items():
+                if not isinstance(key, str) or not key:
+                    raise ValueError(f"{where}.{field} needs non-empty column names")
+                if field == "request_fields" and (not isinstance(value, str) or not value):
+                    raise ValueError(f"{where}.{field} needs request field names")
+                if field == "record_fields" and (value is None or type(value) not in (str, int, float, bool)):
+                    raise ValueError(f"{where}.{field} values must be non-null scalars")
     mode = state.get("mode", "http")
     if mode not in ("http", "sqlite"):
         raise ValueError(f"{where}.mode must be http or sqlite")
@@ -241,6 +259,9 @@ def validate_contract(contract: dict) -> dict:
             raise ValueError("control must be an object")
         _validate_journey(control.get("journey"), "control.journey")
         _validate_state(control.get("state"), "control.state")
+    specs = [contract["state"]] + ([control["state"]] if control else [])
+    if not fault and any(spec.get("request_fields") for spec in specs):
+        raise ValueError("request_fields requires a fault route for request capture")
     return contract
 
 
@@ -373,6 +394,8 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
     if not isinstance(command, list) or not all(isinstance(item, str) and item for item in command):
         raise ValueError("app.start.command must be a non-empty string list")
     app_python = str(start.get("python") or sys.executable)
+    if app_python == "{PYTHON}":
+        app_python = sys.executable
     port = start.get("port")
     if port is None:
         port = _free_port()
@@ -445,8 +468,8 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
 
 
 def run_contract(contract_path: str | Path, base_url: str | None = None,
-                 timeout: int = 120) -> dict:
-    contract = load_contract(contract_path)
+                 timeout: int = 120, *, frozen_contract: dict | None = None) -> dict:
+    contract = copy.deepcopy(frozen_contract) if frozen_contract is not None else load_contract(contract_path)
     contract_dir = Path(contract_path).expanduser().resolve().parent
     started = None
     try:
@@ -478,7 +501,7 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
             proc = subprocess.run(
                 [_node(), str(RUNNER), temp_path],
                 cwd=ROOT, capture_output=True, text=True, timeout=timeout,
-                env={**os.environ, "CHROME_PATH": os.environ.get("CHROME_PATH", "/usr/bin/chromium")},
+                env={**os.environ, "PYTHON_BINARY": sys.executable},
             )
         finally:
             Path(temp_path).unlink(missing_ok=True)
@@ -513,7 +536,9 @@ def _completed_assertion(run: dict, *, passed: bool) -> bool:
     if not all(type(value) in (int, float) and math.isfinite(value) and value >= 0
                for value in counts):
         return False
-    if (counts[0] == counts[1]) is not passed:
+    if run.get("primary_ok") is not passed:
+        return False
+    if passed and counts[0] != counts[1]:
         return False
     control = run.get("control")
     if control is not None:
@@ -528,15 +553,25 @@ def _completed_assertion(run: dict, *, passed: bool) -> bool:
 
 def compare(contract_path: str | Path, buggy_url: str, fixed_url: str,
             timeout: int = 120) -> dict:
-    buggy = run_contract(contract_path, base_url=buggy_url, timeout=timeout)
-    fixed = run_contract(contract_path, base_url=fixed_url, timeout=timeout)
+    frozen = load_contract(contract_path)
+    digest = hashlib.sha256(json.dumps(frozen, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    evaluator_files = (Path(__file__), RUNNER, ROOT / "crashlab_probe.py")
+    evaluator = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in evaluator_files}
+    buggy = run_contract(contract_path, base_url=buggy_url, timeout=timeout, frozen_contract=frozen)
+    fixed = run_contract(contract_path, base_url=fixed_url, timeout=timeout, frozen_contract=frozen)
+    buggy["contract_sha256"] = digest
+    fixed["contract_sha256"] = digest
     result = {
         "contract": buggy.get("contract"),
+        "contract_sha256": digest,
+        "evaluator_sha256": evaluator,
         "run_id": f"compare-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}",
         "buggy": buggy,
         "fixed": fixed,
         "ok": _completed_assertion(buggy, passed=False) and _completed_assertion(fixed, passed=True),
     }
+    if evaluator != {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in evaluator_files}:
+        result.update(ok=False, error="Evaluator changed during comparison", status="INVALID")
     return _persist(result)
 
 

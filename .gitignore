@@ -12,3 +12,9 @@ __pycache__/
 demo/raw/
 demo/*.mp4
 demo/*.webm
+
+# Recording and submission preparation stays private.
+docs/*submission*.md
+demo/*.html
+demo/*.js
+external/*/record_session.js

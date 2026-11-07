@@ -16,22 +16,33 @@ class CompareTests(unittest.TestCase):
     def setUp(self):
         self.buggy = {
             "contract": "checkout-lost-response", "ok": False, "returncode": 1,
-            "observed": 2, "expected": 1,
+            "observed": 2, "expected": 1, "primary_ok": False,
             "scenario": {"valid": True},
             "control": {"ok": True, "observed": 2, "expected": 2},
         }
         self.fixed = copy.deepcopy(self.buggy)
-        self.fixed.update(ok=True, returncode=0, observed=1)
+        self.fixed.update(ok=True, returncode=0, observed=1, primary_ok=True)
 
     def compare(self, buggy=None, fixed=None):
         runs = [self.buggy if buggy is None else buggy,
                 self.fixed if fixed is None else fixed]
-        with patch.object(core, "run_contract", side_effect=runs) as runner:
+        with patch.object(core, "load_contract", return_value={"id": "test"}), patch.object(core, "run_contract", side_effect=runs) as runner:
             result = core.compare("case.json", "http://buggy", "http://fixed")
         self.assertEqual(runner.call_count, 2)
         self.assertEqual(result["buggy"], runs[0])
         self.assertEqual(result["fixed"], runs[1])
         return result["ok"]
+
+    def test_contract_is_loaded_once_and_shared_across_pair(self):
+        contract = {"id": "frozen", "state": {"expect": 1}}
+        with patch.object(core, "load_contract", return_value=contract) as load, \
+             patch.object(core, "run_contract", side_effect=[self.buggy, self.fixed]) as run:
+            result = core.compare("case.json", "http://buggy", "http://fixed")
+        load.assert_called_once_with("case.json")
+        self.assertEqual(run.call_args_list[0].kwargs["frozen_contract"], contract)
+        self.assertEqual(run.call_args_list[1].kwargs["frozen_contract"], contract)
+        self.assertEqual(result["buggy"]["contract_sha256"], result["fixed"]["contract_sha256"])
+        self.assertEqual(len(result["contract_sha256"]), 64)
 
     def test_expand_start_uses_configured_python(self):
         value = core._expand_start(
@@ -45,6 +56,14 @@ class CompareTests(unittest.TestCase):
 
     def test_real_primary_failure_then_repair_passes(self):
         self.assertTrue(self.compare())
+
+    def test_content_only_failure_then_repair_passes(self):
+        self.buggy["observed"] = 1
+        self.assertTrue(self.compare())
+
+    def test_missing_primary_verdict_is_not_a_reproduction(self):
+        self.buggy.pop("primary_ok")
+        self.assertFalse(self.compare())
 
     def test_invalid_scenario_does_not_pass(self):
         for target in ("buggy", "fixed"):
@@ -77,6 +96,7 @@ class CompareTests(unittest.TestCase):
 
     def test_control_only_failure_is_not_reproduction(self):
         self.buggy["observed"] = 1
+        self.buggy["primary_ok"] = True
         self.buggy["control"].update(ok=False, observed=1)
         self.assertFalse(self.compare())
 
