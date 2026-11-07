@@ -302,6 +302,76 @@ with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as 
         self.assertTrue(result["ok"], result)
         self.wait_gone()
 
+    CHILD = """\
+import os, signal, sys, time
+signal.signal(signal.SIGTERM, signal.SIG_IGN if sys.argv[2] == "1" else signal.SIG_DFL)
+with open(sys.argv[1], "w", encoding="utf-8") as handle:
+    handle.write(str(os.getpid()))
+while True:
+    time.sleep(0.1)
+"""
+
+    SPAWN_EXIT = """\
+import os, subprocess, sys, time
+subprocess.Popen([sys.executable, sys.argv[1], sys.argv[2], sys.argv[3]])
+while not os.path.exists(sys.argv[2]):
+    time.sleep(0.01)
+"""
+
+    SPAWN_SERVE = """\
+import http.server, os, socketserver, subprocess, sys, time
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+    def log_message(self, *args):
+        pass
+
+subprocess.Popen([sys.executable, sys.argv[1], sys.argv[2], sys.argv[3]])
+while not os.path.exists(sys.argv[2]):
+    time.sleep(0.01)
+with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as server:
+    server.serve_forever()
+"""
+
+    def _script(self, name, text):
+        path = self.tmp / name
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def test_child_outliving_parent_is_stopped(self):
+        child = self._script("child.py", self.CHILD)
+        parent = self._script("parent_exit.py", self.SPAWN_EXIT)
+        start = self.start({"command": [sys.executable, str(parent), str(child), str(self.pid_file), "0"]})
+        with self.assertRaises(RuntimeError):
+            core._start_app(start, self.tmp)
+        self.wait_gone()
+
+    def test_child_ignoring_sigterm_is_stopped(self):
+        child = self._script("child.py", self.CHILD)
+        parent = self._script("parent_serve.py", self.SPAWN_SERVE)
+        start = self.start({"command": [sys.executable, str(parent), str(child), str(self.pid_file), "1"]})
+        proc, base, log, handle, data = core._start_app(start, self.tmp)
+        try:
+            core._stop_process(proc)
+        finally:
+            handle.close()
+        self.wait_gone()
+
+    def test_cleanup_without_children_is_fast(self):
+        start = self.start()
+        proc, base, log, handle, data = core._start_app(start, self.tmp)
+        started = time.monotonic()
+        try:
+            core._stop_process(proc)
+        finally:
+            handle.close()
+        elapsed = time.monotonic() - started
+        self.assertLess(elapsed, 3.0)
+        self.wait_gone()
+
 
 if __name__ == "__main__":
     unittest.main()

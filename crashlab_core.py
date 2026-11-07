@@ -282,12 +282,18 @@ def _group_alive(pgid: int) -> bool:
     return True
 
 
-def _wait_group_gone(pgid: int, timeout: float = 5.0) -> bool:
+def _wait_group_gone(pgid: int, timeout: float = 5.0, proc: subprocess.Popen | None = None) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
+        if proc is not None:
+            # Reap the group leader while polling: a zombie leader keeps the
+            # process group visible and made ordinary cleanup wait seconds.
+            proc.poll()
         if not _group_alive(pgid):
             return True
         time.sleep(0.05)
+    if proc is not None:
+        proc.poll()
     return not _group_alive(pgid)
 
 
@@ -337,7 +343,7 @@ def _stop_process(proc: subprocess.Popen) -> None:
         os.killpg(pgid, signal.SIGTERM)
     except (ProcessLookupError, PermissionError, OSError):
         pass
-    if _wait_group_gone(pgid):
+    if _wait_group_gone(pgid, proc=proc):
         if proc.poll() is None:
             try:
                 proc.wait(timeout=1)
@@ -348,7 +354,7 @@ def _stop_process(proc: subprocess.Popen) -> None:
         os.killpg(pgid, signal.SIGKILL)
     except (ProcessLookupError, PermissionError, OSError):
         pass
-    _wait_group_gone(pgid)
+    _wait_group_gone(pgid, proc=proc)
     if proc.poll() is None:
         try:
             proc.wait(timeout=1)
