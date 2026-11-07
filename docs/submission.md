@@ -31,11 +31,12 @@ Flaskr, the public Pallets tutorial app at commit `49943b5a94413a530761350f04e89
 
 ## Verification at the current pin
 
-- Plugin pin: `8a5eb29134d2e9745031b68cfd963f1e3eb28da5`
-- 93 tests pass
+- Plugin pin: `20acb592693d46e685cc9ce4ec11c0c153e66105`
+- 95 tests pass
 - Hermes plugin admission validator: clean
 - Catalog structural validation: `1065` files valid
 - Fresh `hermes plugins install` plus `npm ci`: Flaskr `1/1` PASS
+- Malformed setup and completed runs both reap the app process; two regression tests assert the child PID disappears
 - Kist: before `2/1`, after `1/1`, control `2/2`
 
 ## Honest limits
