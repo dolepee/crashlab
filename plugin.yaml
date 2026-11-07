@@ -18,3 +18,6 @@ provides_tools:
   - crashlab_campaign_list
   - crashlab_campaign_validate
   - crashlab_campaign_run
+  - crashlab_prepare
+  - crashlab_experiment_run
+  - crashlab_experiment_status

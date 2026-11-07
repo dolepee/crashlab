@@ -16,14 +16,15 @@ from inventory_fixture import make_server
 
 
 class RegistrationTests(unittest.TestCase):
-    def test_all_seven_tools_register_as_json_handlers(self):
+    def test_all_tools_register_as_json_handlers(self):
         registered = {}
         class Context:
             def register_tool(self, **kwargs):
                 registered[kwargs["name"]] = kwargs
         plugin.register(Context())
         expected = {"crashlab_validate", "crashlab_run", "crashlab_compare", "crashlab_list",
-                    "crashlab_campaign_list", "crashlab_campaign_validate", "crashlab_campaign_run"}
+                    "crashlab_campaign_list", "crashlab_campaign_validate", "crashlab_campaign_run",
+                    "crashlab_prepare", "crashlab_experiment_run", "crashlab_experiment_status"}
         self.assertEqual(set(registered), expected)
         for record in registered.values():
             self.assertEqual(record["toolset"], "crashlab")
