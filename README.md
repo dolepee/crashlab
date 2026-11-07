@@ -244,7 +244,7 @@ capture.
 - The fault is a suppressed response after commit; this is not a general chaos
   testing engine. `mode: "http"` is app-supplied and cannot prove the app did not
   tamper with its own state; use `sqlite` for the bundled fixtures.
-- The repair evidence covers Kist and the bundled checkout fixture. It is one
+- The repair evidence covers Kist, Flaskr and the bundled checkout fixture. It is one
   known defect class, not a claim of general repair.
 - `app.start` runs a local command by design. It receives only PATH, LANG, TZ,
   HOME, PORT and contract-declared environment values; it does not inherit the

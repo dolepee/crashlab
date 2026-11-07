@@ -80,11 +80,11 @@
     }
 
     useEffect(() => {
-      let refreshing = false
-      const refresh = async () => {
-        if (document.visibilityState === 'hidden' || refreshing) return
-        refreshing = true
-        try { await load() } finally { refreshing = false }
+      const refresh = () => {
+        if (document.visibilityState === 'hidden') return
+        // A return event must supersede even an unfinished pre-edit request.
+        // loadSequence prevents that older response from replacing current proof.
+        load()
       }
       refresh()
       window.addEventListener('focus', refresh)
