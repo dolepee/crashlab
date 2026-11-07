@@ -1,6 +1,7 @@
 """Comparison verdict regressions; no browser or fixture server is required."""
 import copy
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 import crashlab_core as core
@@ -26,6 +27,16 @@ class CompareTests(unittest.TestCase):
         self.assertEqual(result["buggy"], runs[0])
         self.assertEqual(result["fixed"], runs[1])
         return result["ok"]
+
+    def test_expand_start_uses_configured_python(self):
+        value = core._expand_start(
+            "{PYTHON} -m flask",
+            contract_dir=Path("/app"),
+            data=Path("/data"),
+            port=1234,
+            python="/opt/app/bin/python",
+        )
+        self.assertEqual(value, "/opt/app/bin/python -m flask")
 
     def test_real_primary_failure_then_repair_passes(self):
         self.assertTrue(self.compare())

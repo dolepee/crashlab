@@ -1,1 +1,10 @@
-{"name":"crashlab","api":"plugin_api.py"}
+{
+  "name": "crashlab",
+  "label": "CrashLab",
+  "description": "Inspect saved repair evidence and run a case through the same core path as the agent tool.",
+  "icon": "FlaskConical",
+  "version": "0.3.0",
+  "tab": { "path": "/crashlab", "position": "after:skills" },
+  "entry": "dist/index.js",
+  "api": "plugin_api.py"
+}

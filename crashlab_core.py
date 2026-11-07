@@ -254,19 +254,19 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
-def _expand_start(value: Any, *, contract_dir: Path, data: Path, port: int) -> Any:
+def _expand_start(value: Any, *, contract_dir: Path, data: Path, port: int, python: str | None = None) -> Any:
     """Expand the small, documented local-app placeholders."""
     if isinstance(value, str):
         return (value.replace("{APP_DIR}", str(contract_dir))
                 .replace("{ROOT}", str(ROOT))
                 .replace("{DATA_DIR}", str(data))
                 .replace("{PORT}", str(port))
-                .replace("{PYTHON}", sys.executable)
+                .replace("{PYTHON}", python or sys.executable)
                 .replace("{HOME}", str(data / "home")))
     if isinstance(value, list):
-        return [_expand_start(item, contract_dir=contract_dir, data=data, port=port) for item in value]
+        return [_expand_start(item, contract_dir=contract_dir, data=data, port=port, python=python) for item in value]
     if isinstance(value, dict):
-        return {key: _expand_start(item, contract_dir=contract_dir, data=data, port=port)
+        return {key: _expand_start(item, contract_dir=contract_dir, data=data, port=port, python=python)
                 for key, item in value.items()}
     return value
 
@@ -282,13 +282,14 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
     if not isinstance(command, list) or not all(isinstance(item, str) and item for item in command):
         raise ValueError("app.start.command must be a non-empty string list")
     app_python = str(start.get("python") or sys.executable)
-    command = [item.replace("{PYTHON}", app_python) for item in command]
     port = start.get("port")
     if port is None:
         port = _free_port()
     if type(port) is not int or not 1 <= port <= 65535:
         raise ValueError("app.start.port must be an integer port")
     data = Path(tempfile.mkdtemp(prefix="crashlab-app-"))
+    command = [_expand_start(item, contract_dir=contract_dir, data=data, port=port, python=app_python)
+               for item in command]
     cwd = Path(_expand_start(start.get("cwd", "."), contract_dir=contract_dir, data=data, port=port)).expanduser()
     # Local apps get a small, explicit environment. In particular, do not pass
     # the agent's provider/API credentials through to app.start commands.
@@ -305,7 +306,7 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
     log = data / "app.log"
     log_handle = log.open("w", encoding="utf-8")
     proc = subprocess.Popen(
-        [_expand_start(item, contract_dir=contract_dir, data=data, port=port) for item in command],
+        command,
         cwd=cwd, env=env, stdout=log_handle, stderr=subprocess.STDOUT,
     )
     base = str(_expand_start(start.get("base_url") or f"http://127.0.0.1:{port}",

@@ -175,6 +175,12 @@ post and observes one row in SQLite through the same `app.start` path. See
 See [external/kist/README.md](external/kist/README.md). Do not describe the
 before run as repaired or the patch as a general autonomous repair.
 
+![CrashLab dashboard tab showing one passing Flaskr run and the Kist before/after pair](docs/dashboard-pane.png)
+
+The image above is the actual Hermes dashboard tab, reading saved evidence. The
+Desktop pane is a separate surface and needs a running Hermes Desktop session to
+capture.
+
 ## Scope and limitations
 
 - Two local fixtures plus the external Kist example; Kist is one app and one

@@ -5,6 +5,7 @@ import asyncio
 import json
 import os
 import re
+import sys
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
@@ -12,6 +13,8 @@ from pydantic import BaseModel
 
 router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 DATA = Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local" / "share" / "crashlab"))
 CASE_DIR = Path(os.environ.get("CRASHLAB_CASE_DIR", ROOT / "cases"))
 RUN_ID = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
@@ -101,12 +104,11 @@ async def contracts() -> dict:
 @router.post("/run")
 async def run(request: RunRequest) -> dict:
     """Start one saved case through the same core path as the agent tool."""
-    from crashlab_core import run_contract
+    from crashlab_core import persist_run, run_contract
 
     allowed = {path.resolve() for path in _case_paths()}
     path = Path(request.contract_path).expanduser().resolve()
     if path not in allowed:
         raise HTTPException(status_code=400, detail="contract must be in the case directory")
     result = await asyncio.to_thread(run_contract, str(path))
-    from crashlab_core import persist_run
     return persist_run(result)
