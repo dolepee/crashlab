@@ -1,0 +1,134 @@
+{
+  "id": "checkout-recovery",
+  "app": {
+    "base_url": "http://127.0.0.1:{PORT}",
+    "reset_url": "/reset",
+    "start": {
+      "command": [
+        "{PYTHON}",
+        "server.py"
+      ],
+      "python": "{PYTHON}",
+      "cwd": "{ROOT}",
+      "env": {
+        "BUGGY": "1",
+        "CRASHLAB_DB": "{DATA_DIR}/orders.db"
+      },
+      "base_url": "http://127.0.0.1:{PORT}",
+      "health_path": "/",
+      "ready_timeout": 20
+    }
+  },
+  "journey": [
+    {
+      "action": "goto",
+      "path": "/"
+    },
+    {
+      "action": "click",
+      "selector": "#buy"
+    },
+    {
+      "action": "wait_for_fault"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "#retry"
+    },
+    {
+      "action": "text",
+      "selector": "#status",
+      "as": "first_message"
+    },
+    {
+      "action": "screenshot",
+      "as": "failure"
+    },
+    {
+      "action": "click",
+      "selector": "#retry"
+    },
+    {
+      "action": "wait_for_text",
+      "text": "Order confirmed"
+    },
+    {
+      "action": "text",
+      "selector": "#status",
+      "as": "second_message"
+    },
+    {
+      "action": "screenshot",
+      "as": "after_retry"
+    }
+  ],
+  "fault": {
+    "route": "**/order",
+    "mode": "suppress_after_upstream",
+    "occurrence": 1,
+    "method": "POST"
+  },
+  "state": {
+    "mode": "sqlite",
+    "db": "{DATA_DIR}/orders.db",
+    "table": "orders",
+    "where": "intent_key <> ''",
+    "expect": 1,
+    "record_fields": {
+      "item": "CrashLab Test Widget"
+    },
+    "request_fields": {
+      "intent_key": "intent_key",
+      "item": "item"
+    }
+  },
+  "evidence": {
+    "screenshot_dir": "{DATA_DIR}/shots"
+  },
+  "control": {
+    "journey": [
+      {
+        "action": "goto",
+        "path": "/"
+      },
+      {
+        "action": "click",
+        "selector": "#buy"
+      },
+      {
+        "action": "wait_for_text",
+        "text": "Order confirmed"
+      },
+      {
+        "action": "reload"
+      },
+      {
+        "action": "click",
+        "selector": "#buy"
+      },
+      {
+        "action": "wait_for_text",
+        "text": "Order confirmed"
+      }
+    ],
+    "state": {
+      "mode": "sqlite",
+      "db": "{DATA_DIR}/orders.db",
+      "table": "orders",
+      "where": "intent_key <> ''",
+      "expect": 2,
+      "record_fields": {
+        "item": "CrashLab Test Widget"
+      },
+      "request_fields": {
+        "intent_key": "intent_key",
+        "item": "item"
+      }
+    }
+  },
+  "recovery_campaign": [
+    "before_delivery",
+    "after_commit",
+    "restart_after_commit"
+  ]
+}

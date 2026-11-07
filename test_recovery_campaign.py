@@ -59,3 +59,16 @@ class RecoveryCampaignTests(unittest.TestCase):
         self.assertEqual(result['status'],'ERROR',result)
         self.assertIn('did not preserve',result['cases'][-1]['result']['error'])
         self.assertTrue(result['cases'][-1]['result']['events'])
+    def test_native_form_campaign_retains_database_and_redirects(self):
+        case=self.case
+        case['app'].pop('reset_url',None)
+        case['app']['start']['command']=['{PYTHON}',str(core.ROOT/'native_form_fixture.py')]
+        case['fault']['route']='**/create'
+        case['journey']=[{'action':'goto','path':'/'},{'action':'fill','selector':'#item','value':'primary'},{'action':'click','selector':'#submit'},{'action':'wait_for_fault'},{'action':'reload'},{'action':'wait_for_url','pattern':'**/done'}]
+        case['state'].update(where="item='primary'",record_fields={'item':'primary'})
+        create=[{'action':'goto','path':'/'},{'action':'fill','selector':'#item','value':'control'},{'action':'click','selector':'#submit'},{'action':'wait_for_url','pattern':'**/done'}]
+        case['control']['journey']=create+copy.deepcopy(create)
+        case['control']['state'].update(where="item='control'",record_fields={'item':'control'})
+        result=self.run_case()
+        self.assertTrue(result['ok'],result)
+        self.assertTrue(all(c['result']['recovery']['ok'] for c in result['cases']))

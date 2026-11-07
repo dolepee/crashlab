@@ -50,6 +50,70 @@
     ])
   }
 
+  const buttonStyle = { minHeight: 44, padding: '6px 10px', border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', borderRadius: 4 }
+  function RawDetails(label, value) {
+    return h('details', {}, [
+      h('summary', { key: 'summary', style: { minHeight: 44, paddingTop: 10, cursor: 'pointer' } }, label),
+      h('pre', { key: 'value', style: { whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 12, maxHeight: 360, overflow: 'auto' }, tabIndex: 0 }, typeof value === 'string' ? value : JSON.stringify(value, null, 2))
+    ])
+  }
+  function RecordedCase(item) {
+    const result = item.result
+    const events = result.events || []
+    return h('details', { key: item.name, style: { border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', borderRadius: 6, overflowWrap: 'anywhere' } }, [
+      h('summary', { key: 'summary', style: { minHeight: 44, padding: 12, cursor: 'pointer', fontWeight: 600 } }, item.name.replaceAll('_', ' ') + ' · ' + verdict(result) + ' · ' + (result.observed ?? '?') + '/' + (result.expected ?? '?') + ' saved records' + (result.control ? ' · control ' + (result.control.ok ? 'PASS ' : 'FAIL ') + result.control.observed + '/' + result.control.expected : '')),
+      h('div', { key: 'detail' }, Card('Measured evidence', [
+      h('div', { key: 'outcome', style: { fontWeight: 600 } }, verdict(result) + ' · ' + (result.observed ?? '?') + '/' + (result.expected ?? '?') + ' saved records'),
+      h('p', { key: 'diagnosis' }, result.diagnosis || result.error || 'No diagnosis was recorded.'),
+      h('p', { key: 'recovery' }, result.recovery?.reason || 'No recovery evidence was recorded.'),
+      h('div', { key: 'timeline' }, events.length ? [
+        h('h4', { key: 'title', style: { fontWeight: 600, marginTop: 8 } }, 'Recorded execution'),
+        h('ol', { key: 'events', style: { paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 8 } }, events.filter(event => event.phase === 'primary').map(event => {
+          let line = event.kind.replaceAll('_', ' ')
+          if (event.kind === 'write' || event.kind === 'reconciliation') line = event.method + ' ' + event.url + (event.status ? ' · HTTP ' + event.status : '')
+          if (event.kind === 'interruption') line = (event.mode === 'prevent_before_delivery' ? 'Delivery prevented' : 'Acknowledgement suppressed') + (event.completed ? '' : ' · incomplete')
+          if (event.kind === 'restart') line = event.completed ? 'App restarted · PID ' + event.lifecycle.old_pid + ' → ' + event.lifecycle.new_pid + ' · observed records retained' : 'Restart incomplete'
+          if (event.state) line += ' · ' + event.state.observed + ' observed records'
+          return h('li', { key: event.sequence }, [
+            h('div', { key: 'line' }, event.sequence + '. ' + line),
+            h('div', { key: 'raw' }, RawDetails('Event data · +' + event.elapsed_ms + ' ms', event))
+          ])
+        }))
+      ] : h('p', {}, 'This historical run has no event timeline. Events are not reconstructed.')),
+      h('div', { key: 'records' }, RawDetails('Saved records · IDs and fields', result.records || [])),
+      h('p', { key: 'control' }, result.control ? 'Legitimate-use control: ' + (result.control.ok ? 'PASS' : 'FAIL') + ' · ' + result.control.observed + '/' + result.control.expected : 'Control was not completed.'),
+      result.control ? h('div', { key: 'control-records' }, RawDetails('Control records and measured outcome', result.control)) : null,
+      result.error ? h('p', { key: 'error', role: 'alert' }, result.error) : null
+      ]))
+    ])
+  }
+  function ExperimentReport({ data, currentStatus, onSelect, onExport, onClose, exporting, exportMessage }) {
+    const measured = data.measurement
+    const result = measured?.result
+    return h('section', { 'aria-label': 'Experiment report', id: 'crashlab-experiment-report', tabIndex: -1, style: { display: 'flex', flexDirection: 'column', gap: 12, padding: 12, border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', borderRadius: 6 } }, [
+      h('h2', { key: 'title', style: { fontSize: 16, fontWeight: 600 } }, 'Recovery evidence'),
+      h('p', { key: 'intent' }, data.intent),
+      h('p', { key: 'current' }, 'Current source: ' + currentStatus),
+      data.current_error ? h('p', { key: 'warning' }, data.current_error) : null,
+      data.historical_only ? h('p', { key: 'historic' }, 'Historical evaluator: inspect these records, but prepare a new experiment before making a current verification claim.') : null,
+      h('div', { key: 'buttons', style: { display: 'flex', flexWrap: 'wrap', gap: 8 } }, [
+        h('button', { key: 'export', onClick: onExport, disabled: exporting || data.historical_only, style: buttonStyle }, exporting ? 'Exporting…' : 'Export regression'),
+        h('button', { key: 'close', onClick: onClose, style: buttonStyle }, 'Close report')
+      ]),
+      exportMessage ? h('p', { key: 'export-message', role: 'status' }, exportMessage) : null,
+      data.runs.length ? h('label', { key: 'select-label', style: { display: 'flex', flexDirection: 'column', gap: 4 } }, [
+        h('span', { key: 'label' }, 'Recorded run'),
+        h('select', { key: 'select', value: data.run_index, onChange: event => onSelect(Number(event.target.value)), style: { minHeight: 44, padding: 8, minWidth: 0, maxWidth: '100%', background: 'transparent', border: '1px solid var(--ui-stroke-secondary, #d4d4d8)' } }, data.runs.map(run => h('option', { key: run.index, value: run.index }, (run.index + 1) + ' · ' + run.workflow_status + (run.recorded_at ? ' · ' + new Date(run.recorded_at).toLocaleString() : ''))))
+      ]) : h('p', { key: 'empty' }, 'No measured run yet. Run the frozen case first.'),
+      measured ? h('p', { key: 'measured' }, 'Recorded outcome: ' + measured.workflow_status + '. This is separate from current source freshness.') : null,
+      ...(result ? (result.cases || [{ name: 'saved_operation', result }]).map(RecordedCase) : []),
+      measured?.source_review ? h('div', { key: 'source' }, RawDetails('Recorded source change against Git HEAD', measured.source_review)) : null,
+      h('div', { key: 'frozen' }, RawDetails('Unchanged expectations and case', data.frozen_case)),
+      h('div', { key: 'identities' }, RawDetails('Case and evaluator identities', { contract_sha256: data.contract_sha256, evaluator_sha256: data.evaluator_sha256, project_sha256: measured?.project_sha256, replay: data.replay })),
+      h('p', { key: 'scope', style: { color: 'var(--text-secondary, currentColor)', fontSize: 12 } }, data.scope)
+    ])
+  }
+
   function CrashLabPage() {
     const [overview, setOverview] = useState(null)
     const [cases, setCases] = useState([])
@@ -57,6 +121,13 @@
     const [experimentError, setExperimentError] = useState(null)
     const [activeExperiment, setActiveExperiment] = useState(null)
     const loadSequence = useRef(0)
+    const reportSequence = useRef(0)
+    const reportLauncher = useRef(null)
+    const [reportData, setReportData] = useState(null)
+    const [reportBusy, setReportBusy] = useState(false)
+    const [reportError, setReportError] = useState('')
+    const [exporting, setExporting] = useState(false)
+    const [exportMessage, setExportMessage] = useState('')
     const [selected, setSelected] = useState('')
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState('')
@@ -96,21 +167,52 @@
       }
     }, [])
 
+    useEffect(() => {
+      if (!reportData) return
+      const section = document.getElementById('crashlab-experiment-report')
+      section?.focus({ preventScroll: true })
+      section?.scrollIntoView({ behavior: 'auto', block: 'start' })
+    }, [reportData])
+
     async function experimentAction(row, action) {
       setBusy(true)
       setExperimentError(null)
       setActiveExperiment({ id: row.experiment_id, action })
+      if (action === 'run') setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, status: 'RUNNING' } : item))
       try {
         const result = await api('/experiments/' + row.experiment_id + '/' + action, {
           method: 'POST', body: JSON.stringify(action === 'watch' ? { enabled: !row.watching } : {})
         })
         if (action === 'watch') setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, watching: !!result.watching } : item))
         await load()
+        if (action === 'run' && reportData?.experiment_id === row.experiment_id) await showReport(row.experiment_id)
       } catch (err) {
         setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, status: 'UNAVAILABLE' } : item))
         await load()
         setExperimentError({ id: row.experiment_id, message: String(err.message || err) })
       } finally { setBusy(false); setActiveExperiment(null) }
+    }
+
+    async function showReport(id, index) {
+      const sequence = ++reportSequence.current
+      setReportData(null); setReportBusy(true); setReportError(''); setExportMessage('')
+      try {
+        const report = await api('/experiments/' + id + '/report' + (index === undefined ? '' : '?run_index=' + index))
+        if (sequence === reportSequence.current) setReportData(report)
+      } catch (err) { if (sequence === reportSequence.current) setReportError(String(err.message || err)) }
+      finally { if (sequence === reportSequence.current) setReportBusy(false) }
+    }
+    async function exportReport() {
+      const sequence = reportSequence.current
+      setExporting(true); setExportMessage('')
+      try {
+        const exported = await api('/experiments/' + reportData.experiment_id + '/export', { method: 'POST', body: '{}' })
+        const url = URL.createObjectURL(new Blob([JSON.stringify(exported.bundle, null, 2)], { type: 'application/json' }))
+        const link = document.createElement('a'); link.href = url; link.download = 'crashlab-regression-' + reportData.experiment_id + '.json'; link.click()
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
+        if (sequence === reportSequence.current) setExportMessage('Frozen regression exported. Import with Hermes using the same evaluator and your local project/interpreter paths. Prior VERIFIED status is not transferred.')
+      } catch (err) { if (sequence === reportSequence.current) setExportMessage('Export failed: ' + String(err.message || err)) }
+      finally { setExporting(false) }
     }
 
     async function startRun() {
@@ -171,12 +273,16 @@
           experimentError?.id === row.experiment_id ? h('div', { key: 'action-error', role: 'alert' }, experimentError.message) : null,
           h('div', { key: 'buttons', style: { display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 } }, [
             h('button', { key: 'run', disabled: busy, onClick: () => experimentAction(row, 'run'), style: { minHeight: 44, padding: '6px 10px', border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', borderRadius: 4 } }, activeExperiment?.id === row.experiment_id && activeExperiment.action === 'run' ? 'Running experiment…' : 'Rerun frozen case'),
+            h('button', { key: 'report', onClick: event => { reportLauncher.current = event.currentTarget; showReport(row.experiment_id) }, 'aria-controls': 'crashlab-experiment-report', 'aria-expanded': reportData?.experiment_id === row.experiment_id, disabled: busy, style: buttonStyle }, 'Inspect evidence'),
             h('button', { key: 'watch', disabled: busy, onClick: () => experimentAction(row, 'watch'), style: { minHeight: 44, padding: '6px 10px', border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', borderRadius: 4 } }, activeExperiment?.id === row.experiment_id && activeExperiment.action === 'watch' ? 'Updating reminders…' : row.watching ? 'Stop completion reminders' : 'Watch edits')
           ]),
           h('div', { key: 'id', style: { overflowWrap: 'anywhere', fontSize: 12, color: 'var(--text-secondary, currentColor)' } }, 'Experiment ' + row.experiment_id)
         ]))),
         !experiments.length ? h('p', { key: 'empty' }, 'No repair experiment yet. Ask Hermes to prepare one for your local app.') : null
       ]),
+      reportBusy ? h('p', { key: 'report-loading', role: 'status' }, 'Loading recorded evidence…') : null,
+      reportError ? h('p', { key: 'report-error', role: 'alert' }, reportError) : null,
+      reportData ? h(ExperimentReport, { key: 'report', data: reportData, currentStatus: experiments.find(row => row.experiment_id === reportData.experiment_id)?.status || reportData.current_status, onSelect: index => showReport(reportData.experiment_id, index), onExport: exportReport, onClose: () => { reportSequence.current++; setReportData(null); requestAnimationFrame(() => reportLauncher.current?.focus()) }, exporting, exportMessage }) : null,
       h('h2', { key: 'examples', style: { fontSize: 16, fontWeight: 600 } }, 'Run a saved example'),
       h('div', { key: 'controls', style: { display: 'flex', gap: 8, alignItems: 'center' } }, [
         h('select', {

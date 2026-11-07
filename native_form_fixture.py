@@ -8,7 +8,7 @@ from urllib.parse import parse_qs
 DB = os.environ['CRASHLAB_DB']
 BUGGY = os.environ.get('BUGGY', '1') == '1'
 with sqlite3.connect(DB) as db:
-    db.execute('CREATE TABLE orders (id INTEGER PRIMARY KEY, intent_key TEXT, item TEXT)')
+    db.execute('CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, intent_key TEXT, item TEXT)')
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):

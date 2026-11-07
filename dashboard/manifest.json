@@ -1,9 +1,9 @@
 {
   "name": "crashlab",
   "label": "CrashLab",
-  "description": "Prepare repair experiments in Hermes, rerun frozen cases, and track current source verification.",
+  "description": "Test recovery boundaries, inspect measured records, and replay frozen regressions.",
   "icon": "FlaskConical",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "tab": {
     "path": "/crashlab",
     "position": "after:skills"

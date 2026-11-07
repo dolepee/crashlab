@@ -25,7 +25,7 @@ answer. Disable with enabled=false when the user stops that experiment.
   loopback `base_url` using `{PORT}`, optional `env`, `health_path` and `setup`.
   `{DATA_DIR}` is a fresh disposable directory for each run; configure the app
   and the SQLite observer to use the same `{DATA_DIR}/database.sqlite` path.
-  The application must be initialized there at startup. Existing source data must
+  Initialize the application only when its disposable database is missing; preserve an existing database on restart. Existing source data must
   not be overwritten. `{ROOT}` means the plugin root, not the app root.
 - `journey`: `goto` with `path`; `fill` with `selector` and `value`; `click` with
   `selector`; `wait_for_url` with glob `pattern`; `wait_for_fault`; `reload`;
@@ -54,3 +54,27 @@ not implemented and tested, explicitly limit the result to fresh databases. Run
 available app regression tests and report unavailable dependencies accurately.
 
 A recovery check is required, not just a final row count. Default retry needs a successful repeated write after interruption with the same request identity/payload. For server reconciliation, declare recovery mode reconcile plus route, initial_field, query_parameter, response_id_path and record_id_field; the GET must confirm the original intent and observed record ID. Never repair a retry by merely showing local success. Count waits default to at least one element; max-only waits have an implicit minimum of zero.
+
+
+## Recovery campaigns and reusable regressions
+
+When the user needs recovery across delivery uncertainty or process restart, set
+`recovery_campaign` to `before_delivery`, `after_commit` and `restart_after_commit`.
+These are three boundaries of one operation, each with the same journey,
+assertions and deliberate-use control. Include exactly one `wait_for_fault`
+step before the recovery action. CrashLab inserts its managed restart there.
+The restart reuses port and data directory without replaying setup or reset;
+observed records must survive before the retry. Do not recreate the database in
+an unconditional startup command. This is not a fresh-database restart test.
+
+Inspect `crashlab_experiment_report` for each measured scenario, including
+captured recovery requests, actual record IDs, control and process lifecycle.
+Source output is a bounded Git diff against that run's HEAD, may contain earlier
+edits and excludes untracked content; do not attribute it as an exact repair patch.
+
+Use `crashlab_experiment_export` to keep the regression after this conversation.
+The bundle freezes behavior and launch template separately from project/interpreter
+bindings. `crashlab_experiment_import` requires that same evaluator and concrete
+local paths, creates a new PREPARED experiment and never carries VERIFIED forward.
+Run a fresh baseline and the repair. Do not silently update exported assertions or
+evaluator hashes. Old evaluator reports remain historical, with current status unavailable.

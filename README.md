@@ -91,6 +91,70 @@ configuration are outside this check. Symlinks and non-Git roots are unsupported
 These hashes detect drift in a trusted local workflow; they are not a security
 boundary against an application or agent with the same filesystem privileges.
 
+## Test an operation across recovery boundaries
+
+Set `recovery_campaign` to `['before_delivery', 'after_commit', 'restart_after_commit']`
+in the prepared case. The same operation, stored-field assertions and deliberate-use
+control run at each boundary:
+
+| Boundary | Validity requirement | Recovery requirement |
+| --- | --- | --- |
+| Before delivery | The intercepted request is never forwarded; the scoped state remains empty | A real successful retry creates the intended record |
+| After commit | A successful upstream response and an observed committed write precede the lost acknowledgement | The original-intent retry leaves the intended result |
+| Restart after commit | The owned process stops and restarts on the same port/data directory; observed records survive | Recovery still works after process memory is lost |
+
+Include one `wait_for_fault` step before retry. The restart variant inserts a
+managed `restart_app` at that boundary. It does **not** replay initialization,
+setup requests or reset. The startup command must preserve existing data; a
+startup that erases the observed records is an error, not a passing fresh run.
+Each boundary uses a separate disposable initial app; only the restart inside
+the third boundary retains that scenario's database. This is one operation's
+recovery campaign, not three unrelated bug classes or statistical flakiness proof.
+
+`cases/checkout-recovery.json` demonstrates the buggy fixture;
+`cases/checkout-recovery-fixed.json` demonstrates durable protection. They are
+explicit fixtures, not discovered external defects. To construct the same
+campaign for the documented Kist application, add `--recovery-campaign` to
+`external/kist/run_kist.py`.
+
+### Understand and reuse the result
+
+Choose **Inspect evidence** on an experiment. The report separates current source
+freshness from a selected historical run and shows each measured boundary:
+requests and intent/payload, interruption, independently observed records, actual
+restart lifecycle, recovery decision and legitimate-use control. Missing historical
+events are labeled absent rather than reconstructed. The source section contains
+an actual bounded Git diff against that run's HEAD; it may include pre-existing
+changes and does not include untracked file contents.
+
+Use **Export regression** or `crashlab_experiment_export` to retain the test after
+the conversation. The bundle stores frozen behavior and a launch template with
+separate hashes. Local project/interpreter bindings live outside those assertions.
+It includes declared setup/environment values and can contain application data;
+review it before sharing. It does not package dependencies, source repair, records
+or a transferable VERIFIED status.
+
+A fresh session can use `crashlab_experiment_import` with the bundle, disposable
+`project_path` and absolute executable `app_python`. The evaluator must match;
+otherwise install the recorded source pin or explicitly prepare a new experiment.
+The import starts PREPARED. Reproduce the original failure, apply the repair to the
+app, and rerun to earn new evidence. Binding paths does not rewrite journey steps,
+record assertions or expected counts.
+
+The same path is available without a model, from the installed plugin directory:
+
+```bash
+python crashlab_replay.py export --experiment EXPERIMENT_ID
+# Copy the returned bindings.example.json and set project_path / app_python.
+python crashlab_replay.py import --bundle /path/to/regression.json --bindings /path/to/bindings.json
+python crashlab_replay.py run --experiment NEW_EXPERIMENT_ID
+python crashlab_replay.py report --experiment NEW_EXPERIMENT_ID
+```
+
+Use the same `CRASHLAB_DATA_DIR` when accessing an existing experiment. A measured
+failing baseline returns a nonzero exit code as expected. Application runtimes,
+dependencies and any external absolute launch paths remain your responsibility.
+
 The dashboard shows your five most recent repair experiments and all watched
 experiments, their current
 source status, the last measured outcome and control. Use **Rerun frozen case**
@@ -110,6 +174,9 @@ if the frozen experiment has become invalid. Other projects are unaffected.
 - `crashlab_experiment_run`: reproduce or verify the same experiment.
 - `crashlab_experiment_status`: check current source freshness.
 - `crashlab_experiment_watch`: request project-scoped completion reminders.
+- `crashlab_experiment_report`: inspect one recorded run and its real evidence.
+- `crashlab_experiment_export`: save frozen behavior and a portable launch template.
+- `crashlab_experiment_import`: bind that template to a fresh local checkout.
 - `crashlab_validate`: validate a case without running it.
 - `crashlab_run`: execute a saved browser case and persist its result.
 - `crashlab_compare`: run one frozen case against broken and repaired URLs.
@@ -256,8 +323,9 @@ capture.
   in `docs/desktop-pane.png`; the newest run/comparison view is wired to the
   persisted run but has not been visually recaptured.
 - The runner requires a local Chromium and `playwright-core`.
-- The fault is a suppressed response after commit; this is not a general chaos
-  testing engine. `mode: "http"` is app-supplied and cannot prove the app did not
+- Recovery covers prevented delivery, lost acknowledgement after commit and a
+  managed restart retaining observed state; this is not a general chaos testing
+  engine. `mode: "http"` is app-supplied and cannot prove the app did not
   tamper with its own state; use `sqlite` for the bundled fixtures.
 - The repair evidence covers Kist, Flaskr and the bundled checkout fixture. It is one
   known defect class, not a claim of general repair.

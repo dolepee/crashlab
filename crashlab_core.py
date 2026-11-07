@@ -272,6 +272,8 @@ def validate_contract(contract: dict) -> dict:
                 raise ValueError('recovery.route must differ from the interrupted write route')
     campaign = contract.get('recovery_campaign')
     if campaign is not None:
+        if not contract.get('control'):
+            raise ValueError('Recovery campaigns require a legitimate-use control')
         allowed = {'before_delivery', 'after_commit', 'restart_after_commit'}
         if (not fault or not isinstance(campaign, list) or not campaign
                 or any(not isinstance(name, str) or name not in allowed for name in campaign)
@@ -281,6 +283,8 @@ def validate_contract(contract: dict) -> dict:
             raise ValueError('Recovery campaigns require retry recovery; run reconciliation as a separate post-commit case')
         if 'restart_after_commit' in campaign and sum(s['action']=='wait_for_fault' for s in contract['journey']) != 1:
             raise ValueError('Restart campaign needs one wait_for_fault recovery boundary in journey')
+        if 'restart_after_commit' in campaign and any(s['action']=='restart_app' for s in contract['journey']):
+            raise ValueError('Restart campaign inserts restart_app; do not also add a manual restart')
     if any(s['action']=='restart_app' for s in contract['journey']) or campaign and 'restart_after_commit' in campaign:
         if not start:
             raise ValueError('restart_app requires a managed app.start')
@@ -548,6 +552,8 @@ def _run_with_restart(argv, env, timeout, restart):
 def run_contract(contract_path: str | Path, base_url: str | None = None,
                  timeout: int = 120, *, frozen_contract: dict | None = None) -> dict:
     contract = copy.deepcopy(frozen_contract) if frozen_contract is not None else load_contract(contract_path)
+    if contract.get('recovery_campaign'):
+        return run_recovery_campaign(contract_path, contract, base_url=base_url, timeout=timeout)
     if contract.get("setup_required"):
         raise ValueError(f"Case setup required: {contract['setup_required']}")
     contract_dir = Path(contract_path).expanduser().resolve().parent
@@ -678,10 +684,7 @@ def compare(contract_path: str | Path, buggy_url: str, fixed_url: str,
 def run_and_persist(contract_path: str | Path, base_url: str | None = None) -> dict:
     """Keep setup errors visible as the latest result across host surfaces."""
     try:
-        frozen = load_contract(contract_path)
-        result = (run_recovery_campaign(contract_path, frozen, base_url=base_url)
-                  if frozen.get('recovery_campaign')
-                  else run_contract(contract_path, base_url=base_url, frozen_contract=frozen))
+        result = run_contract(contract_path, base_url=base_url)
     except Exception as exc:
         result = {"ok": False, "status": "ERROR", "contract": Path(contract_path).stem,
                   "error": f"{type(exc).__name__}: {exc}"}
@@ -690,7 +693,9 @@ def run_and_persist(contract_path: str | Path, base_url: str | None = None) -> d
 
 def run_recovery_campaign(contract_path, frozen, *, base_url=None, timeout=120):
     """Derive each recovery boundary from one frozen operation, without editing it."""
-    outcomes = []
+    if base_url and 'restart_after_commit' in frozen['recovery_campaign']:
+        raise ValueError('Restart campaign requires its managed app.start, not an external base_url override')
+    prepared = []
     for name in frozen['recovery_campaign']:
         case = copy.deepcopy(frozen)
         case.pop('recovery_campaign')
@@ -700,6 +705,9 @@ def run_recovery_campaign(contract_path, frozen, *, base_url=None, timeout=120):
             boundary = next(i for i, step in enumerate(case['journey']) if step['action']=='wait_for_fault')
             case['journey'].insert(boundary + 1, {'action':'restart_app'})
         validate_contract(case)
+        prepared.append((name,case))
+    outcomes = []
+    for name,case in prepared:
         result = run_contract(contract_path, base_url=base_url, timeout=timeout, frozen_contract=case)
         result['diagnosis'] = explain_run(result)
         result['case_sha256'] = hashlib.sha256(json.dumps(case,sort_keys=True,separators=(',',':')).encode()).hexdigest()
