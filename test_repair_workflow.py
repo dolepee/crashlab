@@ -76,3 +76,11 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(result['run_count'],30)
         self.assertEqual(len(result['runs']),3)
         self.assertLess(len(json.dumps(result)),5000)
+
+    def test_structurally_invalid_metadata_is_rejected(self):
+        eid=self.prepare();path=workflow.directory(eid)/'experiment.json'
+        original=json.loads(path.read_text())
+        for value in [None, [], {**original,'runs':None}, {**original,'runs':[None]}, {**original,'runs':[{'project_sha256':'x','workflow_status':'VERIFIED','result':{'control':[]}}]}]:
+            with self.subTest(value=value):
+                path.write_text(json.dumps(value))
+                with self.assertRaises(ValueError):workflow.status(eid)

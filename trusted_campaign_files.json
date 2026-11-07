@@ -14,7 +14,7 @@
     "campaign_contracts/inventory-contention.json": "da8651ddd5ae8450dac7537c8aa720a68d2cbb72b2826fac6441e3d1549e1247",
     "campaigns/inventory.json": "1dd104ee9f5f7a7c3cd5b9f02a3cd57c19fa0939f2ce47f8ab7f5549404b0ded",
     "campaigns/mixed.json": "64727cf9eb7be369f0a5b0fa328a7a2f4358a7bf7b5cef9dac22b5ecd47e69f9",
-    "repair_workflow.py": "8153ecccffdc84c85e90136b094a76a1d7f871c8a0cb770569dac006c3ea9f93",
+    "repair_workflow.py": "668f712124b80bbc64e3580fbe22dd2be31630371e1fa27f1c403ce3f45ec48d",
     "skills/crashlab/SKILL.md": "62c38f5e7f9771a977915918a5899c2f768700632d7ac53e7b016ded08bd62dc",
     "completion_reminder.py": "77608936dedd00cf6d01a7dd45a5c8c9690518b4f70b4f93a1c04f5bba8c7e5e"
   }
