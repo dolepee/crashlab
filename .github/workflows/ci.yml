@@ -20,7 +20,7 @@ jobs:
         env:
           CRASHLAB_DATA_DIR: ${{ runner.temp }}/crashlab
       - name: Browser acceptance
-        run: python -m unittest -v test_browser_integrity
+        run: python -m unittest -v test_browser_integrity test_recovery_campaign
         env:
           CRASHLAB_BROWSER_TESTS: '1'
           CRASHLAB_DATA_DIR: ${{ runner.temp }}/crashlab-browser

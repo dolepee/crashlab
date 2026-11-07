@@ -40,6 +40,11 @@ function nowId() {
     events.push(event);
     return event;
   }
+  function canonical(value) {
+    const ordered = item => Array.isArray(item) ? item.map(ordered)
+      : item && typeof item === 'object' ? Object.fromEntries(Object.keys(item).sort().map(key => [key, ordered(item[key])])) : item;
+    return JSON.stringify(ordered(value));
+  }
   const recoverySpec = contract.recovery || { mode: 'retry' };
   let initialRequest = null;
   let faultAbortStarted = false;
@@ -233,6 +238,7 @@ function nowId() {
         if (!directory) throw new Error('restart_app requires a CrashLab-managed app.start');
         const before = await readState(contract.state);
         const event = recordEvent('restart', { completed: false, state_before: before });
+        if (!before.records_available) throw new Error('Restart preservation requires a record-level observer, not a numeric-only HTTP count');
         const request = path.join(directory, 'restart.request.json');
         if (fs.existsSync(request)) throw new Error('Only one restart per scenario is supported');
         const pending = path.join(directory, 'request.tmp');
@@ -243,10 +249,11 @@ function nowId() {
         const lifecycle = JSON.parse(fs.readFileSync(reply, 'utf8'));
         if (!lifecycle.ok) throw new Error('Managed app restart failed: ' + lifecycle.error);
         const after = await readState(contract.state);
-        const rows = state => state.records.map(row => JSON.stringify(Object.entries(row).sort())).sort();
+        const rows = state => state.records.map(canonical).sort();
         event.state_after = after;
         event.lifecycle = lifecycle;
-        event.scoped_records_preserved = JSON.stringify(rows(before)) === JSON.stringify(rows(after));
+        event.scoped_records_preserved = after.records_available && before.observed === after.observed
+          && JSON.stringify(rows(before)) === JSON.stringify(rows(after));
         if (!event.scoped_records_preserved) throw new Error('Restart did not preserve the observed durable records');
         event.completed = true;
       } else if (step.action === 'text') {
@@ -276,6 +283,7 @@ function nowId() {
         observed: records.length,
         expected: Number(spec.expect),
         records,
+        records_available: true,
         observer: 'sqlite',
         db: path.resolve(path.dirname(contractPath), db),
       };
@@ -288,6 +296,7 @@ function nowId() {
       observed: Array.isArray(records) ? records.length : Number(records),
       expected: Number(spec.expect),
       records: Array.isArray(records) ? records : [],
+      records_available: Array.isArray(records),
       observer: 'http',
     };
   }
@@ -317,9 +326,6 @@ function nowId() {
     if (recoverySpec.mode === 'retry') {
       const sameBody = event => {
         if (event.body && initialRequest?.body) {
-          const ordered = value => Array.isArray(value) ? value.map(ordered)
-            : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, ordered(value[key])])) : value;
-          const canonical = body => JSON.stringify(ordered(body));
           return canonical(event.body) === canonical(initialRequest.body);
         }
         return event.raw_body === initialRequest?.raw_body;

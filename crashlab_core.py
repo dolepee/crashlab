@@ -32,7 +32,7 @@ def explain_run(result: dict) -> str:
         return f"Run failed before a verdict: {result['error']}"
     scenario = result.get("scenario") or {}
     if scenario.get("valid") is False:
-        return "The fault did not commit a write, so this run is not evidence."
+        return "The configured fault boundary was not established, so this run is not evidence."
     if (result.get('recovery') or {}).get('ok') is False:
         return 'Recovery was not established: ' + result['recovery'].get('reason', 'Inspect the captured requests.')
     observed, expected = result.get("observed"), result.get("expected")
@@ -630,7 +630,7 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
 
 
 def _completed_assertion(run: dict, *, passed: bool) -> bool:
-    """Require a measured outcome from a fault that actually committed."""
+    """Require a measured outcome at the configured, valid recovery boundary."""
     scenario = run.get("scenario")
     if not isinstance(scenario, dict) or scenario.get("valid") is not True:
         return False
