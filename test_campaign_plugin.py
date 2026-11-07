@@ -24,7 +24,7 @@ class RegistrationTests(unittest.TestCase):
         plugin.register(Context())
         expected = {"crashlab_validate", "crashlab_run", "crashlab_compare", "crashlab_list",
                     "crashlab_campaign_list", "crashlab_campaign_validate", "crashlab_campaign_run",
-                    "crashlab_prepare", "crashlab_experiment_run", "crashlab_experiment_status"}
+                    "crashlab_prepare", "crashlab_experiment_run", "crashlab_experiment_status", "crashlab_experiment_watch"}
         self.assertEqual(set(registered), expected)
         for record in registered.values():
             self.assertEqual(record["toolset"], "crashlab")

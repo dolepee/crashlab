@@ -62,6 +62,13 @@ configuration are outside this check. Symlinks and non-Git roots are unsupported
 These hashes detect drift in a trusted local workflow; they are not a security
 boundary against an application or agent with the same filesystem privileges.
 
+Call `crashlab_experiment_watch` with the ID and `enabled: true` to request a
+completion reminder while working on that project. After matching absolute-path
+edits, the Hermes `pre_verify` hook requests current verification when evidence
+is stale, failed or unavailable. Hermes caps continuation nudges; this is a
+reminder, not an execution barrier. Set `enabled: false` to stop watching, even
+if the frozen experiment has become invalid. Other projects are unaffected.
+
 ## Included tools
 
 - `crashlab_validate`: validate a case without running it.

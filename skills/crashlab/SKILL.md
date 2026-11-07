@@ -12,3 +12,9 @@ Call crashlab_prepare with project_path, the user's intent and the case object. 
 Call crashlab_experiment_run to establish a valid failing baseline. ERROR and INVALID require setup repair, not application repair claims. A passing initial case means no repair was reproduced. After a valid failing baseline, edit only the application; rerun the experiment by ID. Do not alter its frozen case or the evaluator. VERIFIED requires a changed source revision, passing primary assertion and passing legitimate-use control after a reproduced failure.
 
 Before reporting completion, call crashlab_experiment_status. STALE means project files changed since the latest run; rerun. Report the experiment ID, current status, configured scope, failed/passed behavior and control result. Ignored files, dependencies and runtime environment are outside source freshness coverage. Never describe these same-user hashes as adversarial isolation or all-purpose correctness proof.
+
+When the user wants ongoing verification during edits, call crashlab_experiment_watch
+with the experiment ID and enabled=true. The project-scoped pre_verify hook asks
+for another turn when matching absolute-path edits lack current VERIFIED evidence.
+Hermes caps these reminders; this does not guarantee execution or prevent a final
+answer. Disable with enabled=false when the user stops that experiment.

@@ -2,9 +2,9 @@
   "schema_version": 1,
   "files": {
     "__init__.py": "b34fac56f3bd5f6a3a384f3685dcb934cf7289840559c8a785e0d1fc9d1b1adb",
-    "plugin.py": "cd0da7b89014d75489076a552f88b6aae6e1131090d7b3c92c73185856278453",
-    "plugin.yaml": "5fac395bf447732b36214a0c4607ba620839ea6d6b4bf57ee571f8777be4d3ec",
-    "campaign_plugin.py": "c2dff2760d082a5ab1c64bd4413d2982cba2ff1b0a3b1dd7c5ecc9bbff80d287",
+    "plugin.py": "ca45d24cbe22c15e413279642abadfa572ca6774c1b76d27388044be31229e87",
+    "plugin.yaml": "3b84d8f244f69b8ebc34bdd73e440dae1228df0adb1c24617895af5082c34a92",
+    "campaign_plugin.py": "df52c8bb312641a96559564635cd12a556fe7ee50d2b75fcd805e55046f78773",
     "campaign.py": "e2f310a08bdc3867c5717ad41cb5f36fed50d822d25782e3080e6f065cd43950",
     "crashlab_core.py": "a5329c95e31602be3224ba5c35a080c5b087121f1b4d8a13c2984880445ea3b0",
     "crashlab_runner.js": "fd82febb7430a17fa29e2ff5f1a8cc5d44a9a8055e34682b988dc1c2bc91c014",
@@ -15,6 +15,7 @@
     "campaigns/inventory.json": "1dd104ee9f5f7a7c3cd5b9f02a3cd57c19fa0939f2ce47f8ab7f5549404b0ded",
     "campaigns/mixed.json": "64727cf9eb7be369f0a5b0fa328a7a2f4358a7bf7b5cef9dac22b5ecd47e69f9",
     "repair_workflow.py": "6cb5c0b5fb2531f8ef1cbce9faef85441eccb73b6fa47a924715f04276cff48a",
-    "skills/crashlab/SKILL.md": "26a59b44709e1ce4c0245fce2ea1939fa393c56d2bc4441cba32c2a6dd009894"
+    "skills/crashlab/SKILL.md": "354152b3d4ddec5065fd9afef6935d3e98b0ebf569a192a17be2534fda02c4fc",
+    "completion_reminder.py": "77608936dedd00cf6d01a7dd45a5c8c9690518b4f70b4f93a1c04f5bba8c7e5e"
   }
 }

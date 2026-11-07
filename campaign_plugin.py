@@ -32,7 +32,7 @@ CATALOG = {
 TRUSTED_FILES = (
     "__init__.py", "plugin.py", "plugin.yaml", "campaign_plugin.py", "campaign.py",
     "crashlab_core.py", "crashlab_runner.js", "crashlab_probe.py",
-    "repair_workflow.py", "skills/crashlab/SKILL.md",
+    "repair_workflow.py", "completion_reminder.py", "skills/crashlab/SKILL.md",
     "contracts/checkout-lost-response.json", "contracts/booking-lost-response.json",
     "campaign_contracts/inventory-contention.json", "campaigns/inventory.json", "campaigns/mixed.json",
 )

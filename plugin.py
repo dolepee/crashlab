@@ -8,10 +8,12 @@ try:
     from . import crashlab_core as core
     from . import campaign_plugin
     from . import repair_workflow
+    from . import completion_reminder
 except ImportError:
     import crashlab_core as core
     import campaign_plugin
     import repair_workflow
+    import completion_reminder
 
 TOOL_SCHEMAS = [
     {
@@ -59,10 +61,13 @@ TOOL_SCHEMAS = [
 ]
 TOOL_SCHEMAS.extend(campaign_plugin.schemas())
 TOOL_SCHEMAS.extend(repair_workflow.schemas())
+TOOL_SCHEMAS.append(completion_reminder.schema())
 
 
 def _handler(name: str):
     def invoke(kwargs):
+        if name == "crashlab_experiment_watch":
+            return completion_reminder.watch(**kwargs)
         if name in {schema["name"] for schema in repair_workflow.schemas()}:
             return repair_workflow.invoke(name, kwargs)
         if name.startswith("crashlab_campaign_"):
@@ -123,6 +128,8 @@ def _slash(raw_args: str) -> str:
 
 
 def register(ctx):
+    if hasattr(ctx, "register_hook"):
+        ctx.register_hook("pre_verify", completion_reminder.pre_verify)
     from pathlib import Path
     if hasattr(ctx, "register_skill"):
         ctx.register_skill("crashlab", Path(__file__).parent / "skills" / "crashlab" / "SKILL.md", description="Reproduce and verify a local app repair with frozen assertions and current source evidence.")
