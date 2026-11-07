@@ -116,9 +116,6 @@ class CompareTests(unittest.TestCase):
         self.assertTrue(self.compare())
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 class ContractValidationTests(unittest.TestCase):
     def base(self):
         return {
@@ -304,3 +301,7 @@ with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as 
             result = core.run_contract(contract_path)
         self.assertTrue(result["ok"], result)
         self.wait_gone()
+
+
+if __name__ == "__main__":
+    unittest.main()

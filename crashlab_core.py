@@ -272,39 +272,88 @@ def _expand_start(value: Any, *, contract_dir: Path, data: Path, port: int, pyth
     return value
 
 
+def _group_alive(pgid: int) -> bool:
+    try:
+        os.killpg(pgid, 0)
+    except ProcessLookupError:
+        return False
+    except OSError:
+        return True
+    return True
+
+
+def _wait_group_gone(pgid: int, timeout: float = 5.0) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if not _group_alive(pgid):
+            return True
+        time.sleep(0.05)
+    return not _group_alive(pgid)
+
+
 def _stop_process(proc: subprocess.Popen) -> None:
-    """Stop a started app and any children it created, without leaking it."""
-    if proc.poll() is not None:
+    """Stop the app's whole process group, including children that outlive it.
+
+    The group id is captured when the app starts, so cleanup still works when
+    the group leader exits first. A child that ignores SIGTERM is escalated to
+    SIGKILL for the whole group.
+    """
+    pgid = getattr(proc, "_crashlab_pgid", None)
+    if pgid is None and os.name == "posix":
+        if proc.poll() is None:
+            try:
+                pgid = os.getpgid(proc.pid)
+            except ProcessLookupError:
+                pgid = None
+    if pgid is None:
+        if proc.poll() is not None:
+            return
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+            return
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+        return
+    if os.name != "posix":
+        if proc.poll() is not None:
+            return
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+            return
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            try:
+                proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
         return
     try:
-        if os.name == "posix":
-            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-        else:
-            proc.terminate()
+        os.killpg(pgid, signal.SIGTERM)
     except (ProcessLookupError, PermissionError, OSError):
-        try:
-            proc.terminate()
-        except OSError:
-            pass
-    try:
-        proc.wait(timeout=5)
+        pass
+    if _wait_group_gone(pgid):
+        if proc.poll() is None:
+            try:
+                proc.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                pass
         return
-    except subprocess.TimeoutExpired:
-        pass
     try:
-        if os.name == "posix":
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        else:
-            proc.kill()
+        os.killpg(pgid, signal.SIGKILL)
     except (ProcessLookupError, PermissionError, OSError):
-        try:
-            proc.kill()
-        except OSError:
-            pass
-    try:
-        proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
         pass
+    _wait_group_gone(pgid)
+    if proc.poll() is None:
+        try:
+            proc.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            pass
 
 
 def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, str, Path, Any, Path]:
@@ -346,6 +395,9 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
         cwd=cwd, env=env, stdout=log_handle, stderr=subprocess.STDOUT,
         start_new_session=(os.name == "posix"),
     )
+    if os.name == "posix":
+        # start_new_session makes the process group id equal to the child pid.
+        proc._crashlab_pgid = proc.pid
     try:
         base = str(_expand_start(start.get("base_url") or f"http://127.0.0.1:{port}",
                                  contract_dir=contract_dir, data=data, port=port))
