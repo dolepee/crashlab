@@ -45,6 +45,20 @@ behavior and assertions, reproduce a failure, repair the application, then rerun
 the same experiment ID. The dashboard shows whether that evidence is current and
 lets you rerun the case or enable completion reminders.
 
+A passing fault case must exercise recovery. The default `recovery.mode: "retry"`
+requires a successful repeated write after interruption, using the original
+method, URL and mapped intent/content fields (or the whole payload when no
+mapping is configured). Changing Retry to display a local success message fails.
+Redirecting native POSTs remain supported.
+
+For an application that recovers by reading back its result, declare
+`recovery.mode: "reconcile"`, a GET `route`, the original `initial_field` and
+readback `query_parameter`, plus `response_id_path` and `record_id_field`.
+The captured successful response must match both the original intent and the
+independently observed record ID. A query for an unrelated intent or a wrong ID
+fails. Results include the measured request sequence and recovery decision;
+these are configured behavior checks, not a security boundary against the app.
+
 For a bundled first run, use `cases/checkout-local.json` to see the duplicate and
 `cases/checkout-local-fixed.json` to see the passing implementation. These cases
 start disposable local fixture apps automatically.
@@ -77,7 +91,8 @@ configuration are outside this check. Symlinks and non-Git roots are unsupported
 These hashes detect drift in a trusted local workflow; they are not a security
 boundary against an application or agent with the same filesystem privileges.
 
-The dashboard shows your five most recent repair experiments, their current
+The dashboard shows your five most recent repair experiments and all watched
+experiments, their current
 source status, the last measured outcome and control. Use **Rerun frozen case**
 after edits and **Watch edits** for completion reminders. Status refreshes when
 you return to the browser tab or window or press **Refresh cases and results**.

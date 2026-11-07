@@ -156,7 +156,7 @@
         'Repair your local app, then rerun the same frozen case to check what it saved.'),
       h('section', { key: 'experiments', 'aria-label': 'Repair experiments', style: { display: 'flex', flexDirection: 'column', gap: 12 } }, [
         h('h2', { key: 'title', style: { fontSize: 16, fontWeight: 600 } }, 'Your repair experiments'),
-        h('p', { key: 'help', style: { color: 'var(--text-secondary, currentColor)' } }, 'Ask Hermes to check your local app and describe the behavior you expect. Your five most recent experiments appear here.'),
+        h('p', { key: 'help', style: { color: 'var(--text-secondary, currentColor)' } }, 'Ask Hermes to check your local app and describe the behavior you expect. Your five most recent experiments and all watched experiments appear here.'),
         ...experiments.map(row => h('article', { key: row.experiment_id, 'aria-label': 'Experiment ' + row.experiment_id }, Card(row.intent || 'Repair experiment', [
           h('div', { key: 'status', role: 'status', style: { fontWeight: 600 } }, row.status),
           row.project_path ? h('div', { key: 'project', style: { overflowWrap: 'anywhere', color: 'var(--text-secondary, currentColor)' } }, row.project_path) : null,

@@ -13,6 +13,33 @@ except ImportError:
 
 @unittest.skipUnless(fastapi, 'FastAPI is supplied by the Hermes host')
 class ExperimentApiTests(unittest.TestCase):
+    def test_old_watched_experiment_remains_visible_after_five_newer(self):
+        from dashboard import plugin_api as api
+        import repair_workflow as w
+        import completion_reminder as reminders
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ,CRASHLAB_DATA_DIR=tmp):
+            project=Path(tmp)/'app';project.mkdir();subprocess.run(['git','init','-q',str(project)],check=True)
+            (project/'app.py').write_text('# app\n')
+            case=json.loads((w.core.ROOT/'cases/checkout-local.json').read_text());case['app']['start']['cwd']=str(project)
+            old=w.prepare(str(project),'watched earlier',case)['experiment_id'];reminders.watch(old,True)
+            for i in range(6):w.prepare(str(project),f'new case {i}',case)
+            rows=asyncio.run(api.experiments())['experiments']
+            self.assertEqual(len(rows),6)
+            self.assertTrue(next(row for row in rows if row['experiment_id']==old)['watching'])
+            self.assertFalse(asyncio.run(api.experiment_watch(old,api.WatchRequest(enabled=False)))['watching'])
+
+    def test_workspace_discovery_matches_tool_and_dashboard(self):
+        from dashboard import plugin_api as api
+        import plugin
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ,CRASHLAB_CASE_DIR=tmp):
+            case=json.loads((plugin.core.ROOT/'cases/checkout-local.json').read_text());case['id']='custom-case'
+            path=Path(tmp)/'custom.json';path.write_text(json.dumps(case))
+            tool=json.loads(plugin._handler('crashlab_list')({}))['contracts']
+            dashboard=asyncio.run(api.contracts())['contracts']
+            self.assertEqual(tool,dashboard)
+            self.assertIn(path.resolve(),api._case_paths())
+            self.assertIn('custom-case',[row['id'] for row in tool])
+
     def test_unavailable_watched_experiment_can_still_be_stopped(self):
         from dashboard import plugin_api as api
         import repair_workflow as w

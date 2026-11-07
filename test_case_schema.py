@@ -14,6 +14,12 @@ class CaseSchemaTests(unittest.TestCase):
         self.case=json.loads((workflow.core.ROOT/'cases/checkout-local-fixed.json').read_text())
         self.schema=workflow.contract_schema()
         jsonschema.Draft202012Validator.check_schema(self.schema)
+    def test_reconciliation_requires_observable_arguments(self):
+        case=copy.deepcopy(self.case);case['recovery']={'mode':'reconcile'}
+        with self.assertRaises(jsonschema.ValidationError):jsonschema.validate(case,self.schema)
+        with self.assertRaises(ValueError):workflow.core.validate_contract(case)
+        case['recovery'].update(route='**/receipt?*',initial_field='intent_key',query_parameter='intent_key',response_id_path='order.id',record_id_field='id')
+        jsonschema.validate(case,self.schema);workflow.core.validate_contract(case)
     def test_advertised_advanced_actions_have_complete_arguments(self):
         for step in [
             {'action':'press','selector':'#submit','key':'Enter'},

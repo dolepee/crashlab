@@ -2,20 +2,20 @@
   "schema_version": 1,
   "files": {
     "__init__.py": "b34fac56f3bd5f6a3a384f3685dcb934cf7289840559c8a785e0d1fc9d1b1adb",
-    "plugin.py": "765ffea18eb9d09bc830895dc096517b71e9932ea7e0b3c87ee5704262970f48",
+    "plugin.py": "c0afb95e2743e891b92c8734555040759edfa3a7017fc2c8361117282998e822",
     "plugin.yaml": "83c7a10533a520d20ce24a17cfe8a172f556accad1e34a5476c6fd4b16691eef",
     "campaign_plugin.py": "df52c8bb312641a96559564635cd12a556fe7ee50d2b75fcd805e55046f78773",
     "campaign.py": "e2f310a08bdc3867c5717ad41cb5f36fed50d822d25782e3080e6f065cd43950",
-    "crashlab_core.py": "e46695ff53970c1f25d59d8448abcfdec920482aa6deb1c1647eb9103a53e499",
-    "crashlab_runner.js": "c3527a48a8ba62a0123207a4306579335e6546cb867f53691a048ecc5a9a6e00",
+    "crashlab_core.py": "afb14a58ad00f65a396bde40e54e2352cff208d80bb69554b7c563b4da25772a",
+    "crashlab_runner.js": "0c40268adbe3cc4d70b44a0adfae934dfb57d1500704ecfae7d7fbaab1c3d7f2",
     "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
     "contracts/checkout-lost-response.json": "e8fb02b674c4ebee35730629c4eac537bb697c8bb92039b30bdfc14ebb956a61",
     "contracts/booking-lost-response.json": "eadef4f0829cba94129971fb10886a23b4c030a8947cde16f5fac030ceed294f",
     "campaign_contracts/inventory-contention.json": "da8651ddd5ae8450dac7537c8aa720a68d2cbb72b2826fac6441e3d1549e1247",
     "campaigns/inventory.json": "1dd104ee9f5f7a7c3cd5b9f02a3cd57c19fa0939f2ce47f8ab7f5549404b0ded",
     "campaigns/mixed.json": "64727cf9eb7be369f0a5b0fa328a7a2f4358a7bf7b5cef9dac22b5ecd47e69f9",
-    "repair_workflow.py": "d83e920075ba19f108d0552f2715f8f03082ff64e074e909d4a24ee81041a522",
-    "skills/crashlab/SKILL.md": "ff2cb168c1e9e9e2ce834e95ea4058aa993be06a71b3fa1208360aa6db6a955b",
+    "repair_workflow.py": "944bdefd7e7da5d86fb4c05d2b28edf14eb4a9e5125e61591b2ab71423644e4e",
+    "skills/crashlab/SKILL.md": "d6637de84ceaa90a4f0d4c1cbedce7251ae5144931b6f52a8e391f66de1e4a61",
     "completion_reminder.py": "9a3fcf82751d1eaee6d16744f8e594acb4c3f5d64f13e36a655d31f22f572794"
   }
 }

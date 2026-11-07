@@ -34,6 +34,59 @@ class BrowserIntegrity(unittest.TestCase):
             self.assertIs(result['ok'], ok)
             self.assertTrue(result['control']['ok'])
 
+
+    def test_retry_cannot_be_replaced_with_local_success_text(self):
+        case=copy.deepcopy(self.case)
+        case['app']['start']['env']['BUGGY']='1'
+        source=self.source.replace("document.getElementById('retry').onclick = order;", "document.getElementById('retry').onclick = () => { status.textContent = 'Order confirmed'; };")
+        result=self.run_case(source,case)
+        self.assertEqual(result.get('observed'),1,result)
+        self.assertTrue(result['control']['ok'],result)
+        self.assertFalse(result['ok'],result)
+        self.assertFalse(result['recovery']['ok'],result)
+
+    def test_count_wait_default_and_upper_only_bounds(self):
+        for step in [
+            {'action':'wait_for_count','selector':'#status'},
+            {'action':'wait_for_count','selector':'#status','max':1},
+            {'action':'wait_for_count','selector':'#status','min':1},
+            {'action':'wait_for_count','selector':'#absent','max':0},
+        ]:
+            with self.subTest(step=step):
+                case=copy.deepcopy(self.case)
+                case['journey'].insert(1,{**step,'timeout':800})
+                result=self.run_case(case=case)
+                self.assertTrue(result['ok'],result)
+
+    def test_declared_reconciliation_requires_original_intent_and_observed_record_id(self):
+        case=copy.deepcopy(self.case)
+        case['recovery']={'mode':'reconcile','route':'**/receipt?*','initial_field':'intent_key',
+                          'query_parameter':'intent_key','response_id_path':'order.id','record_id_field':'id'}
+        case['app']['start']['env']['BUGGY']='1'
+        source=self.source.replace('import sqlite3', 'import sqlite3\nfrom urllib.parse import urlparse, parse_qs')
+        source=source.replace('elif self.path == "/state":', '''elif self.path.startswith('/receipt?'):
+            key=parse_qs(urlparse(self.path).query).get('intent_key',[''])[0]
+            with connect() as con:
+                row=con.execute('SELECT id FROM orders WHERE intent_key=?',(key,)).fetchone()
+            self._send(200, {'order': {'id': row[0] if row else None}})
+        elif self.path == "/state":''')
+        source=source.replace("document.getElementById('retry').onclick = order;", "document.getElementById('retry').onclick = async () => { await (await fetch('/receipt?intent_key='+encodeURIComponent(key))).json(); status.textContent = 'Order confirmed'; };")
+        for variant,ok in [(source,True),(source.replace("'id': row[0] if row else None", "'id': -1"),False),
+                           (source.replace('encodeURIComponent(key)','encodeURIComponent(\"unrelated\")'),False)]:
+            with self.subTest(ok=ok):
+                result=self.run_case(variant,case)
+                self.assertIs(result['ok'],ok,result)
+                self.assertIs(result['recovery']['ok'],ok,result)
+                self.assertTrue(result['control']['ok'],result)
+
+    def test_browser_launch_error_is_actionable(self):
+        with patch.dict(os.environ,CHROME_PATH=str(self.root/'missing-chrome')):
+            result=self.run_case()
+        self.assertFalse(result['ok'],result)
+        self.assertEqual(result['status'],'ERROR',result)
+        self.assertIn('CHROME_PATH',result['error'])
+        self.assertIn('missing-chrome',result['error'])
+
     def test_wrong_payload_rejected(self):
         result = self.run_case(self.source.replace('item = str(body.get("item") or "Unknown item")', 'item = "Wrong item"'))
         self.assertFalse(result['ok'], result)
