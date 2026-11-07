@@ -31,12 +31,12 @@ Flaskr, the public Pallets tutorial app at commit `49943b5a94413a530761350f04e89
 
 ## Verification at the current pin
 
-- Plugin pin: `15b8e7f934023a3dc57643bf7828abca2e9dac1b`
-- 95 tests pass
+- Plugin pin: `104589ad76d67fc35e825ee88e73ca738d421fe7`
+- 98 tests pass
 - Hermes plugin admission validator: clean
 - Catalog structural validation: `1065` files valid
 - Fresh `hermes plugins install` plus `npm ci`: Flaskr `1/1` PASS
-- Malformed setup and completed runs reap the whole process group; regression tests cover a child that outlives the parent and one that ignores SIGTERM
+- Malformed setup and completed runs stop the whole process group; regression tests cover a child that outlives the parent, a child that ignores SIGTERM, and the ordinary cleanup path
 - Kist: before `2/1`, after `1/1`, control `2/2`
 
 ## Honest limits
