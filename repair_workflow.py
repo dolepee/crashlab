@@ -92,6 +92,32 @@ def prepare(project_path, intent, contract):
 def load(experiment_id):
     folder = directory(experiment_id)
     value = json.loads((folder / 'experiment.json').read_text())
+    if not isinstance(value, dict) or value.get('experiment_id') != experiment_id:
+        raise ValueError('Invalid experiment metadata identity')
+    if not isinstance(value.get('project_path'), str) or not Path(value['project_path']).is_absolute():
+        raise ValueError('Invalid experiment project path')
+    if not isinstance(value.get('intent'), str) or not isinstance(value.get('runs'), list):
+        raise ValueError('Invalid experiment intent or run history')
+    for item in value['runs']:
+        if (not isinstance(item, dict) or not isinstance(item.get('project_sha256'), str)
+                or not isinstance(item.get('workflow_status'), str) or not isinstance(item.get('result'), dict)):
+            raise ValueError('Invalid experiment run record')
+        result = item['result']
+        for key in ('status', 'diagnosis', 'error', 'evidence_path'):
+            if result.get(key) is not None and not isinstance(result[key], str):
+                raise ValueError('Invalid experiment result label')
+        for key in ('observed', 'expected'):
+            if result.get(key) is not None and type(result[key]) not in (int, float):
+                raise ValueError('Invalid experiment result count')
+        control = result.get('control')
+        if control is not None and not isinstance(control, dict):
+            raise ValueError('Invalid experiment control record')
+        if isinstance(control, dict):
+            if type(control.get('ok')) is not bool:
+                raise ValueError('Invalid experiment control verdict')
+            for key in ('observed', 'expected'):
+                if control.get(key) is not None and type(control[key]) not in (int, float):
+                    raise ValueError('Invalid experiment control count')
     case = core.load_contract(folder / 'case.json')
     if digest(case) != value['contract_sha256'] or evaluator() != value['evaluator_sha256']:
         raise ValueError('Frozen case or evaluator changed; prepare a new experiment')
