@@ -5,6 +5,7 @@ import json
 import math
 import os
 import shlex
+import signal
 import socket
 import subprocess
 import sys
@@ -271,6 +272,41 @@ def _expand_start(value: Any, *, contract_dir: Path, data: Path, port: int, pyth
     return value
 
 
+def _stop_process(proc: subprocess.Popen) -> None:
+    """Stop a started app and any children it created, without leaking it."""
+    if proc.poll() is not None:
+        return
+    try:
+        if os.name == "posix":
+            os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+        else:
+            proc.terminate()
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.terminate()
+        except OSError:
+            pass
+    try:
+        proc.wait(timeout=5)
+        return
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        if os.name == "posix":
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        else:
+            proc.kill()
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except OSError:
+            pass
+    try:
+        proc.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        pass
+
+
 def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, str, Path, Any, Path]:
     app = contract["app"]
     start = app.get("start")
@@ -308,48 +344,46 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
     proc = subprocess.Popen(
         command,
         cwd=cwd, env=env, stdout=log_handle, stderr=subprocess.STDOUT,
+        start_new_session=(os.name == "posix"),
     )
-    base = str(_expand_start(start.get("base_url") or f"http://127.0.0.1:{port}",
-                             contract_dir=contract_dir, data=data, port=port))
-    health = str(start.get("health_path", "/"))
-    timeout_s = float(start.get("ready_timeout", 30))
-    deadline = time.monotonic() + timeout_s
-    while time.monotonic() < deadline:
-        if proc.poll() is not None:
-            log_handle.close()
-            text = log.read_text(encoding="utf-8", errors="replace")
-            raise RuntimeError(f"app exited before readiness ({proc.returncode}): {text[-2000:]}")
-        try:
-            with urllib.request.urlopen(base.rstrip("/") + health, timeout=0.5) as response:
-                if response.status < 500:
-                    for step in start.get("setup", []):
-                        if not isinstance(step, dict) or not isinstance(step.get("path"), str):
-                            raise ValueError("app.start.setup steps need a path")
-                        payload = None
-                        headers = {}
-                        if "json" in step:
-                            payload = json.dumps(step["json"]).encode("utf-8")
-                            headers["Content-Type"] = "application/json"
-                        elif "body" in step:
-                            payload = str(step["body"]).encode("utf-8")
-                        request = urllib.request.Request(
-                            base.rstrip("/") + step["path"], data=payload,
-                            headers=headers, method=str(step.get("method", "POST")),
-                        )
-                        with urllib.request.urlopen(request, timeout=5) as setup:
-                            if not 200 <= setup.status < 300:
-                                raise RuntimeError(f"app setup returned {setup.status}")
-                    return proc, base, log, log_handle, data
-        except (urllib.error.URLError, TimeoutError, OSError):
-            time.sleep(0.1)
-    proc.terminate()
     try:
-        proc.wait(timeout=5)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait()
-    log_handle.close()
-    raise RuntimeError(f"app did not become ready within {timeout_s}s: {log.read_text(encoding='utf-8', errors='replace')[-2000:]}")
+        base = str(_expand_start(start.get("base_url") or f"http://127.0.0.1:{port}",
+                                 contract_dir=contract_dir, data=data, port=port))
+        health = str(start.get("health_path", "/"))
+        timeout_s = float(start.get("ready_timeout", 30))
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                text = log.read_text(encoding="utf-8", errors="replace")
+                raise RuntimeError(f"app exited before readiness ({proc.returncode}): {text[-2000:]}")
+            try:
+                with urllib.request.urlopen(base.rstrip("/") + health, timeout=0.5) as response:
+                    if response.status < 500:
+                        for step in start.get("setup", []):
+                            if not isinstance(step, dict) or not isinstance(step.get("path"), str):
+                                raise ValueError("app.start.setup steps need a path")
+                            payload = None
+                            headers = {}
+                            if "json" in step:
+                                payload = json.dumps(step["json"]).encode("utf-8")
+                                headers["Content-Type"] = "application/json"
+                            elif "body" in step:
+                                payload = str(step["body"]).encode("utf-8")
+                            request = urllib.request.Request(
+                                base.rstrip("/") + step["path"], data=payload,
+                                headers=headers, method=str(step.get("method", "POST")),
+                            )
+                            with urllib.request.urlopen(request, timeout=5) as setup:
+                                if not 200 <= setup.status < 300:
+                                    raise RuntimeError(f"app setup returned {setup.status}")
+                        return proc, base, log, log_handle, data
+            except (urllib.error.URLError, TimeoutError, OSError):
+                time.sleep(0.1)
+        raise RuntimeError(f"app did not become ready within {timeout_s}s: {log.read_text(encoding='utf-8', errors='replace')[-2000:]}")
+    except BaseException:
+        _stop_process(proc)
+        log_handle.close()
+        raise
 
 
 def run_contract(contract_path: str | Path, base_url: str | None = None,
@@ -392,12 +426,7 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
             Path(temp_path).unlink(missing_ok=True)
     finally:
         if started is not None:
-            started.terminate()
-            try:
-                started.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                started.kill()
-                started.wait()
+            _stop_process(started)
             log_handle.close()
     try:
         result = json.loads(proc.stdout)

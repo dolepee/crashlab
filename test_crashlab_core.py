@@ -1,5 +1,10 @@
 """Comparison verdict regressions; no browser or fixture server is required."""
 import copy
+import json
+import os
+import sys
+import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -223,3 +228,79 @@ class ContractValidationTests(unittest.TestCase):
         value["app"]["start"] = "python app.py"
         with self.assertRaises(ValueError):
             core.validate_contract(value)
+
+
+class AppCleanupTests(unittest.TestCase):
+    """The app process must not survive a malformed setup or a completed run."""
+
+    APP = """\
+import http.server, os, socketserver
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def _ok(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"ok")
+    def do_GET(self):
+        self._ok()
+    def do_POST(self):
+        self._ok()
+    def log_message(self, *args):
+        pass
+
+with open(os.environ["PID_FILE"], "w", encoding="utf-8") as handle:
+    handle.write(str(os.getpid()))
+with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as server:
+    server.serve_forever()
+"""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp(prefix="crashlab-cleanup-"))
+        self.script = self.tmp / "app.py"
+        self.script.write_text(self.APP, encoding="utf-8")
+        self.pid_file = self.tmp / "pid.txt"
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def start(self, extra=None):
+        start = {
+            "command": [sys.executable, str(self.script)],
+            "python": sys.executable,
+            "cwd": str(self.tmp),
+            "health_path": "/",
+            "ready_timeout": 5,
+            "env": {"PID_FILE": str(self.pid_file)},
+        }
+        start.update(extra or {})
+        return {"id": "cleanup", "app": {"start": start}, "journey": [{"action": "wait_for_timeout", "ms": 0}], "state": {"mode": "http", "url": "http://127.0.0.1:1", "path": "/state", "expect": 1}}
+
+    def wait_gone(self):
+        pid = int(self.pid_file.read_text(encoding="utf-8"))
+        for _ in range(100):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.05)
+        self.fail(f"app process {pid} survived cleanup")
+
+    def test_malformed_setup_stops_the_started_app(self):
+        with self.assertRaises(ValueError):
+            core._start_app(self.start({"setup": [{}]}), self.tmp)
+        self.wait_gone()
+
+    def test_completed_run_stops_the_started_app(self):
+        runner = self.tmp / "runner.js"
+        runner.write_text(
+            "process.stdout.write(JSON.stringify({ok:true,contract:'cleanup',"
+            "observed:1,expected:1,scenario:{valid:true}}))\n",
+            encoding="utf-8",
+        )
+        contract_path = self.tmp / "case.json"
+        contract_path.write_text(json.dumps(self.start({"setup": [{"path": "/setup", "method": "POST"}]})), encoding="utf-8")
+        with patch.object(core, "RUNNER", runner):
+            result = core.run_contract(contract_path)
+        self.assertTrue(result["ok"], result)
+        self.wait_gone()
