@@ -204,8 +204,8 @@
   "behavior_sha256": "f379c258e1b9557c140f1bafb0f8cc307eefd2d9c1d95ad434f9e9287b84f6e8",
   "launch_sha256": "5f21b5bb5f1f9a8a10b59fea5195a63d4acf6a5e9c18c33a5e87f3df75796c81",
   "evaluator_sha256": {
-    "crashlab_core.py": "f19be936bf2047c1ec22f422e5218c001e64f6e858c30a3554ddcb61a998a442",
-    "crashlab_runner.js": "fe3bffba010e4b81edd231b8bac911842bb9565fce5f8eb16a56ca3e434b153d",
+    "crashlab_core.py": "31f172aefac2a5e90faa8ebae761acc9b403faadd1f638c7c812ab2442e3184c",
+    "crashlab_runner.js": "1ea6b8fdf776987478a8a24877f0f104d7dbdcd1afa55816ec52884d4be0ad31",
     "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
     "repair_workflow.py": "67c095b1e54f6a246a10781928abd6b45c8de3c2697e82eb785c232f29210e24"
   },
@@ -214,5 +214,5 @@
     "app_python"
   ],
   "notes": "Behavior and launch template are frozen independently. Bind paths to a disposable checkout; dependencies and runtime remain your responsibility. This bundle contains declared setup/environment values and may contain application data. It does not transfer verified status or include a source repair.",
-  "source_pin": "c3146c5c2edf94f9ca3c0866b5aa8c4643f0e664"
+  "source_pin": "6eaf34f3e0d121f1e035decd3cc48299e555e412"
 }

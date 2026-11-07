@@ -307,7 +307,8 @@
       reportBusy ? h('p', { key: 'report-loading', role: 'status' }, 'Loading recorded evidence…') : null,
       reportError ? h('p', { key: 'report-error', role: 'alert' }, reportError) : null,
       reportData ? h(ExperimentReport, { key: 'report', data: reportData, currentStatus: reportData.current_status, onSelect: index => showReport(reportData.experiment_id, index), onExport: exportReport, onClose: () => { reportSequence.current++; setReportData(null); requestAnimationFrame(() => reportLauncher.current?.focus()) }, exporting, exportMessage }) : null,
-      h('h2', { key: 'examples', style: { fontSize: 16, fontWeight: 600 } }, 'Run a saved example'),
+      h('h2', { key: 'examples', style: { fontSize: 16, fontWeight: 600 } }, 'Run a saved case'),
+      h('p', { key: 'example-note', style: { color: 'var(--text-secondary, currentColor)' } }, 'Bundled checkout and booking cases are deliberately buggy/fixed pairs. A failure on a buggy example is expected.'),
       h('div', { key: 'controls', style: { display: 'flex', gap: 8, alignItems: 'center' } }, [
         h('select', {
           key: 'select',

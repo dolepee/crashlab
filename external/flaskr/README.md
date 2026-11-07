@@ -87,3 +87,16 @@ login and create workflow without injected failure. That passing transfer is
 separate from the native POST repair above. To use it, configure its app checkout
 and interpreter and call the installed `crashlab_run` tool; `crashlab_core.py`
 is a library, not an executable command-line entry point.
+
+
+## Recovery replay on the corrected evaluator
+
+The [three-boundary replay](evidence/2026-11-07-recovery/summary.json) uses the
+reviewed `6eaf34f` evaluator through native Hermes registry dispatch. The original
+retained Flaskr patch reproduces the upstream failure and passes before-delivery,
+after-commit and restart-before-retry cases, each with its 2/2 deliberate-use
+control. This is a retained-patch replay, not a new model repair or end-user trial.
+The launch template initializes a missing disposable database and preserves it
+on restart; restarting against a fresh empty database would not test retention.
+Existing production databases still need a migration, and legacy tokenless POSTs
+remain outside the retry guarantee.
