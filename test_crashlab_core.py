@@ -26,12 +26,23 @@ class CompareTests(unittest.TestCase):
     def compare(self, buggy=None, fixed=None):
         runs = [self.buggy if buggy is None else buggy,
                 self.fixed if fixed is None else fixed]
-        with patch.object(core, "run_contract", side_effect=runs) as runner:
+        with patch.object(core, "load_contract", return_value={"id": "test"}), patch.object(core, "run_contract", side_effect=runs) as runner:
             result = core.compare("case.json", "http://buggy", "http://fixed")
         self.assertEqual(runner.call_count, 2)
         self.assertEqual(result["buggy"], runs[0])
         self.assertEqual(result["fixed"], runs[1])
         return result["ok"]
+
+    def test_contract_is_loaded_once_and_shared_across_pair(self):
+        contract = {"id": "frozen", "state": {"expect": 1}}
+        with patch.object(core, "load_contract", return_value=contract) as load, \
+             patch.object(core, "run_contract", side_effect=[self.buggy, self.fixed]) as run:
+            result = core.compare("case.json", "http://buggy", "http://fixed")
+        load.assert_called_once_with("case.json")
+        self.assertEqual(run.call_args_list[0].kwargs["frozen_contract"], contract)
+        self.assertEqual(run.call_args_list[1].kwargs["frozen_contract"], contract)
+        self.assertEqual(result["buggy"]["contract_sha256"], result["fixed"]["contract_sha256"])
+        self.assertEqual(len(result["contract_sha256"]), 64)
 
     def test_expand_start_uses_configured_python(self):
         value = core._expand_start(

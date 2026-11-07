@@ -27,9 +27,13 @@ function nowId() {
   let faultDelivered = false;
   let upstreamStatus = null;
   let faultState = null;
+  let faultContentsValid = false;
+  let baseline = null;
+  let requests = [];
+  let phase = "primary";
 
   const browser = await chromium.launch({
-    executablePath: process.env.CHROME_PATH || '/usr/bin/chromium',
+    executablePath: process.env.CHROME_PATH || (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()),
     headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage'],
     env: {
@@ -45,6 +49,11 @@ function nowId() {
       if (contract.fault.method && route.request().method() !== contract.fault.method) {
         return route.continue();
       }
+      const spec = phase === 'primary' ? contract.state : contract.control.state;
+      if (spec.request_fields) {
+        try { requests.push(route.request().postDataJSON()); }
+        catch { requests.push(null); }
+      }
       if (interrupted) return route.continue();
       interrupted = true;
       faultMatched = true;
@@ -55,6 +64,7 @@ function nowId() {
         // browser sees a failure and before the retry can run.
         try {
           faultState = await readState(contract.state);
+          faultContentsValid = matches({...faultState, expected: faultState.observed}, contract.state);
         } catch (err) {
           faultState = { error: String(err) };
         }
@@ -167,7 +177,7 @@ function nowId() {
       const probe = path.join(__dirname, 'crashlab_probe.py');
       const raw = execFileSync(process.env.PYTHON_BINARY || 'python3', [
         probe, path.resolve(path.dirname(contractPath), db), spec.table || 'orders', spec.where || '',
-      ], { encoding: 'utf8' });
+      ], { encoding: 'utf8', timeout: 10000 });
       const body = JSON.parse(raw);
       if (body.error) throw new Error(body.error);
       const records = Array.isArray(body.records) ? body.records : [];
@@ -191,26 +201,52 @@ function nowId() {
     };
   }
 
+  function matches(state, spec) {
+    if (state.observed !== state.expected) return false;
+    const fields = spec.record_fields || {};
+    if (Object.keys(fields).length && state.records.length !== state.observed) return false;
+    if (!state.records.every(row => Object.entries(fields).every(([key, value]) => row[key] === value))) return false;
+    if (spec.request_fields) {
+      if (!requests.length || requests.some(body => !body || typeof body !== 'object')) return false;
+      const mapping = Object.entries(spec.request_fields);
+      const expected = requests.map(body => mapping.map(([, key]) => body[key]));
+      if (expected.some(values => values.some(value => value === undefined || value === null || value === ''))) return false;
+      const signatures = new Set(expected.map(values => JSON.stringify(values)));
+      const actual = state.records.map(row => JSON.stringify(mapping.map(([column]) => row[column])));
+      if (actual.length !== signatures.size || new Set(actual).size !== actual.length) return false;
+      if (actual.some(signature => !signatures.has(signature))) return false;
+    }
+    return true;
+  }
+
   try {
     await reset();
+    baseline = await readState(contract.state);
+    if (contract.fault && baseline.observed !== 0) throw new Error("INVALID: fault experiment requires an empty scoped baseline");
     await run(contract.journey);
-    await page.unroute(contract.fault?.route || '**/order');
+    // Keep interception for request identity capture; fault only fires once.
     const primary = await readState(contract.state);
+    const primaryOK = matches(primary, contract.state);
     let control = null;
     if (contract.control) {
       await reset();
+      phase = 'control';
+      requests = [];
+      const controlBaseline = await readState(contract.control.state);
+      if (contract.fault && controlBaseline.observed !== 0) throw new Error('INVALID: control requires an empty scoped baseline');
       await run(contract.control.journey);
       const checked = await readState(contract.control.state);
-      control = { ...checked, ok: checked.observed === checked.expected };
+      control = { ...checked, ok: matches(checked, contract.control.state) };
     }
     const result = {
       contract: contract.id,
       run_id: runId,
       base_url: base,
-      ok: primary.observed === primary.expected && (!control || control.ok),
+      ok: primaryOK && (!control || control.ok),
       expected: primary.expected,
       observed: primary.observed,
       observations,
+      status: primaryOK && (!control || control.ok) ? "PASS" : "FAIL",
       upstream_status: upstreamStatus,
       scenario: contract.fault
         ? {
@@ -223,7 +259,8 @@ function nowId() {
               && Number.isFinite(upstreamStatus)
               && upstreamStatus >= 200 && upstreamStatus < 300
               && Number.isFinite(faultState?.observed)
-              && faultState.observed >= 1,
+              && faultState.observed >= 1
+              && faultContentsValid,
           }
         : { matched: true, valid: true },
       screenshots,
@@ -231,11 +268,12 @@ function nowId() {
       control,
     };
     result.ok = result.ok && result.scenario.valid;
+    if (!result.scenario.valid) result.status = "INVALID";
     console.log(JSON.stringify(result, null, 2));
     await browser.close();
     process.exit(result.ok ? 0 : 1);
   } catch (err) {
-    console.error(JSON.stringify({ contract: contract.id, ok: false, error: String(err) }, null, 2));
+    console.log(JSON.stringify({ contract: contract.id, ok: false, status: String(err).includes("INVALID:") ? "INVALID" : "ERROR", error: String(err) }, null, 2));
     await browser.close().catch(() => {});
     process.exit(2);
   }

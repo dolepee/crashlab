@@ -47,14 +47,22 @@
   "fault": {
     "route": "**/order",
     "mode": "suppress_after_upstream",
-    "occurrence": 1
+    "occurrence": 1,
+    "method": "POST"
   },
   "state": {
     "mode": "sqlite",
     "db": "../data/orders-{port}.db",
     "table": "orders",
     "where": "intent_key <> ''",
-    "expect": 1
+    "expect": 1,
+    "record_fields": {
+      "item": "CrashLab Test Widget"
+    },
+    "request_fields": {
+      "intent_key": "intent_key",
+      "item": "item"
+    }
   },
   "evidence": {
     "screenshot_dir": "evidence"
@@ -90,7 +98,14 @@
       "db": "../data/orders-{port}.db",
       "table": "orders",
       "where": "intent_key <> ''",
-      "expect": 2
+      "expect": 2,
+      "record_fields": {
+        "item": "CrashLab Test Widget"
+      },
+      "request_fields": {
+        "intent_key": "intent_key",
+        "item": "item"
+      }
     }
   }
 }
