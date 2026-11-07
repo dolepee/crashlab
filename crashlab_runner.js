@@ -25,6 +25,7 @@ function nowId() {
   let interrupted = false;
   let faultMatched = false;
   let faultDelivered = false;
+  let faultError = null;
   let upstreamStatus = null;
   let faultState = null;
   let faultContentsValid = false;
@@ -68,8 +69,18 @@ function nowId() {
         } catch (err) {
           faultState = { error: String(err) };
         }
+        // A native POST abort transitions Chromium to its error document. The
+        // requestfailed event can arrive before that document has an active
+        // page target; reloading in that gap fails at the protocol layer.
+        const navigationSettled = route.request().isNavigationRequest()
+          && route.request().frame() === page.mainFrame()
+          ? page.waitForEvent('domcontentloaded', { timeout: 10000 }).catch(error => {
+              faultError = new Error('Interrupted navigation did not settle: ' + error.message);
+            })
+          : Promise.resolve();
         await route.abort('failed');
-        faultDelivered = true;
+        await navigationSettled;
+        faultDelivered = !faultError;
       } else {
         await route.abort('failed');
         faultDelivered = true;
@@ -140,7 +151,7 @@ function nowId() {
       } else if (step.action === 'wait_for_url') {
         await page.waitForURL(step.pattern, { timeout: step.timeout || 10000 });
       } else if (step.action === 'wait_for_fault') {
-        await waitFor(() => faultDelivered, step.timeout || 10000, 'fault was not delivered');
+        await waitFor(() => { if (faultError) throw faultError; return faultDelivered; }, step.timeout || 10000, 'fault was not delivered');
       } else if (step.action === 'wait_for_count') {
         await waitFor(() => conditionMet(step), step.timeout || 10000, 'count condition not met');
       } else if (step.action === 'wait_for_value') {

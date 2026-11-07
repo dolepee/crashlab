@@ -261,6 +261,11 @@ def validate_contract(contract: dict) -> dict:
             raise ValueError("control must be an object")
         _validate_journey(control.get("journey"), "control.journey")
         _validate_state(control.get("state"), "control.state")
+        control_state = control['state']
+        mapping = control_state.get('request_fields') or {}
+        fields = control_state.get('record_fields') or {}
+        if control_state['expect'] > 1 and mapping and set(mapping) <= set(fields):
+            raise ValueError('Control request_fields collapse every record to one fixed identity signature. Include a per-intent key, or omit control request_fields and assert counts/content only.')
     specs = [contract["state"]] + ([control["state"]] if control else [])
     if not fault and any(spec.get("request_fields") for spec in specs):
         raise ValueError("request_fields requires a fault route for request capture")

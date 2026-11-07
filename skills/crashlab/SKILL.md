@@ -38,10 +38,15 @@ answer. Disable with enabled=false when the user stops that experiment.
   retry button. Capture is supported for both JSON and URL-encoded form fields.
 - `state`: prefer `mode: sqlite`, `db`, `table`, a scoped `where`, `expect: 1`,
   `record_fields` for exact content, and `request_fields` mapping database columns
-  to top-level submitted field names. Primary fault baselines must be empty.
+  to top-level submitted field names. This mapping defines an identity signature:
+  one record per distinct signature is required. Include a stable per-intent key
+  where available. Primary fault baselines must be empty.
 - `control`: a second `journey` and `state`. It runs in the same app/browser
   session after the primary. Use a distinct marker for its record scope and
   create two deliberate identical records, `expect: 2`; exclude the primary row.
+  When identical control payloads have no per-intent identifier, omit control
+  `request_fields` and use counts plus `record_fields`; explicitly state that
+  this control verifies cardinality/content, not per-intent identity.
   Authentication can be performed declaratively at the start of the main journey.
 
 Preserve existing database compatibility when repairing schema. If migration is
