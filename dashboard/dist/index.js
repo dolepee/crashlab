@@ -98,6 +98,7 @@
       data.historical_only ? h('p', { key: 'historic' }, 'Historical evaluator: inspect these records, but prepare a new experiment before making a current verification claim.') : null,
       h('div', { key: 'buttons', style: { display: 'flex', flexWrap: 'wrap', gap: 8 } }, [
         h('button', { key: 'export', onClick: onExport, disabled: exporting || data.historical_only, style: buttonStyle }, exporting ? 'Exporting…' : 'Export regression'),
+        h('button', { key: 'refresh-report', onClick: () => onSelect(data.run_index), style: buttonStyle }, 'Refresh report'),
         h('button', { key: 'close', onClick: onClose, style: buttonStyle }, 'Close report')
       ]),
       exportMessage ? h('p', { key: 'export-message', role: 'status' }, exportMessage) : null,
@@ -123,6 +124,8 @@
     const loadSequence = useRef(0)
     const reportSequence = useRef(0)
     const reportLauncher = useRef(null)
+    const statusCache = useRef({})
+    const runningExperiment = useRef(null)
     const [reportData, setReportData] = useState(null)
     const [reportBusy, setReportBusy] = useState(false)
     const [reportError, setReportError] = useState('')
@@ -137,7 +140,14 @@
       try {
         const [state, list, repairs] = await Promise.all([api('/overview'), api('/contracts'), api('/experiments')])
         if (sequence !== loadSequence.current) return
-        setExperiments(repairs.experiments || [])
+        const freshRows = (repairs.experiments || []).map(row => row.experiment_id === runningExperiment.current ? { ...row, status: 'RUNNING' } : row)
+        for (const row of freshRows) statusCache.current[row.experiment_id] = { sequence, status: row.status }
+        setExperiments(freshRows)
+        setReportData(current => {
+          if (!current) return current
+          const row = freshRows.find(item => item.experiment_id === current.experiment_id)
+          return { ...current, current_status: row?.status || 'UNAVAILABLE', current_error: row?.error || (row ? null : 'Use Refresh report to check this experiment outside the recent list.') }
+        })
         setOverview(state)
         const rows = list.contracts || []
         setCases(rows)
@@ -147,6 +157,7 @@
         if (sequence !== loadSequence.current) return
         setError(String(err.message || err))
         setExperiments(rows => rows.map(row => ({ ...row, status: 'UNAVAILABLE' })))
+        setReportData(current => current ? { ...current, current_status: 'UNAVAILABLE' } : current)
       }
     }
 
@@ -172,33 +183,46 @@
       const section = document.getElementById('crashlab-experiment-report')
       section?.focus({ preventScroll: true })
       section?.scrollIntoView({ behavior: 'auto', block: 'start' })
-    }, [reportData])
+    }, [reportData?.experiment_id, reportData?.run_index, reportData?.measurement])
 
     async function experimentAction(row, action) {
       setBusy(true)
       setExperimentError(null)
       setActiveExperiment({ id: row.experiment_id, action })
-      if (action === 'run') setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, status: 'RUNNING' } : item))
+      if (action === 'run') {
+        runningExperiment.current = row.experiment_id
+        setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, status: 'RUNNING' } : item))
+        setReportData(current => current?.experiment_id === row.experiment_id ? { ...current, current_status: 'RUNNING' } : current)
+      }
       try {
         const result = await api('/experiments/' + row.experiment_id + '/' + action, {
           method: 'POST', body: JSON.stringify(action === 'watch' ? { enabled: !row.watching } : {})
         })
+        runningExperiment.current = null
         if (action === 'watch') setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, watching: !!result.watching } : item))
         await load()
         if (action === 'run' && reportData?.experiment_id === row.experiment_id) await showReport(row.experiment_id)
       } catch (err) {
+        runningExperiment.current = null
         setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, status: 'UNAVAILABLE' } : item))
         await load()
         setExperimentError({ id: row.experiment_id, message: String(err.message || err) })
-      } finally { setBusy(false); setActiveExperiment(null) }
+      } finally { runningExperiment.current = null; setBusy(false); setActiveExperiment(null) }
     }
 
     async function showReport(id, index) {
       const sequence = ++reportSequence.current
+      const freshnessSequence = ++loadSequence.current
       setReportData(null); setReportBusy(true); setReportError(''); setExportMessage('')
       try {
-        const report = await api('/experiments/' + id + '/report' + (index === undefined ? '' : '?run_index=' + index))
-        if (sequence === reportSequence.current) setReportData(report)
+        const report = await api('/experiments/' + id + '/report' + (index === undefined || index === null ? '' : '?run_index=' + index))
+        if (sequence === reportSequence.current) {
+          const cached = statusCache.current[id]
+          if (!cached || cached.sequence <= freshnessSequence) statusCache.current[id] = { sequence: freshnessSequence, status: runningExperiment.current === id ? 'RUNNING' : report.current_status }
+          const currentStatus = statusCache.current[id].status
+          setExperiments(rows => rows.map(row => row.experiment_id === id ? { ...row, status: currentStatus } : row))
+          setReportData({ ...report, current_status: currentStatus })
+        }
       } catch (err) { if (sequence === reportSequence.current) setReportError(String(err.message || err)) }
       finally { if (sequence === reportSequence.current) setReportBusy(false) }
     }
@@ -282,7 +306,7 @@
       ]),
       reportBusy ? h('p', { key: 'report-loading', role: 'status' }, 'Loading recorded evidence…') : null,
       reportError ? h('p', { key: 'report-error', role: 'alert' }, reportError) : null,
-      reportData ? h(ExperimentReport, { key: 'report', data: reportData, currentStatus: experiments.find(row => row.experiment_id === reportData.experiment_id)?.status || reportData.current_status, onSelect: index => showReport(reportData.experiment_id, index), onExport: exportReport, onClose: () => { reportSequence.current++; setReportData(null); requestAnimationFrame(() => reportLauncher.current?.focus()) }, exporting, exportMessage }) : null,
+      reportData ? h(ExperimentReport, { key: 'report', data: reportData, currentStatus: reportData.current_status, onSelect: index => showReport(reportData.experiment_id, index), onExport: exportReport, onClose: () => { reportSequence.current++; setReportData(null); requestAnimationFrame(() => reportLauncher.current?.focus()) }, exporting, exportMessage }) : null,
       h('h2', { key: 'examples', style: { fontSize: 16, fontWeight: 600 } }, 'Run a saved example'),
       h('div', { key: 'controls', style: { display: 'flex', gap: 8, alignItems: 'center' } }, [
         h('select', {

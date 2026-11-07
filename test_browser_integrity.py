@@ -45,6 +45,14 @@ class BrowserIntegrity(unittest.TestCase):
         self.assertFalse(result['ok'],result)
         self.assertFalse(result['recovery']['ok'],result)
 
+    def test_retry_identity_must_match_even_when_db_mapping_omits_intent_key(self):
+        case=copy.deepcopy(self.case)
+        case['state']['request_fields']={'item':'item'}
+        source=self.source.replace("document.getElementById('retry').onclick = order;", "document.getElementById('retry').onclick = () => { key=crypto.randomUUID(); order(); };")
+        result=self.run_case(source,case)
+        self.assertFalse(result['recovery']['ok'],result)
+        self.assertFalse(result['ok'],result)
+
     def test_count_wait_default_and_upper_only_bounds(self):
         for step in [
             {'action':'wait_for_count','selector':'#status'},

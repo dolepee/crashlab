@@ -317,11 +317,9 @@ function nowId() {
     if (recoverySpec.mode === 'retry') {
       const sameBody = event => {
         if (event.body && initialRequest?.body) {
-          const keys = Object.values(contract.state.request_fields || {});
-          if (keys.length) return keys.every(key => initialRequest.body[key] !== undefined
-            && initialRequest.body[key] !== null && initialRequest.body[key] !== ''
-            && JSON.stringify(event.body[key]) === JSON.stringify(initialRequest.body[key]));
-          const canonical = body => JSON.stringify(Object.entries(body).sort(([a], [b]) => a.localeCompare(b)));
+          const ordered = value => Array.isArray(value) ? value.map(ordered)
+            : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, ordered(value[key])])) : value;
+          const canonical = body => JSON.stringify(ordered(body));
           return canonical(event.body) === canonical(initialRequest.body);
         }
         return event.raw_body === initialRequest?.raw_body;

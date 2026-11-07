@@ -47,8 +47,8 @@ lets you rerun the case or enable completion reminders.
 
 A passing fault case must exercise recovery. The default `recovery.mode: "retry"`
 requires a successful repeated write after interruption, using the original
-method, URL and mapped intent/content fields (or the whole payload when no
-mapping is configured). Changing Retry to display a local success message fails.
+method, URL and complete request payload (JSON object key order is ignored).
+A changed intent token is rejected even when the database mapping omits that key. Changing Retry to display a local success message fails.
 Redirecting native POSTs remain supported.
 
 For an application that recovers by reading back its result, declare
@@ -93,7 +93,7 @@ boundary against an application or agent with the same filesystem privileges.
 
 ## Test an operation across recovery boundaries
 
-Set `recovery_campaign` to `['before_delivery', 'after_commit', 'restart_after_commit']`
+Set `recovery_campaign` to `["before_delivery", "after_commit", "restart_after_commit"]`
 in the prepared case. The same operation, stored-field assertions and deliberate-use
 control run at each boundary:
 
@@ -129,7 +129,7 @@ changes and does not include untracked file contents.
 
 Use **Export regression** or `crashlab_experiment_export` to retain the test after
 the conversation. The bundle stores frozen behavior and a launch template with
-separate hashes. Local project/interpreter bindings live outside those assertions.
+separate hashes. Local project/interpreter bindings live outside those assertions. Portable interpreter binding currently supports direct Python argv launches, including explicit Python executable paths; wrapper or other-runtime launches are rejected instead of silently ignoring the chosen interpreter.
 It includes declared setup/environment values and can contain application data;
 review it before sharing. It does not package dependencies, source repair, records
 or a transferable VERIFIED status.
