@@ -1,0 +1,231 @@
+diff --git a/server/planner_core.py b/server/planner_core.py
+index 23b212f..20a75ee 100644
+--- a/server/planner_core.py
++++ b/server/planner_core.py
+@@ -26,6 +26,9 @@ def ensure_tables():
+         value real not null, created_at text not null)""")
+     eb._exec("""create table if not exists goal_meta (
+         goal_id text primary key, monthly_contribution real)""")
++    # Keep receipts even after a goal is deleted: replay must not resurrect it.
++    eb._exec("""create table if not exists goal_create_intents (
++        intent_id text primary key, payload text not null, goal_id text not null)""")
+     eb._exec("""create table if not exists job_offers (
+         id text primary key, company text not null, role text default '',
+         recruiter text default '', total_monthly real not null,
+diff --git a/server/planner_goals.py b/server/planner_goals.py
+index b2ebfea..97698bb 100644
+--- a/server/planner_goals.py
++++ b/server/planner_goals.py
+@@ -2,11 +2,14 @@
+ 
+ Split out of planner.py on 2026-09-05 (code moved 1:1; other modules are reached through `P`).
+ """
++import json
+ import uuid
+ from datetime import date, datetime
+ 
++import db
+ import engine_bridge as eb
+ from planner_proxy import P
++from werkzeug.exceptions import BadRequest, Conflict
+ 
+ # ---------- goals ----------
+ 
+@@ -47,17 +50,45 @@ def _project(goal, cfg):
+ 
+ 
+ def add_goal(data):
++    # Optional for legacy callers; only explicit intent identity deduplicates.
++    intent_id = data.get("create_intent_id")
++    if intent_id is not None and (not isinstance(intent_id, str)
++                                  or not intent_id.strip() or len(intent_id) > 200):
++        raise BadRequest("invalid create_intent_id")
++    payload = {"name": data["name"], "target_amount": float(data["target_amount"]),
++               "current_amount": float(data.get("current_amount", 0)),
++               "target_date": data.get("target_date"), "currency": data.get("currency", "PLN"),
++               "monthly_contribution": (float(data["monthly_contribution"])
++                                        if data.get("monthly_contribution") is not None else None)}
++    encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False)
+     goal_id = str(uuid.uuid4())
+-    eb._exec(
+-        "insert into goals (id, name, target_amount, current_amount, target_date, "
+-        "currency, status, created_at, updated_at) values (?,?,?,?,?,?,?,?,?)",
+-        (goal_id, data["name"], float(data["target_amount"]),
+-         float(data.get("current_amount", 0)), data.get("target_date"),
+-         data.get("currency", "PLN"), "active", P._now(), P._now()))
+-    if data.get("monthly_contribution") is not None:
+-        eb._exec("insert into goal_meta (goal_id, monthly_contribution) values (?,?)",
+-                 (goal_id, float(data["monthly_contribution"])))
+-    P._audit("goal", goal_id, "add", data)
++    with db.get_conn() as conn:
++        # Serialize receipt lookup and write across connections/processes.
++        conn.execute("begin immediate")
++        if intent_id is not None:
++            receipt = conn.execute(
++                "select payload, goal_id from goal_create_intents where intent_id = ?",
++                (intent_id,)).fetchone()
++            if receipt:
++                if receipt["payload"] != encoded:
++                    raise Conflict("create_intent_id already used for another goal payload")
++                return receipt["goal_id"]
++        now = P._now()
++        conn.execute(
++            "insert into goals (id, name, target_amount, current_amount, target_date, "
++            "currency, status, created_at, updated_at) values (?,?,?,?,?,?,?,?,?)",
++            (goal_id, payload["name"], payload["target_amount"], payload["current_amount"],
++             payload["target_date"], payload["currency"], "active", now, now))
++        if payload["monthly_contribution"] is not None:
++            conn.execute("insert into goal_meta (goal_id, monthly_contribution) values (?,?)",
++                         (goal_id, payload["monthly_contribution"]))
++        conn.execute(
++            "insert into app_audit (id, ts, entity, entity_id, action, payload) values (?,?,?,?,?,?)",
++            (str(uuid.uuid4()), now, "goal", goal_id, "add",
++             json.dumps(data, ensure_ascii=False, default=str)))
++        if intent_id is not None:
++            conn.execute("insert into goal_create_intents (intent_id, payload, goal_id) values (?,?,?)",
++                         (intent_id, encoded, goal_id))
+     return goal_id
+ 
+ 
+diff --git a/static/js/views/goals.js b/static/js/views/goals.js
+index 00eefee..0cce7e6 100644
+--- a/static/js/views/goals.js
++++ b/static/js/views/goals.js
+@@ -66,17 +66,36 @@ async function renderGoals(el) {
+     await api.put("/api/settings", { monthly_savings: parseNum(document.getElementById("gSavings")) || "" });
+     route();
+   });
+-  document.getElementById("gAdd").addEventListener("click", async () => {
++  let pendingCreate = null;
++  try { pendingCreate = JSON.parse(sessionStorage.getItem("goalPendingCreate")); } catch (_) { /* optional storage */ }
++  const addButton = document.getElementById("gAdd");
++  addButton.addEventListener("click", async () => {
+     const name = document.getElementById("gName").value.trim();
+     const target = parseNum(document.getElementById("gTarget"));
+     if (!name || !target) { alert("Enter a name and target amount"); return; }
+     const monthly = parseNum(document.getElementById("gMonthly"));
+-    await api.post("/api/goals", {
++    const payload = {
+       name, target_amount: target,
+       current_amount: parseNum(document.getElementById("gCurrent")) || 0,
+       monthly_contribution: isNaN(monthly) ? undefined : monthly,
+-    });
+-    route();
++    };
++    const encoded = JSON.stringify(payload);
++    if (!pendingCreate || pendingCreate.payload !== encoded) {
++      pendingCreate = { payload: encoded, id: crypto.randomUUID() };
++    }
++    try { sessionStorage.setItem("goalPendingCreate", JSON.stringify(pendingCreate)); } catch (_) { /* optional storage */ }
++    addButton.disabled = true;
++    try {
++      await api.post("/api/goals", { ...payload, create_intent_id: pendingCreate.id });
++      pendingCreate = null;
++      try { sessionStorage.removeItem("goalPendingCreate"); } catch (_) { /* optional storage */ }
++      route();
++    } catch (err) {
++      // An error may mean the response was lost AFTER commit. Reuse the intent.
++      alert("Goal not confirmed. Retry to confirm it: " + err.message);
++    } finally {
++      addButton.disabled = false;
++    }
+   });
+   list.querySelectorAll("[data-gupd]").forEach((b) =>
+     b.addEventListener("click", async () => {
+diff --git a/tests/test_goal_intents.py b/tests/test_goal_intents.py
+new file mode 100644
+index 0000000..7aa1fe7
+--- /dev/null
++++ b/tests/test_goal_intents.py
+@@ -0,0 +1,91 @@
++"""Goal create receipts: retry identity, atomicity and legacy compatibility."""
++from concurrent.futures import ThreadPoolExecutor
++from uuid import uuid4
++
++import pytest
++
++
++def payload(**extra):
++    return {"name": "Intent regression", "target_amount": 1000,
++            "current_amount": 100, "monthly_contribution": 25, **extra}
++
++
++def test_retry_and_identical_deliberate_creates(client):
++    import db
++    body = payload(create_intent_id=str(uuid4()))
++    first = client.post("/api/goals", json=body)
++    assert first.status_code == 201
++    gid = first.get_json()["id"]
++    retry = client.post("/api/goals", json=body)
++    assert retry.status_code == 201 and retry.get_json()["id"] == gid
++    with db.get_conn() as conn:
++        assert conn.execute("select count(*) from app_audit where entity_id=? and action='add'", (gid,)).fetchone()[0] == 1
++        assert conn.execute("select monthly_contribution from goal_meta where goal_id=?", (gid,)).fetchone()[0] == 25
++    other = client.post("/api/goals", json={**body, "create_intent_id": str(uuid4())})
++    assert other.status_code == 201 and other.get_json()["id"] != gid
++    # Legacy callers still create independently, including identical payloads.
++    a = client.post("/api/goals", json=payload()).get_json()["id"]
++    b = client.post("/api/goals", json=payload()).get_json()["id"]
++    assert a != b
++    assert client.post("/api/goals", json={**body, "target_amount": 2000}).status_code == 409
++    client.delete(f"/api/goals/{gid}")
++    assert client.post("/api/goals", json=body).get_json()["id"] == gid
++    with db.get_conn() as conn:
++        assert conn.execute("select count(*) from goals where id=?", (gid,)).fetchone()[0] == 0
++
++
++@pytest.mark.parametrize("key", ["", " ", 5, "x" * 201])
++def test_invalid_intent(client, key):
++    assert client.post("/api/goals", json=payload(create_intent_id=key)).status_code == 400
++
++
++def test_concurrent_retries(client):
++    import db
++    import planner
++    body = payload(create_intent_id=str(uuid4()))
++    with ThreadPoolExecutor(max_workers=4) as pool:
++        ids = list(pool.map(lambda _: planner.add_goal(body), range(8)))
++    assert len(set(ids)) == 1
++    with db.get_conn() as conn:
++        assert conn.execute("select count(*) from app_audit where entity_id=? and action='add'", (ids[0],)).fetchone()[0] == 1
++
++
++def test_atomic_failure_and_retry(client):
++    import db
++    import planner
++    import sqlite3
++    body = payload(create_intent_id=str(uuid4()))
++    with db.get_conn() as conn:
++        before = conn.execute("select count(*) from goals").fetchone()[0]
++        conn.execute("create trigger fail_goal_audit before insert on app_audit "
++                     "when new.entity='goal' begin select raise(abort, 'test failure'); end")
++    try:
++        with pytest.raises(sqlite3.IntegrityError, match="test failure"):
++            planner.add_goal(body)
++        with db.get_conn() as conn:
++            assert conn.execute("select count(*) from goals").fetchone()[0] == before
++            assert conn.execute("select count(*) from goal_create_intents where intent_id=?", (body["create_intent_id"],)).fetchone()[0] == 0
++    finally:
++        with db.get_conn() as conn:
++            conn.execute("drop trigger fail_goal_audit")
++    assert planner.add_goal(body) == planner.add_goal(body)
++
++
++def test_upgrade_preserves_existing_database(client, monkeypatch, tmp_path):
++    import db
++    import planner
++    monkeypatch.setenv("FINANCE_PROJECT_DIR", str(tmp_path))
++    db.init_db()
++    with db.get_conn() as conn:
++        conn.execute("insert into goals (id,name,target_amount,created_at,updated_at) "
++                     "values ('legacy','Existing goal',500,'before','before')")
++    planner.ensure_tables()
++    body = payload(create_intent_id=str(uuid4()))
++    gid = planner.add_goal(body)
++    # Reinitialize schema and reconnect, simulating application restart.
++    db.init_db()
++    planner.ensure_tables()
++    assert planner.add_goal(body) == gid
++    with db.get_conn() as conn:
++        assert conn.execute("select name from goals where id='legacy'").fetchone()[0] == "Existing goal"
++        assert conn.execute("select count(*) from goals").fetchone()[0] == 2

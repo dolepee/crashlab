@@ -3,8 +3,11 @@
   "label": "CrashLab",
   "description": "Inspect saved repair evidence and run a case through the same core path as the agent tool.",
   "icon": "FlaskConical",
-  "version": "0.3.0",
-  "tab": { "path": "/crashlab", "position": "after:skills" },
+  "version": "0.3.1",
+  "tab": {
+    "path": "/crashlab",
+    "position": "after:skills"
+  },
   "entry": "dist/index.js",
   "api": "plugin_api.py"
 }

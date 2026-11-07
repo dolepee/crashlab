@@ -1,0 +1,62 @@
+{
+  "upstream_commit": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+  "verifier_commit": "96f2f62935159158d05a13604f33a876eeca1c99",
+  "model": "gpt-6.1-sol",
+  "host": "Hermes Agent v0.23.0 on macOS",
+  "repair_patch_sha256": "20cdeaf1a14eff7e8561bbdd38d55f5a5c0e046ef7a1a544b68d4d039f2ed7f2",
+  "full_private_trace_sha256": "191b239b3d6d3aa330cf22e0140b2c88347d6a2ecd28a95a9a3d7b3db5e2fcdf",
+  "comparison_ok": true,
+  "contract_sha256": "1444ba2c932125eb9630f15d4c733a0c3e7523e4de36e9b985bce4b044506a35",
+  "evaluator_sha256": {
+    "crashlab_core.py": "091a685f3ae9bf0118ce20c0acea26d96c7856a8989b4072e31d2fffad0b9be3",
+    "crashlab_runner.js": "46e9eb1eff63e36a6c98c21f0661b2bff15f4d82b9529185cb7e6fce9e4be290",
+    "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050"
+  },
+  "scope": "Savings-goal records, not payments. One measured repair and independent replay; no broad autonomous-repair claim.",
+  "tests": {
+    "new_regressions": "8 passed",
+    "upstream_suite": "281 passed in 191.64 seconds, including the 8 new regressions"
+  },
+  "before": {
+    "ok": false,
+    "status": "FAIL",
+    "primary_ok": false,
+    "observed": 2,
+    "expected": 1,
+    "scenario": {
+      "matched": true,
+      "delivered": true,
+      "upstream_status": 201,
+      "committed_after_fault": 1,
+      "valid": true
+    },
+    "returncode": 1,
+    "contract_sha256": "1444ba2c932125eb9630f15d4c733a0c3e7523e4de36e9b985bce4b044506a35",
+    "control": {
+      "ok": true,
+      "observed": 2,
+      "expected": 2
+    }
+  },
+  "after": {
+    "ok": true,
+    "status": "PASS",
+    "primary_ok": true,
+    "observed": 1,
+    "expected": 1,
+    "scenario": {
+      "matched": true,
+      "delivered": true,
+      "upstream_status": 201,
+      "committed_after_fault": 1,
+      "valid": true
+    },
+    "returncode": 0,
+    "contract_sha256": "1444ba2c932125eb9630f15d4c733a0c3e7523e4de36e9b985bce4b044506a35",
+    "control": {
+      "ok": true,
+      "observed": 2,
+      "expected": 2
+    }
+  }
+}
