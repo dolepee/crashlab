@@ -17,8 +17,8 @@
     return body
   }
 
-  function verdict(value) {
-    return value ? 'PASS' : 'FAIL'
+  function verdict(run) {
+    return run.status || (run.error ? 'ERROR' : run.ok ? 'PASS' : 'FAIL')
   }
 
   function Card(title, children) {
@@ -32,7 +32,7 @@
         gap: 4
       }
     }, [
-      h('div', { key: 'title', style: { fontSize: 12, fontWeight: 600 } }, title),
+      h('div', { key: 'title', style: { fontSize: 14, fontWeight: 600 } }, title),
       ...children
     ])
   }
@@ -41,9 +41,11 @@
     if (!run) return null
     return Card(title, [
       h('div', { key: 'verdict', style: { fontSize: 14 } },
-        verdict(run.ok) + ' · ' + (run.observed ?? '?') + ' observed / ' + (run.expected ?? '?') + ' expected'),
-      run.diagnosis ? h('div', { key: 'diagnosis', style: { fontSize: 12, color: 'var(--ui-text-secondary, #52525b)' } }, run.diagnosis) : null,
-      run.contract ? h('div', { key: 'contract', style: { fontSize: 11, color: 'var(--ui-text-tertiary, #71717a)' } }, 'case: ' + run.contract) : null
+        verdict(run) + ' · ' + (run.observed ?? '?') + ' observed / ' + (run.expected ?? '?') + ' expected'),
+      run.diagnosis ? h('div', { key: 'diagnosis', style: { fontSize: 14, color: 'var(--ui-text-secondary, #52525b)' } }, run.diagnosis) : null,
+      run.error ? h('div', { key: 'error', role: 'alert' }, run.error) : null,
+      h('div', { key: 'control', style: { fontSize: 13 } }, run.control ? 'Legitimate-use control: ' + verdict(run.control) + ' · ' + run.control.observed + '/' + run.control.expected : run.control === null && !run.error ? 'No legitimate-use control configured' : 'Control not completed / result unavailable'),
+      run.contract ? h('div', { key: 'contract', style: { fontSize: 13, color: 'var(--ui-text-tertiary, #71717a)' } }, 'case: ' + run.contract) : null
     ])
   }
 
@@ -60,7 +62,7 @@
         setOverview(state)
         const rows = list.contracts || []
         setCases(rows)
-        setSelected(current => current || (rows[0] ? rows[0].path : ''))
+        setSelected(current => current || ((rows.find(row => !row.error && row.auto_start) || rows.find(row => !row.error) || {}).path || ''))
         setError('')
       } catch (err) {
         setError(String(err.message || err))
@@ -97,37 +99,39 @@
       items.push(Card('Capacity campaign', [
         h('div', { key: 'line', style: { fontSize: 14 } },
           (campaign.status ?? '?') + ' · ' + (counts.PASS ?? 0) + ' pass / ' + (counts.FAIL ?? 0) + ' fail / ' + (counts.INVALID ?? 0) + ' invalid'),
-        h('div', { key: 'case', style: { fontSize: 11, color: 'var(--ui-text-tertiary, #71717a)' } },
+        h('div', { key: 'case', style: { fontSize: 13, color: 'var(--ui-text-tertiary, #71717a)' } },
           campaign.campaign ? 'case set: ' + campaign.campaign : 'recorded campaign result')
       ]))
     }
     if (!items.length) {
-      items.push(h('div', { key: 'empty', style: { fontSize: 13, color: 'var(--ui-text-secondary, #52525b)' } }, 'No saved evidence yet. Run a case below.'))
+      items.push(h('div', { key: 'empty', style: { fontSize: 13, color: 'var(--ui-text-secondary, #52525b)' } }, overview ? 'No saved result yet. Select a case and run it.' : 'Loading cases…'))
     }
 
     return h('div', { style: { display: 'flex', height: '100%', minHeight: 0, flexDirection: 'column', gap: 12, overflow: 'auto', padding: 16, fontSize: 14 } }, [
-      h('div', { key: 'heading', style: { fontSize: 18, fontWeight: 600 } }, 'CrashLab evidence'),
-      h('div', { key: 'sub', style: { fontSize: 12, color: 'var(--ui-text-tertiary, #71717a)' } },
-        'A pass requires a valid scenario, observed = expected, and a passing legitimate-use control.'),
+      h('div', { key: 'heading', style: { fontSize: 18, fontWeight: 600 } }, 'Test a saved journey'),
+      h('div', { key: 'sub', style: { fontSize: 14, color: 'var(--ui-text-tertiary, #71717a)' } },
+        'Run a case on a disposable local app. Check what was saved after an interrupted action.'),
       h('div', { key: 'controls', style: { display: 'flex', gap: 8, alignItems: 'center' } }, [
         h('select', {
           key: 'select',
+          'aria-label': 'Saved case',
           value: selected,
           disabled: busy || !cases.length,
           onChange: event => setSelected(event.target.value),
-          style: { flex: 1, minWidth: 0, padding: '6px 8px', borderRadius: 4, border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', background: 'transparent' }
-        }, cases.length ? cases.map(row => h('option', { key: row.path, value: row.path }, row.id)) : [h('option', { key: 'none', value: '' }, 'No cases available')]),
+          style: { flex: 1, minWidth: 0, minHeight: 44, padding: '6px 8px', borderRadius: 4, border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', background: 'transparent' }
+        }, cases.length ? cases.map(row => h('option', { key: row.path, value: row.path, disabled: !!row.error }, row.id + (row.auto_start ? ' · starts app' : ' · setup required'))) : [h('option', { key: 'none', value: '' }, 'No cases available')]),
         h('button', {
           key: 'run',
           onClick: startRun,
           disabled: busy || !selected,
-          style: { padding: '6px 10px', borderRadius: 4, border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', cursor: busy ? 'wait' : 'pointer' }
+          style: { minHeight: 44, padding: '6px 10px', borderRadius: 4, border: '1px solid var(--ui-stroke-secondary, #d4d4d8)', cursor: busy ? 'wait' : 'pointer' }
         }, busy ? 'Running…' : 'Run case')
       ]),
-      error ? h('div', { key: 'error', style: { fontSize: 12, color: '#b91c1c' } }, error) : null,
-      ...items,
-      h('div', { key: 'foot', style: { fontSize: 11, color: 'var(--ui-text-tertiary, #71717a)' } },
-        'Evidence is read from saved runs; the app cannot write the verdict.')
+      error ? h('div', { key: 'error', role: 'alert', style: { fontSize: 14, color: '#b91c1c' } }, error) : null,
+      h('button', { key: 'refresh', onClick: load, disabled: busy, style: { alignSelf: 'flex-start', minHeight: 44, padding: '6px 10px' } }, 'Refresh cases and results'),
+      h('div', { key: 'results', 'aria-live': 'polite' }, items),
+      h('div', { key: 'foot', style: { fontSize: 13, color: 'var(--ui-text-tertiary, #71717a)' } },
+        'Results cover the configured assertions. HTTP observers are supplied by the app; SQLite observers read its database directly.')
     ])
   }
 

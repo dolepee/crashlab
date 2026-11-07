@@ -93,8 +93,10 @@ async def contracts() -> dict:
     rows = []
     for path in _case_paths():
         try:
-            contract = json.loads(path.read_text(encoding="utf-8"))
+            from crashlab_core import load_contract
+            contract = load_contract(path)
             rows.append({"id": contract.get("id", path.stem), "path": str(path),
+                         "auto_start": bool((contract.get("app") or {}).get("start")),
                          "source": "bundled" if path.is_relative_to(ROOT / "contracts") else "workspace"})
         except (OSError, ValueError) as exc:
             rows.append({"id": path.stem, "path": str(path), "error": str(exc)})
@@ -110,5 +112,9 @@ async def run(request: RunRequest) -> dict:
     path = Path(request.contract_path).expanduser().resolve()
     if path not in allowed:
         raise HTTPException(status_code=400, detail="contract must be in the case directory")
-    result = await asyncio.to_thread(run_contract, str(path))
+    try:
+        result = await asyncio.to_thread(run_contract, str(path))
+    except Exception as exc:
+        result = {"ok": False, "status": "ERROR", "contract": path.stem,
+                  "error": f"{type(exc).__name__}: {exc}"}
     return persist_run(result)
