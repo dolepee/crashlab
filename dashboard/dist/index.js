@@ -44,7 +44,7 @@
         verdict(run) + ' · ' + (run.observed ?? '?') + ' observed / ' + (run.expected ?? '?') + ' expected'),
       run.diagnosis ? h('div', { key: 'diagnosis', style: { fontSize: 14, color: 'var(--ui-text-secondary, #52525b)' } }, run.diagnosis) : null,
       run.error ? h('div', { key: 'error', role: 'alert' }, run.error) : null,
-      h('div', { key: 'control', style: { fontSize: 13 } }, run.control ? 'Legitimate-use control: ' + verdict(run.control) + ' · ' + run.control.observed + '/' + run.control.expected : 'No legitimate-use control configured'),
+      h('div', { key: 'control', style: { fontSize: 13 } }, run.control ? 'Legitimate-use control: ' + verdict(run.control) + ' · ' + run.control.observed + '/' + run.control.expected : run.control === null && !run.error ? 'No legitimate-use control configured' : 'Control not completed / result unavailable'),
       run.contract ? h('div', { key: 'contract', style: { fontSize: 13, color: 'var(--ui-text-tertiary, #71717a)' } }, 'case: ' + run.contract) : null
     ])
   }
