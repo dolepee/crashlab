@@ -81,7 +81,7 @@ function nowId() {
   if (contract.fault) {
     await page.route(contract.fault.route, async (route) => {
       if (contract.fault.method && route.request().method() !== contract.fault.method) {
-        return route.continue();
+        return route.fallback();
       }
       const spec = phase === 'primary' ? contract.state : contract.control.state;
       const event = recordEvent('write', requestEvidence(route.request()));
