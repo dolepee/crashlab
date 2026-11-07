@@ -50,3 +50,29 @@ class WorkflowTests(unittest.TestCase):
     def test_evidence_inside_app_is_rejected(self):
         with patch.dict(os.environ,CRASHLAB_DATA_DIR=str(self.project/'evidence')):
             with self.assertRaisesRegex(ValueError,'outside'):self.prepare()
+
+    def test_executable_permission_change_invalidates_evidence(self):
+        script=self.project/'start.sh';script.write_text('#!/bin/sh\n');script.chmod(0o755)
+        eid=self.prepare()
+        with patch.object(workflow.core,'run_and_persist',return_value=self.result(False)):
+            workflow.run(eid)
+        (self.project/'app.py').write_text('fixed')
+        with patch.object(workflow.core,'run_and_persist',return_value=self.result(True)):
+            self.assertEqual(workflow.run(eid)['status'],'VERIFIED')
+        script.chmod(0o644)
+        self.assertEqual(workflow.status(eid)['status'],'STALE')
+
+    def test_relative_launch_directory_is_rejected(self):
+        self.case['app']['start']['cwd']='.'
+        with self.assertRaisesRegex(ValueError,'absolute'):self.prepare()
+
+    def test_status_keeps_verdict_visible_and_bounds_history(self):
+        eid=self.prepare();folder=workflow.directory(eid)
+        value=json.loads((folder/'experiment.json').read_text())
+        value['runs']=[{'project_sha256':workflow.fingerprint(self.project), 'workflow_status':'REPRODUCED', 'result':{**self.result(False),'records':['x'*10000]}} for _ in range(30)]
+        workflow.save(folder/'experiment.json',value)
+        result=workflow.status(eid)
+        self.assertEqual(result['status'],'REPRODUCED')
+        self.assertEqual(result['run_count'],30)
+        self.assertEqual(len(result['runs']),3)
+        self.assertLess(len(json.dumps(result)),5000)

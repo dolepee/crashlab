@@ -44,7 +44,8 @@ def fingerprint(project):
         total += path.stat().st_size
         if total > 100_000_000:
             raise ValueError('Project exceeds 100 MB verification scope')
-        rows[name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        rows[name] = {'content': hashlib.sha256(path.read_bytes()).hexdigest(),
+                      'mode': path.stat().st_mode & 0o777}
     return digest(rows)
 
 
@@ -69,7 +70,10 @@ def prepare(project_path, intent, contract):
     if not contract.get('control') or not contract.get('fault'):
         raise ValueError('Repair experiments require a fault and legitimate-use control')
     start = contract['app'].get('start') or {}
-    cwd = Path(start.get('cwd', '')).expanduser().resolve()
+    raw_cwd = Path(start.get('cwd', '')).expanduser()
+    if not raw_cwd.is_absolute():
+        raise ValueError('app.start.cwd must be an absolute path')
+    cwd = raw_cwd.resolve()
     if not start or not cwd.is_relative_to(project):
         raise ValueError('Use app.start with an explicit cwd inside the project')
     experiment_id = uuid.uuid4().hex
@@ -104,7 +108,19 @@ def status(experiment_id):
         state = 'STALE'
     else:
         state = runs[-1]['workflow_status']
-    return {**value, 'status': state, 'current_project_sha256': current,
+    summaries = []
+    for item in runs[-3:]:
+        result = item['result']
+        compact = {key: result.get(key) for key in
+                   ('status', 'observed', 'expected', 'diagnosis', 'error', 'evidence_path')}
+        control = result.get('control')
+        if control is not None:
+            compact['control'] = {key: control.get(key) for key in ('ok', 'observed', 'expected')}
+        summaries.append({'workflow_status': item['workflow_status'], 'result': compact})
+    return {'status': state, 'experiment_id': experiment_id, 'intent': value['intent'],
+            'project_path': value['project_path'], 'contract_sha256': value['contract_sha256'],
+            'history_path': str(directory(experiment_id) / 'experiment.json'),
+            'run_count': len(runs), 'runs': summaries, 'current_project_sha256': current,
             'scope': 'Tracked and nonignored untracked project files. Ignored files, dependencies and runtime environment are outside this freshness check. Same-user hashes are not a security boundary.'}
 
 
