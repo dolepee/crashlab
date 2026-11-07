@@ -1,6 +1,7 @@
 """Opt-in, project-scoped Hermes completion reminders for repair experiments."""
 from pathlib import Path
 import json
+import subprocess
 try:
     from . import repair_workflow as workflow
 except ImportError:
@@ -44,7 +45,7 @@ def pre_verify(changed_paths=None, **kwargs):
             eid = item['experiment_id']
             try:
                 state = workflow.status(eid)['status']
-            except (OSError, ValueError, KeyError):
+            except (OSError, ValueError, KeyError, subprocess.SubprocessError):
                 state = 'UNAVAILABLE'
             if state != 'VERIFIED':
                 return {'action': 'continue', 'message': (
