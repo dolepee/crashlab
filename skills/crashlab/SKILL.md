@@ -64,7 +64,7 @@ These are three boundaries of one operation, each with the same journey,
 assertions and deliberate-use control. Include exactly one `wait_for_fault`
 step before the recovery action. CrashLab inserts its managed restart there.
 The restart reuses port and data directory without replaying setup or reset;
-observed records must survive before the retry. Do not recreate the database in
+observed counts and record identities must survive before the retry. Numeric-only HTTP count observers are unsupported for restart preservation; use records or direct SQLite. Do not recreate the database in
 an unconditional startup command. This is not a fresh-database restart test.
 
 Inspect `crashlab_experiment_report` for each measured scenario, including

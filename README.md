@@ -107,6 +107,8 @@ Include one `wait_for_fault` step before retry. The restart variant inserts a
 managed `restart_app` at that boundary. It does **not** replay initialization,
 setup requests or reset. The startup command must preserve existing data; a
 startup that erases the observed records is an error, not a passing fresh run.
+Restart preservation requires record-level observations; numeric-only HTTP counts
+are rejected because they cannot establish that the original records survived.
 Each boundary uses a separate disposable initial app; only the restart inside
 the third boundary retains that scenario's database. This is one operation's
 recovery campaign, not three unrelated bug classes or statistical flakiness proof.

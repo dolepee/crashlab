@@ -6,8 +6,8 @@
     "plugin.yaml": "d40e56e46d5bf53d40e346b69f3763aaf5a4fe1517489fbbeb25914338a4a040",
     "campaign_plugin.py": "e4cf32c4796d3b7079ff17bd75cfc2e5e7470abd892ec845509467e25ab1a089",
     "campaign.py": "e2f310a08bdc3867c5717ad41cb5f36fed50d822d25782e3080e6f065cd43950",
-    "crashlab_core.py": "f19be936bf2047c1ec22f422e5218c001e64f6e858c30a3554ddcb61a998a442",
-    "crashlab_runner.js": "fe3bffba010e4b81edd231b8bac911842bb9565fce5f8eb16a56ca3e434b153d",
+    "crashlab_core.py": "31f172aefac2a5e90faa8ebae761acc9b403faadd1f638c7c812ab2442e3184c",
+    "crashlab_runner.js": "1ea6b8fdf776987478a8a24877f0f104d7dbdcd1afa55816ec52884d4be0ad31",
     "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
     "contracts/checkout-lost-response.json": "e8fb02b674c4ebee35730629c4eac537bb697c8bb92039b30bdfc14ebb956a61",
     "contracts/booking-lost-response.json": "eadef4f0829cba94129971fb10886a23b4c030a8947cde16f5fac030ceed294f",
@@ -15,7 +15,7 @@
     "campaigns/inventory.json": "1dd104ee9f5f7a7c3cd5b9f02a3cd57c19fa0939f2ce47f8ab7f5549404b0ded",
     "campaigns/mixed.json": "64727cf9eb7be369f0a5b0fa328a7a2f4358a7bf7b5cef9dac22b5ecd47e69f9",
     "repair_workflow.py": "67c095b1e54f6a246a10781928abd6b45c8de3c2697e82eb785c232f29210e24",
-    "skills/crashlab/SKILL.md": "278b6d05727c9c844ea76f7f30021724b9c0f216864a81cd7efa24de3c38675b",
+    "skills/crashlab/SKILL.md": "949ce7872b3637e04f2a1142d1c51e94b0c6e1ae66be26d70bb6edfd11aab09c",
     "completion_reminder.py": "9a3fcf82751d1eaee6d16744f8e594acb4c3f5d64f13e36a655d31f22f572794",
     "crashlab_replay.py": "df1565e0068d990017be168780979f1ee34e9f022dfc8cbd105419b36a1d800e"
   }

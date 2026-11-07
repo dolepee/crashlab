@@ -59,6 +59,29 @@ class RecoveryCampaignTests(unittest.TestCase):
         self.assertEqual(result['status'],'ERROR',result)
         self.assertIn('did not preserve',result['cases'][-1]['result']['error'])
         self.assertTrue(result['cases'][-1]['result']['events'])
+    def test_numeric_only_http_count_cannot_hide_restart_data_loss(self):
+        self.case['state']={'mode':'http','url':'/state','path':'orders','expect':1}
+        self.case['control']['state']={**self.case['state'],'expect':2}
+        source=self.source.replace('[dict(zip(("id", "intent_key", "item", "created_at"), r)) for r in rows]', 'len(rows)')
+        source=source.replace('if __name__ == "__main__":','if __name__ == "__main__":\n    with connect() as con: con.execute("DELETE FROM orders")')
+        result=self.run_case(source)
+        self.assertFalse(result['ok'],result)
+        self.assertEqual(result['status'],'ERROR',result)
+        self.assertIn('record-level',result['cases'][-1]['result']['error'])
+    def test_scalar_record_ids_must_remain_the_same_after_restart(self):
+        self.case['state']={'mode':'http','url':'/state','path':'orders','expect':1}
+        self.case['control']['state']={**self.case['state'],'expect':2}
+        source=self.source.replace('[dict(zip(("id", "intent_key", "item", "created_at"), r)) for r in rows]', '[r[0] for r in rows]')
+        source=source.replace('if __name__ == "__main__":','''if __name__ == "__main__":
+    if DB.exists():
+        with connect() as con:
+            rows=con.execute("SELECT intent_key,item FROM orders").fetchall()
+            con.execute("DELETE FROM orders")
+            for row in rows: con.execute("INSERT INTO orders(intent_key,item) VALUES (?,?)",row)''')
+        result=self.run_case(source)
+        self.assertFalse(result['ok'],result)
+        self.assertEqual(result['status'],'ERROR',result)
+        self.assertIn('did not preserve',result['cases'][-1]['result']['error'])
     def test_native_form_campaign_retains_database_and_redirects(self):
         case=self.case
         case['app'].pop('reset_url',None)
