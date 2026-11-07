@@ -92,6 +92,19 @@ def prepare(project_path, intent, contract):
 def load(experiment_id):
     folder = directory(experiment_id)
     value = json.loads((folder / 'experiment.json').read_text())
+    if not isinstance(value, dict) or value.get('experiment_id') != experiment_id:
+        raise ValueError('Invalid experiment metadata identity')
+    if not isinstance(value.get('project_path'), str) or not Path(value['project_path']).is_absolute():
+        raise ValueError('Invalid experiment project path')
+    if not isinstance(value.get('intent'), str) or not isinstance(value.get('runs'), list):
+        raise ValueError('Invalid experiment intent or run history')
+    for item in value['runs']:
+        if (not isinstance(item, dict) or not isinstance(item.get('project_sha256'), str)
+                or not isinstance(item.get('workflow_status'), str) or not isinstance(item.get('result'), dict)):
+            raise ValueError('Invalid experiment run record')
+        control = item['result'].get('control')
+        if control is not None and not isinstance(control, dict):
+            raise ValueError('Invalid experiment control record')
     case = core.load_contract(folder / 'case.json')
     if digest(case) != value['contract_sha256'] or evaluator() != value['evaluator_sha256']:
         raise ValueError('Frozen case or evaluator changed; prepare a new experiment')

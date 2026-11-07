@@ -87,11 +87,14 @@
       setExperimentError(null)
       setActiveExperiment({ id: row.experiment_id, action })
       try {
-        await api('/experiments/' + row.experiment_id + '/' + action, {
+        const result = await api('/experiments/' + row.experiment_id + '/' + action, {
           method: 'POST', body: JSON.stringify(action === 'watch' ? { enabled: !row.watching } : {})
         })
+        if (action === 'watch') setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, watching: !!result.watching } : item))
         await load()
       } catch (err) {
+        setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, status: 'UNAVAILABLE' } : item))
+        await load()
         setExperimentError({ id: row.experiment_id, message: String(err.message || err) })
       } finally { setBusy(false); setActiveExperiment(null) }
     }

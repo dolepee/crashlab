@@ -33,3 +33,19 @@ class ExperimentApiTests(unittest.TestCase):
         with self.assertRaises(fastapi.HTTPException) as exc:
             asyncio.run(api.experiment_run('../outside'))
         self.assertEqual(exc.exception.status_code,400)
+
+    def test_corrupt_metadata_does_not_hide_other_experiments_or_opt_out(self):
+        from dashboard import plugin_api as api
+        import repair_workflow as w
+        import completion_reminder as reminders
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ,CRASHLAB_DATA_DIR=tmp):
+            project=Path(tmp)/'app';project.mkdir();subprocess.run(['git','init','-q',str(project)],check=True)
+            (project/'app.py').write_text('# app\n')
+            case=json.loads((w.core.ROOT/'cases/checkout-local.json').read_text());case['app']['start']['cwd']=str(project)
+            bad=w.prepare(str(project),'first case',case)['experiment_id'];reminders.watch(bad,True)
+            good=w.prepare(str(project),'second case',case)['experiment_id']
+            (w.directory(bad)/'experiment.json').write_text('null')
+            rows=asyncio.run(api.experiments())['experiments'];byid={r['experiment_id']:r for r in rows}
+            self.assertEqual(byid[bad]['status'],'UNAVAILABLE');self.assertTrue(byid[bad]['watching'])
+            self.assertEqual(byid[good]['status'],'PREPARED')
+            self.assertFalse(asyncio.run(api.experiment_watch(bad,api.WatchRequest(enabled=False)))['watching'])
