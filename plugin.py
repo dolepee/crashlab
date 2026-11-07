@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 
 try:
     from . import crashlab_core as core
@@ -50,7 +51,7 @@ TOOL_SCHEMAS = [
     },
     {
         "name": "crashlab_list",
-        "description": "List available CrashLab contracts.",
+        "description": "List bundled saved cases, including self-starting fixtures and setup requirements.",
         "parameters": {"type": "object", "properties": {}, "additionalProperties": False},
     },
 ]
@@ -65,8 +66,7 @@ def _handler(name: str):
             contract = core.load_contract(kwargs["contract_path"])
             return {"ok": True, "contract": contract}
         if name == "crashlab_run":
-            return core.persist_run(core.run_contract(
-                kwargs["contract_path"], base_url=kwargs.get("base_url")))
+            return core.run_and_persist(kwargs["contract_path"], base_url=kwargs.get("base_url"))
         if name == "crashlab_compare":
             return core.compare(kwargs["contract_path"], kwargs["buggy_url"], kwargs["fixed_url"])
         if name == "crashlab_list":
@@ -77,35 +77,39 @@ def _handler(name: str):
     return call
 
 
+def _verdict(run: dict) -> str:
+    return run.get("status") or ("ERROR" if run.get("error") else "PASS" if run.get("ok") else "FAIL")
+
+
 def _slash(raw_args: str) -> str:
-    args = raw_args.strip().split()
+    try:
+        args = shlex.split(raw_args)
+    except ValueError:
+        return 'Usage: /crashlab run "path/to/case.json" (close any quoted path)'
     if not args or args[0] in ("status", "latest"):
         run = core.latest_run()
         if not run:
             return "CrashLab: no saved run yet. Use /crashlab run <case.json>."
-        state = "PASS" if run.get("ok") else "FAIL"
+        state = _verdict(run)
         return (f"CrashLab · {state} · {run.get('contract', '?')}\n"
                 f"{run.get('observed', '?')} observed / {run.get('expected', '?')} expected\n"
-                f"{run.get('diagnosis') or 'No diagnosis recorded.'}\n"
+                f"{run.get('error') or run.get('diagnosis') or 'No diagnosis recorded.'}\n"
                 f"{run.get('evidence_path') or ''}").strip()
     if args[0] in ("runs", "log"):
         rows = core.list_runs(10)
         if not rows:
             return "CrashLab: no saved runs."
         return "\n".join(
-            f"{row.get('run_id', '?')} · {'PASS' if row.get('ok') else 'FAIL'} · "
+            f"{row.get('run_id', '?')} · {_verdict(row)} · "
             f"{row.get('contract', '?')} · {row.get('observed', '?')}/{row.get('expected', '?')}"
             for row in rows)
     if args[0] == "run":
-        if len(args) < 2:
+        if len(args) != 2:
             return "Usage: /crashlab run <case.json>"
         path = args[1]
-        try:
-            result = core.persist_run(core.run_contract(path))
-        except Exception as exc:
-            return f"CrashLab: {exc}"
-        return (f"CrashLab · {'PASS' if result.get('ok') else 'FAIL'} · {result.get('contract')}\n"
-                f"{result.get('diagnosis')}\n{result.get('evidence_path')}")
+        result = core.run_and_persist(path)
+        return (f"CrashLab · {_verdict(result)} · {result.get('contract')}\n"
+                f"{result.get('error') or result.get('diagnosis') or 'No diagnosis recorded.'}\n{result.get('evidence_path')}")
     if args[0] in ("help", "?"):
         return ("/crashlab — latest result\n"
                 "/crashlab runs — recent runs\n"

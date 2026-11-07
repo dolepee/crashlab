@@ -2,7 +2,11 @@
   "id": "flaskr-create",
   "app": {
     "start": {
-      "command": ["/bin/sh", "-c", "{PYTHON} -m flask --app flaskr init-db && exec {PYTHON} -m flask --app flaskr run --host 127.0.0.1 --port {PORT}"],
+      "command": [
+        "/bin/sh",
+        "-c",
+        "{PYTHON} -m flask --app flaskr init-db && exec {PYTHON} -m flask --app flaskr run --host 127.0.0.1 --port {PORT}"
+      ],
       "python": "{PYTHON}",
       "cwd": "{APP_DIR}",
       "env": {},
@@ -12,23 +16,80 @@
     }
   },
   "journey": [
-    {"action": "goto", "path": "/auth/register"},
-    {"action": "wait_for_selector", "selector": "#username"},
-    {"action": "fill", "selector": "#username", "value": "crashlab"},
-    {"action": "fill", "selector": "#password", "value": "crashlab-password"},
-    {"action": "click", "selector": "input[type=submit]"},
-    {"action": "wait_for_url", "pattern": "**/auth/login"},
-    {"action": "fill", "selector": "#username", "value": "crashlab"},
-    {"action": "fill", "selector": "#password", "value": "crashlab-password"},
-    {"action": "click", "selector": "input[type=submit]"},
-    {"action": "wait_for_url", "pattern": "**/"},
-    {"action": "goto", "path": "/create"},
-    {"action": "wait_for_selector", "selector": "#title"},
-    {"action": "fill", "selector": "#title", "value": "CRASHLAB_FLASKR_CREATED"},
-    {"action": "fill", "selector": "#body", "value": "A valid transfer workflow."},
-    {"action": "click", "selector": "input[type=submit]"},
-    {"action": "wait_for_text", "text": "CRASHLAB_FLASKR_CREATED"},
-    {"action": "screenshot", "as": "created"}
+    {
+      "action": "goto",
+      "path": "/auth/register"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "#username"
+    },
+    {
+      "action": "fill",
+      "selector": "#username",
+      "value": "crashlab"
+    },
+    {
+      "action": "fill",
+      "selector": "#password",
+      "value": "crashlab-password"
+    },
+    {
+      "action": "click",
+      "selector": "input[type=submit]"
+    },
+    {
+      "action": "wait_for_url",
+      "pattern": "**/auth/login"
+    },
+    {
+      "action": "fill",
+      "selector": "#username",
+      "value": "crashlab"
+    },
+    {
+      "action": "fill",
+      "selector": "#password",
+      "value": "crashlab-password"
+    },
+    {
+      "action": "click",
+      "selector": "input[type=submit]"
+    },
+    {
+      "action": "wait_for_url",
+      "pattern": "**/"
+    },
+    {
+      "action": "goto",
+      "path": "/create"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "#title"
+    },
+    {
+      "action": "fill",
+      "selector": "#title",
+      "value": "CRASHLAB_FLASKR_CREATED"
+    },
+    {
+      "action": "fill",
+      "selector": "#body",
+      "value": "A valid transfer workflow."
+    },
+    {
+      "action": "click",
+      "selector": "input[type=submit]"
+    },
+    {
+      "action": "wait_for_text",
+      "text": "CRASHLAB_FLASKR_CREATED"
+    },
+    {
+      "action": "screenshot",
+      "as": "created"
+    }
   ],
   "state": {
     "mode": "sqlite",
@@ -37,5 +98,8 @@
     "where": "title='CRASHLAB_FLASKR_CREATED'",
     "expect": 1
   },
-  "evidence": {"screenshot_dir": "{DATA_DIR}/shots"}
+  "evidence": {
+    "screenshot_dir": "{DATA_DIR}/shots"
+  },
+  "setup_required": "Clone the Flask tutorial and install its requirements. Set app.start.cwd and app.start.python to that checkout and interpreter, update state.db, then remove setup_required."
 }
