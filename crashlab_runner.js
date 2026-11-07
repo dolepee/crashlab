@@ -54,7 +54,7 @@ function nowId() {
         try { requests.push(route.request().postDataJSON()); }
         catch { requests.push(null); }
       }
-      if (interrupted) return route.continue();
+      if (phase !== 'primary' || interrupted) return route.continue();
       interrupted = true;
       faultMatched = true;
       if (contract.fault.mode === 'suppress_after_upstream') {
@@ -64,7 +64,7 @@ function nowId() {
         // browser sees a failure and before the retry can run.
         try {
           faultState = await readState(contract.state);
-          faultContentsValid = matches({...faultState, expected: faultState.observed}, contract.state);
+          faultContentsValid = matches({...faultState, expected: faultState.observed}, contract.state, true);
         } catch (err) {
           faultState = { error: String(err) };
         }
@@ -201,7 +201,7 @@ function nowId() {
     };
   }
 
-  function matches(state, spec) {
+  function matches(state, spec, allowDuplicates = false) {
     if (state.observed !== state.expected) return false;
     const fields = spec.record_fields || {};
     if (Object.keys(fields).length && state.records.length !== state.observed) return false;
@@ -213,7 +213,8 @@ function nowId() {
       if (expected.some(values => values.some(value => value === undefined || value === null || value === ''))) return false;
       const signatures = new Set(expected.map(values => JSON.stringify(values)));
       const actual = state.records.map(row => JSON.stringify(mapping.map(([column]) => row[column])));
-      if (actual.length !== signatures.size || new Set(actual).size !== actual.length) return false;
+      if (!allowDuplicates && (actual.length !== signatures.size || new Set(actual).size !== actual.length)) return false;
+      if ([...signatures].some(signature => !actual.includes(signature))) return false;
       if (actual.some(signature => !signatures.has(signature))) return false;
     }
     return true;
@@ -227,6 +228,21 @@ function nowId() {
     // Keep interception for request identity capture; fault only fires once.
     const primary = await readState(contract.state);
     const primaryOK = matches(primary, contract.state);
+    const scenario = contract.fault
+        ? {
+            matched: faultMatched,
+            delivered: faultDelivered,
+            upstream_status: upstreamStatus,
+            committed_after_fault: faultState?.observed ?? null,
+            valid: faultMatched
+              && faultDelivered
+              && Number.isFinite(upstreamStatus)
+              && upstreamStatus >= 200 && upstreamStatus < 300
+              && Number.isFinite(faultState?.observed)
+              && faultState.observed >= 1
+              && faultContentsValid,
+          }
+        : { matched: true, valid: true };
     let control = null;
     if (contract.control) {
       await reset();
@@ -248,21 +264,7 @@ function nowId() {
       observations,
       status: primaryOK && (!control || control.ok) ? "PASS" : "FAIL",
       upstream_status: upstreamStatus,
-      scenario: contract.fault
-        ? {
-            matched: faultMatched,
-            delivered: faultDelivered,
-            upstream_status: upstreamStatus,
-            committed_after_fault: faultState?.observed ?? null,
-            valid: faultMatched
-              && faultDelivered
-              && Number.isFinite(upstreamStatus)
-              && upstreamStatus >= 200 && upstreamStatus < 300
-              && Number.isFinite(faultState?.observed)
-              && faultState.observed >= 1
-              && faultContentsValid,
-          }
-        : { matched: true, valid: true },
+      scenario,
       screenshots,
       records: primary.records,
       control,

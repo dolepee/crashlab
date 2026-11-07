@@ -51,6 +51,39 @@ class BrowserIntegrity(unittest.TestCase):
         self.assertEqual(result['status'], 'INVALID', result)
         self.assertIn('baseline', result['error'])
 
+    def test_duplicate_first_commit_is_valid_failure(self):
+        case = copy.deepcopy(self.case)
+        case['app']['start']['env']['BUGGY'] = '1'
+        case.pop('control')
+        # Duplicate each insert, including the first intercepted request.
+        source = self.source
+        source = source.replace('cur = con.execute("INSERT INTO orders(intent_key,item) VALUES(?,?)", (intent, item))', 'cur = con.execute("INSERT INTO orders(intent_key,item) VALUES(?,?)", (intent, item))\n                con.execute("INSERT INTO orders(intent_key,item) VALUES(?,?)", (intent, item))')
+        result = self.run_case(source, case)
+        self.assertFalse(result['ok'])
+        self.assertTrue(result['scenario']['valid'], result)
+        self.assertEqual(result['scenario']['committed_after_fault'], 2)
+        self.assertEqual(result['status'], 'FAIL')
+
+    def test_control_cannot_supply_missing_primary_fault(self):
+        case = copy.deepcopy(self.case)
+        case.pop('control')
+        case['fault']['route'] = '**/not-used'
+        case['state'].pop('request_fields')
+        case['journey'] = [
+            {'action': 'goto', 'path': '/'},
+            {'action': 'click', 'selector': '#buy'},
+            {'action': 'wait_for_text', 'text': 'Order confirmed'},
+        ]
+        # Control uses matching endpoint; it must not trigger the primary fault.
+        case['control'] = {'journey': copy.deepcopy(case['journey']), 'state': copy.deepcopy(case['state'])}
+        case['control']['journey'][0]['path'] = '/control'
+        source = self.source.replace('elif self.path == "/state":', 'elif self.path == "/control":\n            self._send(200, HTML.replace("/order", "/not-used"), "text/html")\n        elif self.path == "/state":').replace('if self.path != "/order":', 'if self.path not in ("/order", "/not-used"):')
+        result = self.run_case(source, case)
+        self.assertFalse(result['ok'])
+        self.assertEqual(result['status'], 'INVALID', result)
+        self.assertFalse(result['scenario']['matched'])
+        self.assertTrue(result['control']['ok'])
+
     def test_frozen_contract_survives_disk_change(self):
         path = self.root / 'case.json'
         path.write_text(json.dumps(self.case))
