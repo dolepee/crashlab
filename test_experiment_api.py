@@ -49,3 +49,13 @@ class ExperimentApiTests(unittest.TestCase):
             self.assertEqual(byid[bad]['status'],'UNAVAILABLE');self.assertTrue(byid[bad]['watching'])
             self.assertEqual(byid[good]['status'],'PREPARED')
             self.assertFalse(asyncio.run(api.experiment_watch(bad,api.WatchRequest(enabled=False)))['watching'])
+
+    def test_corrupt_labels_are_not_forwarded_as_react_children(self):
+        from dashboard import plugin_api as api
+        import repair_workflow as w
+        with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ,CRASHLAB_DATA_DIR=tmp):
+            eid='b'*32;folder=w.directory(eid);folder.mkdir(parents=True)
+            (folder/'experiment.json').write_text(json.dumps({'intent':{'broken':'label'},'project_path':['broken']}))
+            row=asyncio.run(api.experiments())['experiments'][0]
+            self.assertEqual(row['status'],'UNAVAILABLE')
+            self.assertIsNone(row['intent']);self.assertIsNone(row['project_path'])

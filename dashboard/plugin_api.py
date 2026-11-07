@@ -127,7 +127,7 @@ def _experiments() -> dict:
             row = workflow.status(eid)
         except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
             saved = _read(path)
-            row = {'experiment_id': eid, 'intent': saved.get('intent'), 'project_path': saved.get('project_path'), 'status': 'UNAVAILABLE', 'error': ('Cannot check the project source. Restore access to its Git repository, then refresh.' if isinstance(exc, subprocess.SubprocessError) else 'Experiment evidence is unavailable. Restore the saved case and project, or ask Hermes to prepare a new experiment.'), 'error_detail': str(exc)}
+            row = {'experiment_id': eid, 'intent': saved.get('intent') if isinstance(saved.get('intent'), str) else None, 'project_path': saved.get('project_path') if isinstance(saved.get('project_path'), str) else None, 'status': 'UNAVAILABLE', 'error': ('Cannot check the project source. Restore access to its Git repository, then refresh.' if isinstance(exc, subprocess.SubprocessError) else 'Experiment evidence is unavailable. Restore the saved case and project, or ask Hermes to prepare a new experiment.'), 'error_detail': str(exc)}
         row['watching'] = eid in watched
         rows.append(row)
     return {'experiments': rows}

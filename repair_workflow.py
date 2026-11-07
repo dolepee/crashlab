@@ -102,9 +102,22 @@ def load(experiment_id):
         if (not isinstance(item, dict) or not isinstance(item.get('project_sha256'), str)
                 or not isinstance(item.get('workflow_status'), str) or not isinstance(item.get('result'), dict)):
             raise ValueError('Invalid experiment run record')
-        control = item['result'].get('control')
+        result = item['result']
+        for key in ('status', 'diagnosis', 'error', 'evidence_path'):
+            if result.get(key) is not None and not isinstance(result[key], str):
+                raise ValueError('Invalid experiment result label')
+        for key in ('observed', 'expected'):
+            if result.get(key) is not None and type(result[key]) not in (int, float):
+                raise ValueError('Invalid experiment result count')
+        control = result.get('control')
         if control is not None and not isinstance(control, dict):
             raise ValueError('Invalid experiment control record')
+        if isinstance(control, dict):
+            if type(control.get('ok')) is not bool:
+                raise ValueError('Invalid experiment control verdict')
+            for key in ('observed', 'expected'):
+                if control.get(key) is not None and type(control[key]) not in (int, float):
+                    raise ValueError('Invalid experiment control count')
     case = core.load_contract(folder / 'case.json')
     if digest(case) != value['contract_sha256'] or evaluator() != value['evaluator_sha256']:
         raise ValueError('Frozen case or evaluator changed; prepare a new experiment')
