@@ -5,7 +5,7 @@ description: Verify a lost-response repair on a disposable local browser app, pr
 
 Start from the user's local project and intended behavior. Inspect the app's launch instructions, browser form, write endpoint, SQLite schema and retry behavior. Explain missing dependencies or unsupported storage before starting. Never change the evaluator to accommodate an app.
 
-Build a case using the schema in the bundled cases and external Kist example. Map captured request fields to persisted intent and content fields; include two deliberate operations as a control. Use an explicit absolute app.start.cwd in the Git project. App startup must use disposable data outside tracked source. Keep contracts and evidence outside the app checkout.
+Use the structured contract schema exposed by crashlab_prepare. The quick reference below covers the supported path; inspect a bundled example only for an unclear detail, rather than reading evaluator internals. Map captured request fields to persisted intent and content fields; include two deliberate operations as a control. Use an explicit absolute app.start.cwd in the Git project. App startup must use disposable data outside tracked source. Keep contracts and evidence outside the app checkout.
 
 Call crashlab_prepare with project_path, the user's intent and the case object. Show the proposed behavior, interruption and assertions. Do not claim the user approved an assertion they did not provide or confirm. Resolve ambiguity with the user before testing a guessed requirement.
 
@@ -18,3 +18,32 @@ with the experiment ID and enabled=true. The project-scoped pre_verify hook asks
 for another turn when matching absolute-path edits lack current VERIFIED evidence.
 Hermes caps these reminders; this does not guarantee execution or prevent a final
 answer. Disable with enabled=false when the user stops that experiment.
+
+## Case construction quick reference
+
+- `app.start`: installed interpreter (`python`), argv (`command`), absolute `cwd`,
+  loopback `base_url` using `{PORT}`, optional `env`, `health_path` and `setup`.
+  `{DATA_DIR}` is a fresh disposable directory for each run; configure the app
+  and the SQLite observer to use the same `{DATA_DIR}/database.sqlite` path.
+  The application must be initialized there at startup. Existing source data must
+  not be overwritten. `{ROOT}` means the plugin root, not the app root.
+- `journey`: `goto` with `path`; `fill` with `selector` and `value`; `click` with
+  `selector`; `wait_for_url` with glob `pattern`; `wait_for_fault`; `reload`;
+  `wait_for_text` with `text`; `screenshot` with `as`. Additional supported steps
+  are listed in the prepare schema. Use observable waits rather than sleeps.
+- `fault`: endpoint URL glob `route`, HTTP `method`,
+  `mode: suppress_after_upstream`, `occurrence: 1`.
+- Native HTML forms: submit, wait for fault delivery, then `reload` resubmits the
+  original POST. JSON/fetch apps: submit, wait for fault, then click the app's
+  retry button. Capture is supported for both JSON and URL-encoded form fields.
+- `state`: prefer `mode: sqlite`, `db`, `table`, a scoped `where`, `expect: 1`,
+  `record_fields` for exact content, and `request_fields` mapping database columns
+  to top-level submitted field names. Primary fault baselines must be empty.
+- `control`: a second `journey` and `state`. It runs in the same app/browser
+  session after the primary. Use a distinct marker for its record scope and
+  create two deliberate identical records, `expect: 2`; exclude the primary row.
+  Authentication can be performed declaratively at the start of the main journey.
+
+Preserve existing database compatibility when repairing schema. If migration is
+not implemented and tested, explicitly limit the result to fresh databases. Run
+available app regression tests and report unavailable dependencies accurately.
