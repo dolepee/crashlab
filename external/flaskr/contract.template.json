@@ -7,7 +7,7 @@
       "command": [
         "{PYTHON}",
         "-c",
-        "from flaskr import create_app; from flaskr.db import init_db; app = create_app({'DATABASE': '{DATA_DIR}/flaskr.sqlite'}); ctx = app.app_context(); ctx.push(); init_db(); ctx.pop(); app.run(host='127.0.0.1', port={PORT}, use_reloader=False)"
+        "from pathlib import Path; from flaskr import create_app; from flaskr.db import init_db; app = create_app({'DATABASE': '{DATA_DIR}/flaskr.sqlite'}); ctx = app.app_context(); ctx.push(); init_db() if not Path(app.config['DATABASE']).exists() else None; ctx.pop(); app.run(host='127.0.0.1', port={PORT}, use_reloader=False)"
       ],
       "base_url": "http://127.0.0.1:{PORT}",
       "health_path": "/"

@@ -151,3 +151,22 @@ async def experiment_watch(experiment_id: str, request: WatchRequest) -> dict:
         return await asyncio.to_thread(completion_reminder.watch, experiment_id, request.enabled)
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get('/experiments/{experiment_id}/report')
+async def experiment_report(experiment_id: str, run_index: int | None = None) -> dict:
+    import repair_workflow as workflow
+    try:
+        return await asyncio.to_thread(workflow.report, experiment_id, run_index)
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post('/experiments/{experiment_id}/export')
+async def experiment_export(experiment_id: str) -> dict:
+    import repair_workflow as workflow
+    try:
+        exported = await asyncio.to_thread(workflow.export_experiment, experiment_id)
+        return {**exported, 'bundle': json.loads(Path(exported['bundle_path']).read_text())}
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

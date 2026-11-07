@@ -32,7 +32,7 @@ def explain_run(result: dict) -> str:
         return f"Run failed before a verdict: {result['error']}"
     scenario = result.get("scenario") or {}
     if scenario.get("valid") is False:
-        return "The fault did not commit a write, so this run is not evidence."
+        return "The configured fault boundary was not established, so this run is not evidence."
     if (result.get('recovery') or {}).get('ok') is False:
         return 'Recovery was not established: ' + result['recovery'].get('reason', 'Inspect the captured requests.')
     observed, expected = result.get("observed"), result.get("expected")
@@ -176,7 +176,7 @@ def _validate_journey(journey: list, where: str) -> None:
                          "press", "wait_for_selector", "wait_for_text", "wait_for_url",
                          "wait_for_fault", "wait_for_count", "wait_for_value", "wait_for_any",
                          "wait_for_load_state", "wait_for_timeout",
-                         "reload", "text", "screenshot"):
+                         "restart_app", "reload", "text", "screenshot"):
             raise ValueError(f"{name}.action is unsupported")
         if action in ("click", "fill", "check", "uncheck", "select_option", "press",
                       "wait_for_selector", "text"):
@@ -252,8 +252,8 @@ def validate_contract(contract: dict) -> dict:
     if fault is not None:
         if not isinstance(fault, dict):
             raise ValueError("fault must be an object")
-        if fault.get("mode") != "suppress_after_upstream":
-            raise ValueError("fault.mode must be suppress_after_upstream")
+        if fault.get("mode") not in ('suppress_after_upstream', 'prevent_before_delivery'):
+            raise ValueError("fault.mode must be suppress_after_upstream or prevent_before_delivery")
         if not isinstance(fault.get("route"), str) or not fault["route"]:
             raise ValueError("fault.route is required")
         if fault.get("method") is not None and fault["method"] not in ("GET", "POST", "PUT", "PATCH", "DELETE"):
@@ -270,6 +270,26 @@ def validate_contract(contract: dict) -> dict:
                     raise ValueError(f'recovery.{field} is required for reconciliation')
             if recovery['route'] == fault['route']:
                 raise ValueError('recovery.route must differ from the interrupted write route')
+    campaign = contract.get('recovery_campaign')
+    if campaign is not None:
+        if not contract.get('control'):
+            raise ValueError('Recovery campaigns require a legitimate-use control')
+        allowed = {'before_delivery', 'after_commit', 'restart_after_commit'}
+        if (not fault or not isinstance(campaign, list) or not campaign
+                or any(not isinstance(name, str) or name not in allowed for name in campaign)
+                or len(set(campaign)) != len(campaign)):
+            raise ValueError('recovery_campaign must contain unique before_delivery, after_commit or restart_after_commit scenarios')
+        if recovery and recovery['mode'] != 'retry':
+            raise ValueError('Recovery campaigns require retry recovery; run reconciliation as a separate post-commit case')
+        if 'restart_after_commit' in campaign and sum(s['action']=='wait_for_fault' for s in contract['journey']) != 1:
+            raise ValueError('Restart campaign needs one wait_for_fault recovery boundary in journey')
+        if 'restart_after_commit' in campaign and any(s['action']=='restart_app' for s in contract['journey']):
+            raise ValueError('Restart campaign inserts restart_app; do not also add a manual restart')
+    if any(s['action']=='restart_app' for s in contract['journey']) or campaign and 'restart_after_commit' in campaign:
+        if not start:
+            raise ValueError('restart_app requires a managed app.start')
+    if sum(s['action']=='restart_app' for s in contract['journey']) > 1:
+        raise ValueError('Only one app restart per scenario is supported')
     control = contract.get("control")
     if control is not None:
         if not isinstance(control, dict):
@@ -405,7 +425,8 @@ def _stop_process(proc: subprocess.Popen) -> None:
             pass
 
 
-def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, str, Path, Any, Path]:
+def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = None,
+               port_override: int | None = None, initialize: bool = True) -> tuple[subprocess.Popen, str, Path, Any, Path]:
     app = contract["app"]
     start = app.get("start")
     if not isinstance(start, dict):
@@ -418,12 +439,12 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
     app_python = str(start.get("python") or sys.executable)
     if app_python == "{PYTHON}":
         app_python = sys.executable
-    port = start.get("port")
+    port = port_override if port_override is not None else start.get("port")
     if port is None:
         port = _free_port()
     if type(port) is not int or not 1 <= port <= 65535:
         raise ValueError("app.start.port must be an integer port")
-    data = Path(tempfile.mkdtemp(prefix="crashlab-app-"))
+    data = data_dir if data_dir is not None else Path(tempfile.mkdtemp(prefix="crashlab-app-"))
     command = [_expand_start(item, contract_dir=contract_dir, data=data, port=port, python=app_python)
                for item in command]
     cwd = Path(_expand_start(start.get("cwd", "."), contract_dir=contract_dir, data=data, port=port)).expanduser()
@@ -440,7 +461,7 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
         env[key] = str(_expand_start(value, contract_dir=contract_dir, data=data, port=port))
     (data / "home").mkdir(parents=True, exist_ok=True)
     log = data / "app.log"
-    log_handle = log.open("w", encoding="utf-8")
+    log_handle = log.open("a" if data_dir is not None else "w", encoding="utf-8")
     proc = subprocess.Popen(
         command,
         cwd=cwd, env=env, stdout=log_handle, stderr=subprocess.STDOUT,
@@ -449,6 +470,7 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
     if os.name == "posix":
         # start_new_session makes the process group id equal to the child pid.
         proc._crashlab_pgid = proc.pid
+    proc._crashlab_port = port
     try:
         base = str(_expand_start(start.get("base_url") or f"http://127.0.0.1:{port}",
                                  contract_dir=contract_dir, data=data, port=port))
@@ -462,7 +484,7 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
             try:
                 with urllib.request.urlopen(base.rstrip("/") + health, timeout=0.5) as response:
                     if response.status < 500:
-                        for step in start.get("setup", []):
+                        for step in start.get("setup", []) if initialize else []:
                             if not isinstance(step, dict) or not isinstance(step.get("path"), str):
                                 raise ValueError("app.start.setup steps need a path")
                             payload = None
@@ -489,13 +511,54 @@ def _start_app(contract: dict, contract_dir: Path) -> tuple[subprocess.Popen, st
         raise
 
 
+def _run_with_restart(argv, env, timeout, restart):
+    """One bounded file-IPC request; app receives no control path or credentials."""
+    with tempfile.TemporaryDirectory(prefix='crashlab-control-') as temporary:
+        directory = Path(temporary)
+        runner = subprocess.Popen(argv, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                  text=True, env={**env, 'CRASHLAB_CONTROL_DIR': temporary},
+                                  start_new_session=(os.name == 'posix'))
+        if os.name == 'posix':
+            runner._crashlab_pgid = runner.pid
+        deadline = time.monotonic() + timeout
+        handled = False
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(argv, timeout)
+                try:
+                    stdout, stderr = runner.communicate(timeout=min(.1, remaining))
+                    return subprocess.CompletedProcess(argv, runner.returncode, stdout, stderr)
+                except subprocess.TimeoutExpired:
+                    request = directory / 'restart.request.json'
+                    if request.exists() and not handled:
+                        handled = True
+                        try:
+                            if json.loads(request.read_text()) != {'action': 'restart'}:
+                                raise ValueError('Invalid restart request')
+                            reply = {'ok': True, **restart()}
+                        except Exception as exc:
+                            reply = {'ok': False, 'error': str(exc)}
+                        pending = directory / 'reply.tmp'
+                        pending.write_text(json.dumps(reply))
+                        pending.replace(directory / 'restart.reply.json')
+        finally:
+            if runner.poll() is None:
+                _stop_process(runner)
+            runner.communicate()
+
+
 def run_contract(contract_path: str | Path, base_url: str | None = None,
                  timeout: int = 120, *, frozen_contract: dict | None = None) -> dict:
     contract = copy.deepcopy(frozen_contract) if frozen_contract is not None else load_contract(contract_path)
+    if contract.get('recovery_campaign'):
+        return run_recovery_campaign(contract_path, contract, base_url=base_url, timeout=timeout)
     if contract.get("setup_required"):
         raise ValueError(f"Case setup required: {contract['setup_required']}")
     contract_dir = Path(contract_path).expanduser().resolve().parent
     started = None
+    lifecycle = []
     try:
         if base_url:
             contract["app"]["base_url"] = base_url
@@ -522,11 +585,29 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 json.dump(contract, fh)
-            proc = subprocess.run(
-                [_node(), str(RUNNER), temp_path],
-                cwd=ROOT, capture_output=True, text=True, timeout=timeout,
-                env={**os.environ, "PYTHON_BINARY": sys.executable},
-            )
+            argv = [_node(), str(RUNNER), temp_path]
+            env = {**os.environ, "PYTHON_BINARY": sys.executable}
+            if any(s['action']=='restart_app' for s in contract['journey']):
+                if started is None:
+                    raise ValueError('Restart requires the app to be started and owned by CrashLab')
+                def restart():
+                    nonlocal started, log_handle
+                    old_pid, port = started.pid, started._crashlab_port
+                    _stop_process(started)
+                    log_handle.close()
+                    started, restarted_base, _, log_handle, reused_data = _start_app(
+                        contract, contract_dir, data_dir=app_data, port_override=port, initialize=False)
+                    if restarted_base != contract['app']['base_url'] or reused_data != app_data:
+                        raise RuntimeError('Restart changed the app URL or data directory')
+                    event = {'old_pid': old_pid, 'new_pid': started.pid,
+                             'same_port': True, 'same_data_directory': True,
+                             'setup_replayed': False, 'reset_replayed': False}
+                    lifecycle.append(event)
+                    return event
+                proc = _run_with_restart(argv, env, timeout, restart)
+            else:
+                proc = subprocess.run(argv, cwd=ROOT, capture_output=True, text=True,
+                                      timeout=timeout, env=env)
         finally:
             Path(temp_path).unlink(missing_ok=True)
     finally:
@@ -542,13 +623,14 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
             "stdout": proc.stdout[-2000:], "stderr": proc.stderr[-2000:],
         }
     result["returncode"] = proc.returncode
+    result['app_lifecycle'] = lifecycle
     if proc.returncode == 2:
         result["ok"] = False
     return result
 
 
 def _completed_assertion(run: dict, *, passed: bool) -> bool:
-    """Require a measured outcome from a fault that actually committed."""
+    """Require a measured outcome at the configured, valid recovery boundary."""
     scenario = run.get("scenario")
     if not isinstance(scenario, dict) or scenario.get("valid") is not True:
         return False
@@ -607,6 +689,47 @@ def run_and_persist(contract_path: str | Path, base_url: str | None = None) -> d
         result = {"ok": False, "status": "ERROR", "contract": Path(contract_path).stem,
                   "error": f"{type(exc).__name__}: {exc}"}
     return persist_run(result)
+
+
+def run_recovery_campaign(contract_path, frozen, *, base_url=None, timeout=120):
+    """Derive each recovery boundary from one frozen operation, without editing it."""
+    if base_url and 'restart_after_commit' in frozen['recovery_campaign']:
+        raise ValueError('Restart campaign requires its managed app.start, not an external base_url override')
+    prepared = []
+    for name in frozen['recovery_campaign']:
+        case = copy.deepcopy(frozen)
+        case.pop('recovery_campaign')
+        case['id'] = frozen['id'] + '-' + name
+        case['fault']['mode'] = 'prevent_before_delivery' if name == 'before_delivery' else 'suppress_after_upstream'
+        if name == 'restart_after_commit':
+            boundary = next(i for i, step in enumerate(case['journey']) if step['action']=='wait_for_fault')
+            case['journey'].insert(boundary + 1, {'action':'restart_app'})
+        validate_contract(case)
+        prepared.append((name,case))
+    outcomes = []
+    for name,case in prepared:
+        result = run_contract(contract_path, base_url=base_url, timeout=timeout, frozen_contract=case)
+        result['diagnosis'] = explain_run(result)
+        result['case_sha256'] = hashlib.sha256(json.dumps(case,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+        outcomes.append({'name':name, 'result':result})
+    results = [item['result'] for item in outcomes]
+    valid = all((r.get('scenario') or {}).get('valid') is True and not r.get('error') for r in results)
+    passed = valid and all(r.get('ok') is True for r in results)
+    representative = next((r for r in results if not r.get('ok')), results[-1])
+    controls = [r.get('control') or {} for r in results]
+    control_ok = all(c.get('ok') is True for c in controls)
+    return {'contract':frozen['id'], 'kind':'recovery_campaign', 'cases':outcomes,
+            'ok':passed, 'primary_ok':all(r.get('primary_ok') is True for r in results),
+            'status':'PASS' if passed else 'FAIL' if valid else 'ERROR',
+            'error':None if valid else 'One or more recovery scenarios did not complete a valid measurement; inspect cases.',
+            'returncode':0 if passed else 1 if valid else 2,
+            'observed':representative.get('observed'), 'expected':representative.get('expected'),
+            'representative_scenario':next(item['name'] for item in outcomes if item['result'] is representative),
+            'scenario':{'valid':valid},
+            'recovery':{'ok':all((r.get('recovery') or {}).get('ok') is True for r in results),
+                        'reason':'Inspect each recorded recovery boundary.'},
+            'control':{'ok':control_ok, 'observed':sum(c.get('observed',0) for c in controls),
+                       'expected':sum(c.get('expected',0) for c in controls)}}
 
 
 def case_directory() -> Path:

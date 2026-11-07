@@ -33,6 +33,18 @@ function nowId() {
   let requests = [];
   let phase = "primary";
   const network = [];
+  const events = [];
+  const startedAt = Date.now();
+  function recordEvent(kind, data) {
+    const event = { sequence: events.length + 1, elapsed_ms: Date.now() - startedAt, phase, kind, ...data };
+    events.push(event);
+    return event;
+  }
+  function canonical(value) {
+    const ordered = item => Array.isArray(item) ? item.map(ordered)
+      : item && typeof item === 'object' ? Object.fromEntries(Object.keys(item).sort().map(key => [key, ordered(item[key])])) : item;
+    return JSON.stringify(ordered(value));
+  }
   const recoverySpec = contract.recovery || { mode: 'retry' };
   let initialRequest = null;
   let faultAbortStarted = false;
@@ -41,7 +53,7 @@ function nowId() {
   function requestEvidence(request) {
     let body = null;
     try { body = request.postDataJSON(); } catch {}
-    return { sequence: network.length + 1, phase, method: request.method(),
+    return { method: request.method(),
       url: request.url(), body, raw_body: request.postData(), after_interruption: faultAbortStarted };
   }
 
@@ -61,7 +73,7 @@ function nowId() {
     await page.route(recoverySpec.route, async route => {
       const request = route.request();
       if (phase !== 'primary' || !faultAbortStarted || request.method() !== 'GET') return route.continue();
-      const event = { ...requestEvidence(request), kind: 'reconciliation' };
+      const event = recordEvent('reconciliation', requestEvidence(request));
       network.push(event);
       const response = await route.fetch();
       event.status = response.status();
@@ -77,7 +89,7 @@ function nowId() {
         return route.fallback();
       }
       const spec = phase === 'primary' ? contract.state : contract.control.state;
-      const event = { ...requestEvidence(route.request()), kind: 'write' };
+      const event = recordEvent('write', requestEvidence(route.request()));
       network.push(event);
       if (spec.request_fields) {
         try { requests.push(route.request().postDataJSON()); }
@@ -102,6 +114,7 @@ function nowId() {
         try {
           faultState = await readState(contract.state);
           faultContentsValid = matches({...faultState, expected: faultState.observed}, contract.state, true);
+          recordEvent('committed_state', { state: faultState });
         } catch (err) {
           faultState = { error: String(err) };
         }
@@ -114,13 +127,26 @@ function nowId() {
               faultError = new Error('Interrupted navigation did not settle: ' + error.message);
             })
           : Promise.resolve();
+        const interruption = recordEvent('interruption', { mode: contract.fault.mode, completed: false });
         faultAbortStarted = true;
         await route.abort('failed');
         await navigationSettled;
         faultDelivered = !faultError;
+        interruption.completed = faultDelivered;
       } else {
+        // Never forward this request. An empty observed state is the expected
+        // pre-delivery boundary, not a failed post-commit measurement relabeled.
+        faultState = await readState(contract.state);
+        recordEvent('undelivered_state', { state: faultState });
+        const interruption = recordEvent('interruption', { mode: contract.fault.mode, completed: false });
+        faultAbortStarted = true;
+        const settled = route.request().isNavigationRequest() && route.request().frame() === page.mainFrame()
+          ? page.waitForEvent('domcontentloaded', { timeout: 10000 }).catch(error => { faultError = error; })
+          : Promise.resolve();
         await route.abort('failed');
-        faultDelivered = true;
+        await settled;
+        faultDelivered = !faultError;
+        interruption.completed = faultDelivered;
       }
     });
   }
@@ -206,6 +232,30 @@ function nowId() {
         await page.waitForTimeout(step.ms);
       } else if (step.action === 'reload') {
         await page.reload({ waitUntil: 'domcontentloaded' });
+      } else if (step.action === 'restart_app') {
+        if (phase !== 'primary' || !faultDelivered) throw new Error('restart_app must follow the delivered primary fault');
+        const directory = process.env.CRASHLAB_CONTROL_DIR;
+        if (!directory) throw new Error('restart_app requires a CrashLab-managed app.start');
+        const before = await readState(contract.state);
+        const event = recordEvent('restart', { completed: false, state_before: before });
+        if (!before.records_available) throw new Error('Restart preservation requires a record-level observer, not a numeric-only HTTP count');
+        const request = path.join(directory, 'restart.request.json');
+        if (fs.existsSync(request)) throw new Error('Only one restart per scenario is supported');
+        const pending = path.join(directory, 'request.tmp');
+        fs.writeFileSync(pending, JSON.stringify({ action: 'restart' }));
+        fs.renameSync(pending, request);
+        const reply = path.join(directory, 'restart.reply.json');
+        await waitFor(() => fs.existsSync(reply), (contract.app.start?.ready_timeout || 30) * 1000 + 15000, 'managed app restart did not finish');
+        const lifecycle = JSON.parse(fs.readFileSync(reply, 'utf8'));
+        if (!lifecycle.ok) throw new Error('Managed app restart failed: ' + lifecycle.error);
+        const after = await readState(contract.state);
+        const rows = state => state.records.map(canonical).sort();
+        event.state_after = after;
+        event.lifecycle = lifecycle;
+        event.scoped_records_preserved = after.records_available && before.observed === after.observed
+          && JSON.stringify(rows(before)) === JSON.stringify(rows(after));
+        if (!event.scoped_records_preserved) throw new Error('Restart did not preserve the observed durable records');
+        event.completed = true;
       } else if (step.action === 'text') {
         observations[step.as || 'text'] = await page.textContent(step.selector);
       } else if (step.action === 'screenshot') {
@@ -233,6 +283,7 @@ function nowId() {
         observed: records.length,
         expected: Number(spec.expect),
         records,
+        records_available: true,
         observer: 'sqlite',
         db: path.resolve(path.dirname(contractPath), db),
       };
@@ -245,6 +296,7 @@ function nowId() {
       observed: Array.isArray(records) ? records.length : Number(records),
       expected: Number(spec.expect),
       records: Array.isArray(records) ? records : [],
+      records_available: Array.isArray(records),
       observer: 'http',
     };
   }
@@ -274,11 +326,6 @@ function nowId() {
     if (recoverySpec.mode === 'retry') {
       const sameBody = event => {
         if (event.body && initialRequest?.body) {
-          const keys = Object.values(contract.state.request_fields || {});
-          if (keys.length) return keys.every(key => initialRequest.body[key] !== undefined
-            && initialRequest.body[key] !== null && initialRequest.body[key] !== ''
-            && JSON.stringify(event.body[key]) === JSON.stringify(initialRequest.body[key]));
-          const canonical = body => JSON.stringify(Object.entries(body).sort(([a], [b]) => a.localeCompare(b)));
           return canonical(event.body) === canonical(initialRequest.body);
         }
         return event.raw_body === initialRequest?.raw_body;
@@ -307,10 +354,12 @@ function nowId() {
   try {
     await reset();
     baseline = await readState(contract.state);
+    recordEvent('baseline', { state: baseline });
     if (contract.fault && baseline.observed !== 0) throw new Error("INVALID: fault experiment requires an empty scoped baseline");
     await run(contract.journey);
     // Keep interception for request identity capture; fault only fires once.
     const primary = await readState(contract.state);
+    recordEvent('final_state', { state: primary });
     const recovery = recoveryEvidence(primary);
     const primaryOK = matches(primary, contract.state) && recovery.ok;
     const scenario = contract.fault
@@ -319,13 +368,13 @@ function nowId() {
             delivered: faultDelivered,
             upstream_status: upstreamStatus,
             committed_after_fault: faultState?.observed ?? null,
+            mode: contract.fault.mode,
             valid: faultMatched
               && faultDelivered
-              && Number.isFinite(upstreamStatus)
-              && upstreamStatus >= 200 && upstreamStatus < 300
-              && Number.isFinite(faultState?.observed)
-              && faultState.observed >= 1
-              && faultContentsValid,
+              && (contract.fault.mode === 'prevent_before_delivery'
+                ? upstreamStatus === null && faultState?.observed === 0
+                : Number.isFinite(upstreamStatus) && upstreamStatus >= 200 && upstreamStatus < 300
+                  && Number.isFinite(faultState?.observed) && faultState.observed >= 1 && faultContentsValid),
           }
         : { matched: true, valid: true };
     let control = null;
@@ -334,9 +383,11 @@ function nowId() {
       phase = 'control';
       requests = [];
       const controlBaseline = await readState(contract.control.state);
+      recordEvent('baseline', { state: controlBaseline });
       if (contract.fault && controlBaseline.observed !== 0) throw new Error('INVALID: control requires an empty scoped baseline');
       await run(contract.control.journey);
       const checked = await readState(contract.control.state);
+      recordEvent('final_state', { state: checked });
       control = { ...checked, ok: matches(checked, contract.control.state) };
     }
     const result = {
@@ -353,6 +404,7 @@ function nowId() {
       scenario,
       recovery,
       network,
+      events,
       baseline,
       state_after_interruption: faultState,
       screenshots,
@@ -365,7 +417,9 @@ function nowId() {
     await browser.close();
     process.exit(result.ok ? 0 : 1);
   } catch (err) {
-    console.log(JSON.stringify({ contract: contract.id, ok: false, status: String(err).includes("INVALID:") ? "INVALID" : "ERROR", error: String(err) }, null, 2));
+    console.log(JSON.stringify({ contract: contract.id, run_id: runId, ok: false,
+      status: String(err).includes("INVALID:") ? "INVALID" : "ERROR", error: String(err),
+      events, network, baseline, state_after_interruption: faultState }, null, 2));
     await browser.close().catch(() => {});
     process.exit(2);
   }

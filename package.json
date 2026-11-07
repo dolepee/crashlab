@@ -1,6 +1,6 @@
 {
   "name": "hermes-crashlab",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Hermes plugin for reproducing lost-response duplicate writes and verifying repairs against persisted state.",
   "scripts": {
     "test": "node test_lost_response.js"

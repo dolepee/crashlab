@@ -106,6 +106,7 @@ def main() -> int:
     parser.add_argument("--python", default=sys.executable, help="Python used to run Kist")
     parser.add_argument("--output", type=Path, default=Path("kist-run"))
     parser.add_argument("--write-contract-only", action="store_true", help="Write the case for execution by the Hermes crashlab_run tool")
+    parser.add_argument('--recovery-campaign', action='store_true', help='Test before delivery, after commit and restart with the database retained')
     args = parser.parse_args()
     app = args.app.expanduser().resolve()
     if not (app / "server/app.py").is_file():
@@ -115,6 +116,8 @@ def main() -> int:
     run.mkdir(parents=True, exist_ok=True)
     contract_path = run / "contract.json"
     contract = contract_for(app, args.python)
+    if args.recovery_campaign:
+        contract['recovery_campaign'] = ['before_delivery','after_commit','restart_after_commit']
     contract_path.write_text(json.dumps(contract, indent=2) + "\n")
     if args.write_contract_only:
         print(str(contract_path))

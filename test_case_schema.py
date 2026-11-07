@@ -20,6 +20,16 @@ class CaseSchemaTests(unittest.TestCase):
         with self.assertRaises(ValueError):workflow.core.validate_contract(case)
         case['recovery'].update(route='**/receipt?*',initial_field='intent_key',query_parameter='intent_key',response_id_path='order.id',record_id_field='id')
         jsonschema.validate(case,self.schema);workflow.core.validate_contract(case)
+    def test_recovery_campaign_schema_matches_runtime_boundaries(self):
+        case=copy.deepcopy(self.case)
+        case['journey'].insert(2,{'action':'wait_for_fault'})
+        case['recovery_campaign']=['before_delivery','after_commit','restart_after_commit']
+        jsonschema.validate(case,self.schema);workflow.core.validate_contract(case)
+        case.pop('recovery_campaign')
+        case['journey'].insert(3,{'action':'restart_app'})
+        jsonschema.validate(case,self.schema);workflow.core.validate_contract(case)
+        case['fault']['mode']='prevent_before_delivery'
+        jsonschema.validate(case,self.schema);workflow.core.validate_contract(case)
     def test_advertised_advanced_actions_have_complete_arguments(self):
         for step in [
             {'action':'press','selector':'#submit','key':'Enter'},
