@@ -21,3 +21,6 @@ provides_tools:
   - crashlab_prepare
   - crashlab_experiment_run
   - crashlab_experiment_status
+  - crashlab_experiment_watch
+provides_hooks:
+  - pre_verify
