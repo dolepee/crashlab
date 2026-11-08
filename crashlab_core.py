@@ -425,6 +425,40 @@ def _stop_process(proc: subprocess.Popen) -> None:
             pass
 
 
+def effective_base_url(contract: dict, override: str | None = None, *,
+                        contract_dir: Path | None = None, data: Path | None = None,
+                        port: int | None = None) -> str | None:
+    """The URL execution will actually use for a contract.
+
+    Precedence is the one ``run_contract`` and ``_start_app`` implement:
+    an explicit tool override, then a managed ``app.start`` target, then an
+    unmanaged external ``app.base_url``. A managed start with a fixed port and
+    no URL uses the loopback URL on that port; a dynamic port is unknowable
+    until the process starts, so it is not represented as a stale contract URL.
+    """
+    app = contract.get("app") if isinstance(contract, dict) else None
+    app = app if isinstance(app, dict) else {}
+    start = app.get("start")
+    start = start if isinstance(start, dict) else None
+    value = None
+    if override:
+        value = str(override)
+    elif start is not None:
+        value = start.get("base_url")
+        if not value and port is not None:
+            value = f"http://127.0.0.1:{port}"
+        elif not value and type(start.get("port")) is int:
+            value = f"http://127.0.0.1:{start['port']}"
+    else:
+        value = app.get("base_url")
+    if value is None:
+        return None
+    value = str(value)
+    if contract_dir is not None and data is not None and port is not None:
+        value = str(_expand_start(value, contract_dir=contract_dir, data=data, port=port))
+    return value
+
+
 def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = None,
                port_override: int | None = None, initialize: bool = True) -> tuple[subprocess.Popen, str, Path, Any, Path]:
     app = contract["app"]
@@ -472,8 +506,10 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
         proc._crashlab_pgid = proc.pid
     proc._crashlab_port = port
     try:
-        base = str(_expand_start(start.get("base_url") or f"http://127.0.0.1:{port}",
-                                 contract_dir=contract_dir, data=data, port=port))
+        base = effective_base_url(
+            contract, contract_dir=contract_dir, data=data, port=port)
+        if base is None:
+            raise ValueError("app.start has no usable base URL")
         health = str(start.get("health_path", "/"))
         timeout_s = float(start.get("ready_timeout", 30))
         deadline = time.monotonic() + timeout_s

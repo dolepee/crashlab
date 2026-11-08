@@ -110,6 +110,12 @@ def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
     app = contract.get("app") if isinstance(contract, dict) else None
     app = app if isinstance(app, dict) else {}
     start = app.get("start")
+    try:
+        from . import crashlab_core as core
+    except ImportError:
+        import crashlab_core as core
+    override = args.get("base_url") if tool == "crashlab_run" else None
+    target = core.effective_base_url(contract, override)
     plan: dict[str, Any] = {
         "tool": tool,
         "contract_path": str(path),
@@ -117,13 +123,19 @@ def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
         "contract": _sha256(_canonical(contract)),
         "app_start": start,
         "base_url": args.get("base_url"),
-        # The target the operator is actually authorising to modify, including a
-        # contract-declared external app with no start command of its own.
-        "target": args.get("base_url") or app.get("base_url"),
+        # The target execution will actually use. This follows the managed
+        # app.start target before an external app.base_url, rather than showing
+        # a URL the runner will overwrite after starting the app.
+        "target": target,
         "reset_url": app.get("reset_url"),
     }
     if tool == "crashlab_compare":
-        plan.update(buggy_url=args.get("buggy_url"), fixed_url=args.get("fixed_url"))
+        plan.update(
+            buggy_url=args.get("buggy_url"),
+            fixed_url=args.get("fixed_url"),
+            targets=[args.get("buggy_url"), args.get("fixed_url")],
+        )
+        plan["target"] = args.get("buggy_url") or target
     return plan
 
 

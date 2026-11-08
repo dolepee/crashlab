@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import approval
+import crashlab_core as core
 import plugin
 import repair_workflow as workflow
 
@@ -423,6 +424,51 @@ class ApprovalPolicyTests(unittest.TestCase):
                          {'ok': True})
         with api._TICKET_LOCK:
             self.assertNotIn(approval_doc['token'], api._TICKETS)
+
+    def test_effective_target_precedence_matches_the_execution_resolver(self):
+        base_case = json.loads(CASE.read_text())
+        cases = [
+            ('managed start wins over a conflicting app URL',
+             {'base_url': 'http://127.0.0.1:3999',
+              'start': {'base_url': 'http://127.0.0.1:4011'}},
+             {}, 'http://127.0.0.1:4011'),
+            ('managed start fixed port without a URL',
+             {'start': {'port': 4012}},
+             {}, 'http://127.0.0.1:4012'),
+            ('unmanaged external fallback',
+             {'base_url': 'http://127.0.0.1:4013'},
+             {}, 'http://127.0.0.1:4013'),
+            ('tool override wins over managed and external URLs',
+             {'base_url': 'http://127.0.0.1:3999',
+              'start': {'base_url': 'http://127.0.0.1:4014'}},
+             {'base_url': 'http://127.0.0.1:4015'}, 'http://127.0.0.1:4015'),
+        ]
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            for label, app, args, expected in cases:
+                with self.subTest(label=label):
+                    case = copy.deepcopy(base_case)
+                    case['app'] = app
+                    path.write_text(json.dumps(case))
+                    plan = approval.execution_plan(
+                        'crashlab_run', {'contract_path': str(path), **args})
+                    self.assertEqual(plan['target'], expected)
+                    self.assertEqual(plan['target'], core.effective_base_url(case, args.get('base_url')))
+
+    def test_compare_target_uses_both_tool_overrides(self):
+        case = json.loads(CASE.read_text())
+        case['app'] = {'base_url': 'http://127.0.0.1:3999',
+                       'start': {'base_url': 'http://127.0.0.1:4016'}}
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            path.write_text(json.dumps(case))
+            plan = approval.execution_plan('crashlab_compare', {
+                'contract_path': str(path),
+                'buggy_url': 'http://127.0.0.1:4017',
+                'fixed_url': 'http://127.0.0.1:4018',
+            })
+        self.assertEqual(plan['target'], 'http://127.0.0.1:4017')
+        self.assertEqual(plan['targets'], ['http://127.0.0.1:4017', 'http://127.0.0.1:4018'])
 
     def test_dashboard_shows_the_effective_contract_target(self):
         try:
