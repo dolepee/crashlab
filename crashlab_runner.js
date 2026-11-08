@@ -296,25 +296,44 @@ if (require.main === module) {
       // for a body it does not expose; 205 is reset-content by definition.
       event.body_sha256 = sha256('');
       event.body_length = 0;
+      event.body_complete = true;
       event.json = null;
       return;
     }
-    pendingResponses.push(response.text().then((text) => {
-      event.body_sha256 = sha256(text);
-      event.body_length = text.length;
-      const contentType = String(response.headers()['content-type'] || '');
-      if (text.length === 0) {
-        // Parse only a body that exists. An absent body is not invalid JSON,
-        // regardless of a JSON content-type header; a configured reply-ID
-        // predicate still fails because there is no ID to match.
-        event.json = null;
-      } else if (/json/i.test(contentType)) {
-        try { event.json = parseJson(text, 'terminal response'); }
-        catch (err) { event.json_error = String(err); }
-      } else {
-        event.text_excerpt = text.slice(0, 200);
+    event.body_complete = false;
+    pendingResponses.push((async () => {
+      try {
+        // response.text() resolves only after the body transport completes and
+        // rejects on a truncated/failed body. Bound it so a broken transport
+        // cannot hold the whole experiment open indefinitely.
+        const text = await Promise.race([
+          response.text(),
+          new Promise((_, reject) => {
+            const timer = setTimeout(
+              () => reject(new Error('terminal response body did not complete within 5000ms')), 5000);
+            timer.unref?.();
+          }),
+        ]);
+        event.body_complete = true;
+        event.body_sha256 = sha256(text);
+        event.body_length = text.length;
+        const contentType = String(response.headers()['content-type'] || '');
+        if (text.length === 0) {
+          // Parse only a body that exists. An absent body is not invalid JSON,
+          // regardless of a JSON content-type header; a configured reply-ID
+          // predicate still fails because there is no ID to match.
+          event.json = null;
+        } else if (/json/i.test(contentType)) {
+          try { event.json = parseJson(text, 'terminal response'); }
+          catch (err) { event.json_error = String(err); }
+        } else {
+          event.text_excerpt = text.slice(0, 200);
+        }
+      } catch (err) {
+        event.body_complete = false;
+        event.body_error = String(err);
       }
-    }).catch((err) => { event.body_error = String(err); }));
+    })());
   });
 
   if (contract.fault && recoverySpec.mode === 'reconcile') {
@@ -636,7 +655,8 @@ if (require.main === module) {
       const matchingSequences = new Set(matchingWrites.map(event => event.sequence));
       const terminal = responseEvents.filter(event => event.retry_chain && event.terminal
         && matchingSequences.has(event.retry_write_sequence)).at(-1) || null;
-      const terminalOK = Boolean(terminal && successStatuses.includes(terminal.status));
+      const terminalComplete = Boolean(terminal && terminal.body_complete === true && !terminal.body_error);
+      const terminalOK = Boolean(terminal && successStatuses.includes(terminal.status) && terminalComplete);
       const unsafeResponse = responseEvents.some(event => event.json_error);
       let responseIdentity = {
         configured: false,
@@ -672,7 +692,11 @@ if (require.main === module) {
           : 'No matching recovery write occurred after interruption. A local success message is insufficient.';
       } else if (!terminal) {
         reason = 'A matching recovery write was observed but no terminal response was observed; an intermediate redirect or status is not recovery.';
-      } else if (!terminalOK) {
+      } else if (!terminalComplete) {
+        reason = terminal.body_error
+          ? `The terminal response transport did not complete: ${terminal.body_error}`
+          : 'The terminal response body was not fully observed; received headers/status alone are not recovery.';
+      } else if (!successStatuses.includes(terminal.status)) {
         reason = `Terminal response ${terminal.status} was not in the configured success statuses.`;
       } else if (!responseIdentity.ok) {
         reason = responseIdentity.reason;
@@ -684,6 +708,7 @@ if (require.main === module) {
       return { mode: 'retry', ok: !unsafePrimaryRequest && !unsafeResponse
           && matchingWrites.length > 0 && terminalOK && responseIdentity.ok,
         invalid_measurement: unsafePrimaryRequest || unsafeResponse,
+        terminal_transport_complete: terminalComplete,
         matching_retries: retries.length,
         failed_recovery_transports: failedTransports.length,
         success_statuses: successStatuses,
@@ -696,6 +721,8 @@ if (require.main === module) {
           status: terminal.status,
           url: terminal.url,
           redirected_from: terminal.redirected_from,
+          body_complete: terminal.body_complete === true,
+          body_error: terminal.body_error || null,
           body_sha256: terminal.body_sha256 || null,
           json: terminal.json === undefined ? null : terminal.json,
           json_error: terminal.json_error || null,

@@ -18,6 +18,7 @@ BROWSER = os.environ.get('CRASHLAB_BROWSER_TESTS') == '1'
 class Handler(BaseHTTPRequestHandler):
     db = None
     seen_reset = None
+    seen_redirects = None
 
     def log_message(self, *args):
         pass
@@ -51,6 +52,21 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == '/done':
             query = parse_qs(parsed.query)
             self._json(200, {'id': int(query.get('id', ['1'])[0])})
+        elif parsed.path == '/done-html':
+            body = b'<html><body>Order confirmed by the server.</body></html>'
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif parsed.path == '/truncated':
+            body = b'<html><body>Order confirmed by the server.</body></html>'
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/html')
+            self.send_header('Content-Length', str(len(body) + 100))
+            self.end_headers()
+            self.wfile.write(body[:9])
+            self.close_connection = True
         elif parsed.path == '/receipt':
             query = parse_qs(parsed.query)
             if query.get('unsafe'):
@@ -68,6 +84,7 @@ class Handler(BaseHTTPRequestHandler):
             with sqlite3.connect(self.db) as con:
                 con.execute('DELETE FROM orders')
             self.seen_reset.clear()
+            self.seen_redirects.clear()
             self._json(200, {'ok': True})
             return
         if parsed.path != '/create':
@@ -113,6 +130,16 @@ class Handler(BaseHTTPRequestHandler):
             self._json(202, {'error': 'pending'})
         elif mode == '200':
             self._json(200, {'id': reply_id})
+        if mode in ('302html', '302truncated'):
+            marker = (intent, mode)
+            if marker not in self.seen_redirects:
+                self.seen_redirects.add(marker)
+                self._json(201, {'id': reply_id})
+                return
+            target = '/done-html' if mode == '302html' else '/truncated'
+            self.send_response(302)
+            self.send_header('Location', target)
+            self.end_headers()
         elif mode.startswith('302'):
             self.send_response(302)
             self.send_header('Location', '/done?id=%s' % record_id if 'bad' not in parsed.query else '/failed')
@@ -160,6 +187,13 @@ async function send(retry=false) {
       document.getElementById('retry').style.display = 'none';
       return;
     }
+    if (params.has('html')) {
+      const text = await response.text();
+      if (!response.ok || !text.includes('Order confirmed')) throw new Error('not complete');
+      document.getElementById('status').textContent = 'Saved';
+      document.getElementById('retry').style.display = 'none';
+      return;
+    }
     const value = await response.json();
     if (!response.ok || value.id === undefined) throw new Error('not complete');
     document.getElementById('status').textContent = 'Saved';
@@ -181,6 +215,7 @@ class RecoveryContractTests(unittest.TestCase):
         cls.db = Path(cls.temp.name) / 'orders.db'
         Handler.db = str(cls.db)
         Handler.seen_reset = set()
+        Handler.seen_redirects = set()
         with sqlite3.connect(cls.db) as con:
             con.execute('CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, intent_key TEXT UNIQUE, item TEXT)')
             con.execute('CREATE TABLE IF NOT EXISTS orders_uuid (id TEXT PRIMARY KEY, intent_key TEXT UNIQUE, item TEXT)')
@@ -200,7 +235,7 @@ class RecoveryContractTests(unittest.TestCase):
              unsafe_state=False, control_state=None, control_unsafe=False, control_string=False,
              raw=False, change=False,
              uuid=False, zero=False, after_retry_goto=False, after_retry_post=False,
-             formjson=False):
+             formjson=False, html=False):
         query = []
         if mode:
             query.append('mode=' + mode)
@@ -210,6 +245,8 @@ class RecoveryContractTests(unittest.TestCase):
             query.append('raw=1')
         if formjson:
             query.append('formjson=1')
+        if html:
+            query.append('html=1')
         if change:
             query.append('change=1')
         if uuid:
@@ -539,6 +576,29 @@ class RecoveryContractTests(unittest.TestCase):
         self.assertIsNone(result['recovery']['terminal_response']['json'])
         self.assertEqual(result['recovery']['terminal_response']['body_sha256'],
                          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+
+    def test_complete_html_terminal_response_passes(self):
+        result = self.run_case(mode='302html', statuses=(200,), response_id=False,
+                               html=True, control_state='/state')
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(result['status'], 'PASS')
+        terminal = result['recovery']['terminal_response']
+        self.assertEqual(terminal['status'], 200)
+        self.assertTrue(terminal['body_complete'], terminal)
+        self.assertIsNone(terminal['body_error'])
+
+    def test_truncated_html_terminal_response_is_rejected(self):
+        result = self.run_case(mode='302truncated', statuses=(200,), response_id=False,
+                               html=True, control_state='/state')
+        self.assertFalse(result['ok'], result)
+        self.assertFalse(result['recovery']['ok'], result)
+        self.assertFalse(result['recovery']['terminal_transport_complete'], result)
+        terminal = result['recovery']['terminal_response']
+        self.assertEqual(terminal['status'], 200)
+        self.assertFalse(terminal['body_complete'], terminal)
+        self.assertTrue(terminal['body_error'], terminal)
+        self.assertIn('transport did not complete', result['recovery']['reason'])
+        self.assertFalse(core._completed_assertion(result, passed=True), result)
 
     def test_empty_205_body_passes_without_parsing(self):
         for mode in ('205', '205json'):
