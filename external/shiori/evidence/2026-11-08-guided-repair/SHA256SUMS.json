@@ -1,7 +1,7 @@
 {
   "app-build.log": "43703e2e0d697c3c0f52c0b0fa50c497925a5b602b7e54888dedeb3c2a2c93ff",
   "selected-real-tool-events.jsonl": "2529ccf6750840da23ad4f26ed85d14fef7f96ac2b6e9797e5857318c7a66f00",
-  "summary.json": "d2022ec8ac5d7b349fd95422d1e78cf72696fa2c9033e70e8e984899a01979bb",
+  "summary.json": "b33b0a94c28f34daa4c36e818ed4aebddfdbce4f75dc98fe8d9a687d2783ec9c",
   "hermes-command.txt": "fca316a4918f4c5b6e05a50a1a4e11662ee4e6b935c79020c433868c86e3521d",
   "host-git-sha.txt": "34ffb451366040a4001df5ab8a8821cc1aee7adbe0d4bb1ef10874165a016dce",
   "experiment-raw.json": "0782f36f377e3a62765da3d8d22666495a573465fdf38fca8f539a5c125a4604",
@@ -13,11 +13,15 @@
   "patch-reverse-check.txt": "a415b3bdc1a1771387dd6ae69c44ecff0a58fb955259ffbc8d1bbbc94b13e06b",
   "app-test-count1.log": "e9588a084e290268ba123893f606f8c79f8c0ee4465d6c624646ca8adeb50e7f",
   "experiment-case.json": "0c0dde8002ec94adde19af56301f4ab9f96e81c181cf9bed9fad9c635ab1ca09",
+  "independent-mac/model-repaired-rebuild.json": "22e6a2fb3b5045f261851c43e4fe497c48cb241317e5bd2c7f8a13034f342a72",
   "independent-mac/source-baseline.json": "a20c8fc3d8f705e2a68f9743a5cb1a4bacbfa2a2a0bb85b2b7cc4c504fa4a717",
   "independent-mac/app-tests.log": "fac15f27f69a5df626b524188cae6f5693ded6cc37d5310b44f5208d337eea79",
+  "independent-mac/official-release-asset.json": "9cdb0e7ee01d2304b2a7ca0a8cc5fcdfadb0d568f0053a3157e164874e2ca762",
   "independent-mac/baseline-build.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "independent-mac/identity.json": "421e1d403ff8a067f55b76b128340f8437a11a32ca6cc0562f6135f021c1a51f",
+  "independent-mac/official-release-checksums.txt": "ba83fd91694953421f87d1ceec2a997333ef32e3ea8e1dda59aef9d55d68ebf1",
   "independent-mac/model-repaired.json": "5fe15ab49c5fc9c83d7746a499479aaf546c774bd983c9c3836c00b7c1bbd3ea",
   "independent-mac/official-baseline.json": "62c3d1aab873af250998327b478a2ef6e39633c52565de55b8125660e1d63612",
+  "independent-mac/pristine-rebuild.json": "494279702d47f907696236a140f78ff672f7e1db99a215977090b04949edf4e5",
   "independent-mac/build.log": "032403d6c22349c33ed67ab7c62ecffc5ca060dfc938bd639487f80cc9d717fc"
 }
