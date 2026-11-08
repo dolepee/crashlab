@@ -134,6 +134,23 @@
     const [selected, setSelected] = useState('')
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState('')
+    const focusReturn = useRef(null)
+
+    function rememberFocus() {
+      focusReturn.current = document.activeElement
+    }
+
+    function restoreFocus() {
+      const target = focusReturn.current
+      focusReturn.current = null
+      requestAnimationFrame(() => {
+        if (!target || !target.isConnected) return
+        const active = document.activeElement
+        if (!active || active === document.body || active === document.documentElement) {
+          target.focus({ preventScroll: true })
+        }
+      })
+    }
 
     async function load() {
       const sequence = ++loadSequence.current
@@ -186,6 +203,7 @@
     }, [reportData?.experiment_id, reportData?.run_index, reportData?.measurement])
 
     async function experimentAction(row, action) {
+      rememberFocus()
       setBusy(true)
       setExperimentError(null)
       setActiveExperiment({ id: row.experiment_id, action })
@@ -195,9 +213,9 @@
           approvalToken = await operatorTicket('experiment', { experiment_id: row.experiment_id },
             'Run this frozen case in the local app?' + (row.intent ? '\n\n' + row.intent : ''))
         } catch (err) {
-          setBusy(false); setActiveExperiment(null); setExperimentError({ id: row.experiment_id, message: String(err.message || err) }); return
+          setBusy(false); setActiveExperiment(null); setExperimentError({ id: row.experiment_id, message: String(err.message || err) }); restoreFocus(); return
         }
-        if (!approvalToken) { setBusy(false); setActiveExperiment(null); return }
+        if (!approvalToken) { setBusy(false); setActiveExperiment(null); restoreFocus(); return }
         runningExperiment.current = row.experiment_id
         setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, status: 'RUNNING' } : item))
         setReportData(current => current?.experiment_id === row.experiment_id ? { ...current, current_status: 'RUNNING' } : current)
@@ -217,7 +235,7 @@
         setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, status: 'UNAVAILABLE' } : item))
         await load()
         setExperimentError({ id: row.experiment_id, message: String(err.message || err) })
-      } finally { runningExperiment.current = null; setBusy(false); setActiveExperiment(null) }
+      } finally { runningExperiment.current = null; setBusy(false); setActiveExperiment(null); restoreFocus() }
     }
 
     async function showReport(id, index) {
@@ -286,6 +304,7 @@
     async function startRun() {
       if (!selected) return
       const selectedCase = cases.find(row => row.path === selected)
+      rememberFocus()
       setBusy(true)
       setError('')
       try {
@@ -298,6 +317,7 @@
         setError(String(err.message || err))
       } finally {
         setBusy(false)
+        restoreFocus()
       }
     }
 
