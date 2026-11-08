@@ -181,6 +181,18 @@ class ApprovalPolicyTests(unittest.TestCase):
             frozen = run.call_args.kwargs['frozen_contract']
             self.assertEqual(frozen['app']['start'], original['app']['start'])
 
+    def test_decision_without_a_call_id_still_reaches_one_bound_dispatch(self):
+        """A host that reports the decision without a call id is not left unusable."""
+        args = self.args()
+        approval.pre_tool_call('crashlab_run', args, tool_call_id='call-1', session_id='session-1')
+        approve('crashlab_run', args, tool_call_id='')
+        with patch.object(plugin.core, 'run_and_persist', return_value={'ok': True}) as run:
+            self.assertEqual(json.loads(plugin._handler('crashlab_run')(
+                args, session_id='session-1', tool_call_id='call-1')), {'ok': True})
+            self.blocked(json.loads(plugin._handler('crashlab_run')(
+                args, session_id='session-1', tool_call_id='call-1')))
+        run.assert_called_once()
+
     def test_denial_does_not_grant(self):
         args = self.args()
         approval.pre_tool_call('crashlab_run', args, tool_call_id='call-1', session_id='session-1')
@@ -268,6 +280,42 @@ class ApprovalPolicyTests(unittest.TestCase):
     def test_slash_route_requires_tool_approval(self):
         message = plugin._slash('run "cases/checkout-local.json"')
         self.assertIn('human approval', message)
+
+    def test_slash_route_executes_the_bytes_it_validated(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            original = json.loads(CASE.read_text())
+            path.write_text(json.dumps(original))
+            args = self.args(path)
+            approval.pre_tool_call('crashlab_run', args, tool_call_id='call-1', session_id='session-1')
+            approve('crashlab_run', args, choice='always')
+            with patch.object(plugin.core, 'run_and_persist', return_value={'ok': True}) as run:
+                self.assertIn('PASS', plugin._slash(f'run "{path}"'))
+            frozen = run.call_args.kwargs['frozen_contract']
+            self.assertEqual(frozen['app']['start'], original['app']['start'])
+
+    def test_repeated_identical_invocation_without_a_call_id_uses_its_own_snapshot(self):
+        """A host that reports no call id must still run the plan it just approved."""
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            original = json.loads(CASE.read_text())
+            path.write_text(json.dumps(original))
+            args = self.args(path)
+            approval.pre_tool_call('crashlab_run', args, session_id='session-1')
+            approve('crashlab_run', args, tool_call_id='')
+            with patch.object(plugin.core, 'run_and_persist', return_value={'ok': True}) as run:
+                self.assertEqual(json.loads(plugin._handler('crashlab_run')(args, session_id='session-1')),
+                                 {'ok': True})
+            changed = copy.deepcopy(original)
+            changed['app']['start']['command'] = ['/bin/sh', '-c', 'exit 0']
+            path.write_text(json.dumps(changed))
+            approval.pre_tool_call('crashlab_run', args, session_id='session-1')
+            approve('crashlab_run', args, tool_call_id='')
+            with patch.object(plugin.core, 'run_and_persist', return_value={'ok': True}) as run:
+                self.assertEqual(json.loads(plugin._handler('crashlab_run')(args, session_id='session-1')),
+                                 {'ok': True})
+            self.assertEqual(run.call_args.kwargs['frozen_contract']['app']['start'],
+                             changed['app']['start'])
 
     def test_cli_operator_flow_requires_an_interactive_confirmation(self):
         import crashlab_replay

@@ -47,6 +47,17 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'metadata changed'):
             workflow.run(eid, approval_context={'session_id':'operator'}, approved=snapshot)
 
+    def test_cli_operator_flow_shows_the_frozen_plan_it_approves(self):
+        import crashlab_replay
+        eid = self.prepare()
+        with patch('sys.stdin.isatty', return_value=True), \
+             patch('builtins.input', return_value='yes'):
+            snapshot = crashlab_replay._operator_approval(eid)
+        self.assertEqual(snapshot['digest'],
+                         approval._sha256(approval._canonical(snapshot['plan'])))
+        self.assertEqual(snapshot['plan']['app_start'],
+                         json.loads((workflow.directory(eid) / 'case.json').read_text())['app']['start'])
+
     def test_initial_pass_is_not_repair(self):
         eid=self.prepare()
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(True)):

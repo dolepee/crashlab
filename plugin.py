@@ -70,7 +70,10 @@ def _handler(name: str):
     def invoke(kwargs, context):
         session_id = str(context.get("session_id") or "")
         task_id = str(context.get("task_id") or "")
-        tool_call_id = str(context.get("tool_call_id") or "")
+        # The host binds the originating call id for the dispatch but does not
+        # pass it as a handler kwarg; read it from the host, never from model args.
+        tool_call_id = approval.host_call_id(context)
+        context = {**context, "tool_call_id": tool_call_id}
         if name in {"crashlab_run", "crashlab_compare"}:
             approved = approval.prepare_approved_case(
                 name, kwargs, session_id=session_id, task_id=task_id,
@@ -134,8 +137,8 @@ def _slash(raw_args: str) -> str:
             return "Usage: /crashlab run <case.json>"
         path = args[1]
         try:
-            approval.require_approval("crashlab_run", {"contract_path": path})
-            result = core.run_and_persist(path)
+            approved = approval.prepare_approved_case("crashlab_run", {"contract_path": path})
+            result = core.run_and_persist(approved["path"], frozen_contract=approved["contract"])
         except approval.ApprovalRequired:
             return ("CrashLab needs a human approval for this case. Use the crashlab_run "
                     "tool from Hermes so the approval gate can show the exact case, command and path.")

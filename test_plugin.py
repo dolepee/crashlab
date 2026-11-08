@@ -47,10 +47,11 @@ class FirstUseTests(unittest.TestCase):
 
     def test_slash_accepts_quoted_case_path(self):
         result = {'status': 'PASS', 'ok': True, 'contract': 'test'}
-        with patch.object(plugin.approval, 'require_approval'), \
+        approved = {'path': '/my project/case.json', 'contract': {'id': 'test'}}
+        with patch.object(plugin.approval, 'prepare_approved_case', return_value=approved), \
              patch.object(plugin.core, 'run_and_persist', return_value=result) as run:
             self.assertIn('PASS', plugin._slash('run "/my project/case.json"'))
-        run.assert_called_once_with('/my project/case.json')
+        run.assert_called_once_with('/my project/case.json', frozen_contract={'id': 'test'})
         self.assertIn('Usage:', plugin._slash('run "unclosed'))
         self.assertIn('Usage:', plugin._slash('run /my project/case.json'))
 

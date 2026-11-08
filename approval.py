@@ -202,7 +202,7 @@ def _snapshot_key(tool_name: str, args: dict[str, Any], session_id: str = "",
                   task_id: str = "", tool_call_id: str = "") -> tuple[str, str]:
     scope = session_id or task_id or ""
     args_digest = _sha256(_canonical(_snapshot_args(tool_name, args)))
-    return (args_digest, f"{scope}\0{tool_call_id or ''}")
+    return (f"{tool_name}\0{args_digest}", f"{scope}\0{tool_call_id or ''}")
 
 
 def _find_snapshot(store: dict, tool_name: str, args: dict[str, Any], *,
@@ -236,6 +236,46 @@ def _store_snapshot(store: dict, tool_name: str, args: dict[str, Any], snapshot:
             store[key] = (time.time() + LEASE_SECONDS, snapshot)
 
 
+def _retire_snapshot(store: dict, tool_name: str, args: dict[str, Any], *,
+                     session_id: str = "", task_id: str = "", tool_call_id: str = "") -> None:
+    """A frozen plan is spent by the execution it authorised.
+
+    Without an originating call id a later, identical invocation would otherwise
+    find the completed snapshot and check an already-consumed grant instead of
+    the plan its own pre-hook captured and the human just approved.
+    """
+    key = _snapshot_key(tool_name, args, session_id, task_id, tool_call_id)
+    with _LOCK:
+        store.pop(key, None)
+
+
+def host_call_id(context: dict[str, Any] | None = None) -> str:
+    """The originating tool call id the host exposes to a handler.
+
+    Hermes passes ``task_id`` and ``session_id`` to a tool handler but not the
+    call id; for the duration of the dispatch it binds that identity in its
+    approval-observability context, which the host's own modules read. Missing
+    identity stays empty so callers fall back to the unambiguous-single-grant
+    rule instead of guessing between concurrent calls.
+    """
+    values: list[Any] = []
+    if isinstance(context, dict):
+        values.append(context.get("tool_call_id"))
+    try:
+        from tools.approval_context import _approval_tool_call_id  # type: ignore
+    except Exception:
+        _approval_tool_call_id = None
+    if _approval_tool_call_id is not None:
+        try:
+            values.append(_approval_tool_call_id.get())
+        except Exception:
+            pass
+    for value in values:
+        if isinstance(value, str) and value:
+            return value
+    return ""
+
+
 def _grant_once(scopes: list[str], digest: str, now: float, tool_call_id: str = "") -> None:
     """Record one single-use grant, reachable through all of its aliases."""
     global _ONCE_SEQ
@@ -266,11 +306,14 @@ def _consume_once(digest: str, scopes: list[str], now: float, tool_call_id: str 
         grant = _ONCE_INDEX.get((scope, digest, call))
         if grant is not None:
             break
-    if grant is None and not tool_call_id:
-        # Older hosts do not pass a call id to the handler. A once grant with
-        # exactly one live entry is still unambiguous; anything else fails closed.
+    if grant is None:
+        # A decision recorded without a call id (an older host, or one that reports
+        # the answer outside the dispatch context) leaves the grant unbound. Spend
+        # an unbound grant only when it is the single live one for these scopes;
+        # a call-bound grant is never handed to a different call.
         matches = [gid for gid, entry in _ONCE_GRANTS.items()
-                   if entry[0] == digest and entry[1] > now and any(scope in entry[2] for scope in scopes)]
+                   if entry[0] == digest and entry[1] > now and any(scope in entry[2] for scope in scopes)
+                   and (not call or not entry[3])]
         if len(matches) == 1:
             grant = matches[0]
     if grant is None:
@@ -324,6 +367,7 @@ def _case_snapshot(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
         "contract": contract,
         "sha256": _sha256(raw),
         "digest": _sha256(_canonical(plan)),
+        "plan": plan,
     }
 
 
@@ -347,6 +391,7 @@ def _experiment_snapshot(experiment_id: str) -> dict[str, Any]:
         "experiment_sha256": _sha256(experiment_raw),
         "case_sha256": _sha256(case_raw),
         "digest": _sha256(_canonical(plan)),
+        "plan": plan,
     }
 
 
@@ -375,15 +420,18 @@ def pre_tool_call(tool_name: str, args: dict[str, Any] | None, *,
         if tool_name in {"crashlab_run", "crashlab_compare"}:
             snapshot = _case_snapshot(tool_name, args)
             _store_snapshot(_CASE_SNAPSHOTS, tool_name, args, snapshot,
-                            session_id=session_id, task_id=task_id, tool_call_id=tool_call_id)
+                            session_id=session_id, task_id=task_id, tool_call_id=tool_call_id,
+                            replace=True)
         elif tool_name == "crashlab_experiment_run":
             snapshot = _experiment_snapshot(args["experiment_id"])
             _store_snapshot(_EXPERIMENT_SNAPSHOTS, tool_name, args, snapshot,
-                            session_id=session_id, task_id=task_id, tool_call_id=tool_call_id)
+                            session_id=session_id, task_id=task_id, tool_call_id=tool_call_id,
+                            replace=True)
         else:
             snapshot = _campaign_snapshot(args)
             _store_snapshot(_CAMPAIGN_SNAPSHOTS, tool_name, args, snapshot,
-                            session_id=session_id, task_id=task_id, tool_call_id=tool_call_id)
+                            session_id=session_id, task_id=task_id, tool_call_id=tool_call_id,
+                            replace=True)
         digest = snapshot["digest"]
     except Exception as exc:
         return {"action": "block",
@@ -414,6 +462,12 @@ def post_approval_response(command: str = "", description: str = "", pattern_key
         request_key = (digest, tool_call_id or "")
         if request_key not in _REQUESTS and tool_call_id:
             request_key = (digest, "")
+        if request_key not in _REQUESTS and not tool_call_id:
+            # The decision arrived without a call id; accept it only when one
+            # request for this plan is pending, never to settle a race.
+            pending = [key for key in _REQUESTS if key[0] == digest]
+            if len(pending) == 1:
+                request_key = pending[0]
         if request_key not in _REQUESTS:
             return
         _REQUESTS.pop(request_key, None)
@@ -490,6 +544,8 @@ def prepare_approved_case(tool_name: str, args: dict[str, Any], *,
         if snapshot.get("tool") != tool_name or snapshot.get("args") != _snapshot_args(tool_name, args):
             raise ApprovalRequired("CrashLab approval belongs to a different invocation")
         _require_digest(snapshot["digest"], scopes=scopes, tool_call_id=tool_call_id)
+        _retire_snapshot(_CASE_SNAPSHOTS, tool_name, args, session_id=session_id,
+                         task_id=task_id, tool_call_id=tool_call_id)
         return snapshot
     path = Path(args["contract_path"]).expanduser().resolve()
     raw = path.read_bytes()
@@ -517,6 +573,8 @@ def prepare_approved_experiment(experiment_id: str, *, session_id: str = "",
         if snapshot.get("tool") != "crashlab_experiment_run" or snapshot.get("args") != args:
             raise ApprovalRequired("CrashLab approval belongs to a different invocation")
         _require_digest(snapshot["digest"], scopes=scopes, tool_call_id=tool_call_id)
+        _retire_snapshot(_EXPERIMENT_SNAPSHOTS, "crashlab_experiment_run", args,
+                         session_id=session_id, task_id=task_id, tool_call_id=tool_call_id)
         return snapshot
     snapshot = _experiment_snapshot(experiment_id)
     _require_digest(snapshot["digest"], scopes=scopes, tool_call_id=tool_call_id)
@@ -538,6 +596,8 @@ def prepare_approved_campaign(args: dict[str, Any], *, session_id: str = "",
     if snapshot.get("tool") != "crashlab_campaign_run" or snapshot.get("args") != _snapshot_args("crashlab_campaign_run", args):
         raise ApprovalRequired("CrashLab approval belongs to a different invocation")
     _require_digest(snapshot["digest"], scopes=scopes, tool_call_id=tool_call_id)
+    _retire_snapshot(_CAMPAIGN_SNAPSHOTS, "crashlab_campaign_run", args,
+                     session_id=session_id, task_id=task_id, tool_call_id=tool_call_id)
     return snapshot
 
 

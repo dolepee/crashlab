@@ -11,6 +11,7 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -119,6 +120,54 @@ class HermesHostDispatchTests(unittest.TestCase):
         for replay in (second, third):
             self.assertFalse(replay['ok'], replay)
             self.assertTrue(replay['needs_approval'], replay)
+
+    def test_overlapping_calls_in_one_session_keep_their_own_approvals(self):
+        """Two live calls in one session must not have to guess which approval is theirs.
+
+        The host binds each call's originating id for the duration of the dispatch
+        but passes only session/task ids to the handler, so both calls previously
+        landed on the ambiguous-single-grant rule and were rejected. The identity
+        used here comes from the host; nothing is supplied by the caller.
+        """
+        import model_tools
+        from tools import approval as host_approval
+        from tools.approval_context import _fire_approval_hook
+
+        executed = []
+        barrier = threading.Barrier(2)
+
+        def execute(*args, **kwargs):
+            executed.append(1)
+            # Both approvals must be complete before either plan executes.
+            barrier.wait(timeout=20)
+            return {'ok': True}
+
+        def decide(tool_name, reason, *, rule_key='', **kwargs):
+            _fire_approval_hook(
+                'post_approval_response', command=f'<{tool_name}>', description=reason,
+                pattern_key='plugin_rule:' + rule_key, pattern_keys=['plugin_rule:' + rule_key],
+                session_key='host-key', surface='cli', choice='once')
+            return {'approved': True, 'message': None}
+
+        results = {}
+
+        def call(call_id):
+            results[call_id] = model_tools.handle_function_call(
+                'crashlab_run', self.args, task_id=self.session, session_id=self.session,
+                tool_call_id=call_id, user_task='run the case',
+                skip_tool_execution_middleware=True)
+
+        with patch.object(host_approval, 'request_tool_approval', side_effect=decide), \
+             patch.object(self.module.core, 'run_and_persist', side_effect=execute):
+            threads = [threading.Thread(target=call, args=(call_id,))
+                       for call_id in ('native-call-A', 'native-call-B')]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=30)
+        self.assertEqual(len(executed), 2, results)
+        for call_id, payload in results.items():
+            self.assertEqual(json.loads(payload), {'ok': True}, f'{call_id}: {payload}')
 
 
 if __name__ == '__main__':
