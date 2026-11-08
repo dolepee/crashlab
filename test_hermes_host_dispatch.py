@@ -60,6 +60,7 @@ class HermesHostDispatchTests(unittest.TestCase):
         self.assertFalse(loaded.error, loaded.error)
         self.assertIn('pre_tool_call', loaded.hooks_registered)
         self.assertIn('post_approval_response', loaded.hooks_registered)
+        self.assertIn('tool_execution', loaded.middleware_registered)
         self.module = sys.modules['hermes_plugins.crashlab.plugin']
         self.session = 'host-session'
         self.call = 'native-call-1'
@@ -69,7 +70,7 @@ class HermesHostDispatchTests(unittest.TestCase):
         session = session or self.session
         return json.loads(self.registry.dispatch(
             'crashlab_run', self.args, scope=self.manager.scope_key,
-            task_id=session, session_id=session))
+            task_id=session, session_id=session, tool_call_id=self.call))
 
     def run_with_decision(self, decision, *, session_key=None):
         session_key = session_key or self.session
@@ -155,7 +156,7 @@ class HermesHostDispatchTests(unittest.TestCase):
             results[call_id] = model_tools.handle_function_call(
                 'crashlab_run', self.args, task_id=self.session, session_id=self.session,
                 tool_call_id=call_id, user_task='run the case',
-                skip_tool_execution_middleware=True)
+                skip_tool_execution_middleware=False)
 
         with patch.object(host_approval, 'request_tool_approval', side_effect=decide), \
              patch.object(self.module.core, 'run_and_persist', side_effect=execute):

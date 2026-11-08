@@ -1,7 +1,7 @@
 {
   "files": {
     "__init__.py": "b34fac56f3bd5f6a3a384f3685dcb934cf7289840559c8a785e0d1fc9d1b1adb",
-    "approval.py": "331f9ca48b10563c5ecfeb3f49d68915ca69a8ee2c6b6bc6edcb0dc1daddcf68",
+    "approval.py": "63ceae45e8ba5ef0e740a4f0f1a8442208af67f3d71d0aa98420a7592b36ff16",
     "campaign.py": "e2f310a08bdc3867c5717ad41cb5f36fed50d822d25782e3080e6f065cd43950",
     "campaign_contracts/inventory-contention.json": "da8651ddd5ae8450dac7537c8aa720a68d2cbb72b2826fac6441e3d1549e1247",
     "campaign_plugin.py": "1dcfaf1c144b75c6ba3f4b4559db88f50682f2b12b16612d186685d11bc99524",
@@ -14,8 +14,8 @@
     "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
     "crashlab_replay.py": "2784b2d5e54579b82a1f6248e467ea3dea9724a787d21758ffd0ee211455efd4",
     "crashlab_runner.js": "1ea6b8fdf776987478a8a24877f0f104d7dbdcd1afa55816ec52884d4be0ad31",
-    "plugin.py": "131b7cc2fd8d2768e45e851c9b5d4f9e7a7b4a10f380895c116da2c842d7bf59",
-    "plugin.yaml": "4716b6d86d85b1fc52042bc5ae268c63c6eb897e5373e6e0de2b3d6a9ec69eae",
+    "plugin.py": "ed20a3b4a819cb8ce2fa8d78ae518c05dd42f7e1a34c1134a4e98797d70f5607",
+    "plugin.yaml": "621caf4d8d7f38e2838f39268f20ec6c5e566c49bc39417e51c6e861f18c7871",
     "repair_workflow.py": "ac230d34487181360cca43e411743c59170218542dd249fef8305425c878121c",
     "skills/crashlab/SKILL.md": "949ce7872b3637e04f2a1142d1c51e94b0c6e1ae66be26d70bb6edfd11aab09c"
   },
