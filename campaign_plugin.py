@@ -20,9 +20,11 @@ from urllib.parse import urlparse
 try:
     from . import campaign as engine
     from . import crashlab_core as core
+    from . import approval
 except ImportError:
     import campaign as engine
     import crashlab_core as core
+    import approval
 
 ROOT = Path(__file__).resolve().parent
 CATALOG = {
@@ -32,7 +34,7 @@ CATALOG = {
 TRUSTED_FILES = (
     "__init__.py", "plugin.py", "plugin.yaml", "campaign_plugin.py", "campaign.py",
     "crashlab_core.py", "crashlab_runner.js", "crashlab_probe.py",
-    "repair_workflow.py", "crashlab_replay.py", "completion_reminder.py", "skills/crashlab/SKILL.md",
+    "approval.py", "repair_workflow.py", "crashlab_replay.py", "completion_reminder.py", "skills/crashlab/SKILL.md",
     "contracts/checkout-lost-response.json", "contracts/booking-lost-response.json",
     "campaign_contracts/inventory-contention.json", "campaigns/inventory.json", "campaigns/mixed.json",
 )
@@ -221,6 +223,8 @@ def invoke(name, args):
         if name not in ("crashlab_campaign_validate", "crashlab_campaign_run"):
             raise CampaignError("INVALID_ARGUMENT", "Unknown campaign tool")
         campaign_id, target_name, hashes, manifest, contracts = prepare(args, name == "crashlab_campaign_run")
+        if name == "crashlab_campaign_run":
+            approval.require_approval(name, args)
         if name == "crashlab_campaign_validate":
             return {"ok": True, "valid": True, "executed": False, "campaign": campaign_id,
                     "target_set": target_name, "cases": len(contracts),
@@ -248,6 +252,8 @@ def invoke(name, args):
         # Do not overwrite the old single-case/compare latest.json contract.
         engine.write_json(data / "campaign-latest.json", result)
         return result
+    except approval.ApprovalRequired:
+        raise
     except CampaignError as exc:
         return failure(exc.code, str(exc))
     except Exception as exc:

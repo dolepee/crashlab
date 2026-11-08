@@ -16,6 +16,8 @@ router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+import approval
+
 DATA = Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local" / "share" / "crashlab"))
 RUN_ID = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
 
@@ -100,7 +102,13 @@ async def run(request: RunRequest) -> dict:
     path = Path(request.contract_path).expanduser().resolve()
     if path not in allowed:
         raise HTTPException(status_code=400, detail="contract must be in the case directory")
-    return await asyncio.to_thread(run_and_persist, str(path))
+    try:
+        approval.require_approval("crashlab_run", {"contract_path": str(path)})
+        return await asyncio.to_thread(run_and_persist, str(path))
+    except Exception as exc:
+        if isinstance(exc, approval.ApprovalRequired):
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        raise
 
 
 class WatchRequest(BaseModel):
@@ -139,9 +147,14 @@ async def experiments() -> dict:
 async def experiment_run(experiment_id: str) -> dict:
     import repair_workflow as workflow
     try:
+        approval.require_approval("crashlab_experiment_run", {"experiment_id": experiment_id})
         return await asyncio.to_thread(workflow.run, experiment_id)
-    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        if isinstance(exc, approval.ApprovalRequired):
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        if isinstance(exc, (OSError, ValueError, KeyError, subprocess.SubprocessError)):
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise
 
 
 @router.post('/experiments/{experiment_id}/watch')

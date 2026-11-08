@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import campaign_plugin as bridge
+import approval
 import plugin
 from inventory_fixture import make_server
 
@@ -77,6 +78,9 @@ class CampaignPluginTests(unittest.TestCase):
 
     def invoke(self, name="crashlab_campaign_run", **extra):
         args = {"campaign_id": "inventory-contention", "target_set": "local", **extra}
+        if name == "crashlab_campaign_run":
+            try: approval.grant_for_tests(name, args)
+            except (OSError, ValueError, KeyError, TypeError): pass
         return json.loads(plugin._handler(name)(args))
 
     def test_read_only_validation_does_not_reset_or_create_evidence(self):

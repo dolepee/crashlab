@@ -9,11 +9,13 @@ try:
     from . import campaign_plugin
     from . import repair_workflow
     from . import completion_reminder
+    from . import approval
 except ImportError:
     import crashlab_core as core
     import campaign_plugin
     import repair_workflow
     import completion_reminder
+    import approval
 
 TOOL_SCHEMAS = [
     {
@@ -66,6 +68,8 @@ TOOL_SCHEMAS.append(completion_reminder.schema())
 
 def _handler(name: str):
     def invoke(kwargs):
+        if name in {"crashlab_run", "crashlab_compare"}:
+            approval.require_approval(name, kwargs)
         if name == "crashlab_experiment_watch":
             return completion_reminder.watch(**kwargs)
         if name in {schema["name"] for schema in repair_workflow.schemas()}:
@@ -117,7 +121,12 @@ def _slash(raw_args: str) -> str:
         if len(args) != 2:
             return "Usage: /crashlab run <case.json>"
         path = args[1]
-        result = core.run_and_persist(path)
+        try:
+            approval.require_approval("crashlab_run", {"contract_path": path})
+            result = core.run_and_persist(path)
+        except approval.ApprovalRequired:
+            return ("CrashLab needs a human approval for this case. Use the crashlab_run "
+                    "tool from Hermes so the approval gate can show the exact case, command and path.")
         return (f"CrashLab · {_verdict(result)} · {result.get('contract')}\n"
                 f"{result.get('error') or result.get('diagnosis') or 'No diagnosis recorded.'}\n{result.get('evidence_path')}")
     if args[0] in ("help", "?"):
@@ -130,6 +139,8 @@ def _slash(raw_args: str) -> str:
 def register(ctx):
     if hasattr(ctx, "register_hook"):
         ctx.register_hook("pre_verify", completion_reminder.pre_verify)
+        ctx.register_hook("pre_tool_call", approval.pre_tool_call)
+        ctx.register_hook("post_approval_response", approval.post_approval_response)
     from pathlib import Path
     if hasattr(ctx, "register_skill"):
         ctx.register_skill("crashlab", Path(__file__).parent / "skills" / "crashlab" / "SKILL.md", description="Reproduce and verify a local app repair with frozen assertions and current source evidence.")

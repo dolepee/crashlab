@@ -15,8 +15,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 try:
     from . import crashlab_core as core
+    from . import approval
 except ImportError:
     import crashlab_core as core
+    import approval
 
 
 def digest(value):
@@ -442,6 +444,7 @@ def invoke(name, args):
 
 
 def run(experiment_id):
+    approval.require_approval('crashlab_experiment_run', {'experiment_id': experiment_id})
     # One test process owns an experiment; avoid overlapping app executions and lost history.
     with (directory(experiment_id) / '.run.lock').open('a') as lock:
         try:

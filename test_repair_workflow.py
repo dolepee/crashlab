@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 import repair_workflow as workflow
+import approval
 
 class WorkflowTests(unittest.TestCase):
     def setUp(self):
@@ -16,6 +17,9 @@ class WorkflowTests(unittest.TestCase):
         self.env=patch.dict(os.environ,CRASHLAB_DATA_DIR=str(self.root/'evidence'));self.env.start();self.addCleanup(self.env.stop)
         self.case=json.loads((workflow.core.ROOT/'cases/checkout-local.json').read_text())
         self.case['app']['start']['cwd']=str(self.project)
+    def run_case(self, eid):
+        approval.grant_for_tests('crashlab_experiment_run', {'experiment_id': eid})
+        return workflow.run(eid)
     def prepare(self):
         return workflow.prepare(str(self.project),'Retry saves one order',self.case)['experiment_id']
     def result(self, passed):
@@ -23,17 +27,17 @@ class WorkflowTests(unittest.TestCase):
     def test_repair_then_edit_makes_evidence_stale(self):
         eid=self.prepare()
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(False)):
-            self.assertEqual(workflow.run(eid)['status'],'REPRODUCED')
+            self.assertEqual(self.run_case(eid)['status'],'REPRODUCED')
         (self.project/'app.py').write_text('repaired')
         self.assertEqual(workflow.status(eid)['status'],'STALE')
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(True)):
-            self.assertEqual(workflow.run(eid)['status'],'VERIFIED')
+            self.assertEqual(self.run_case(eid)['status'],'VERIFIED')
         (self.project/'app.py').unlink()
         self.assertEqual(workflow.status(eid)['status'],'STALE')
     def test_initial_pass_is_not_repair(self):
         eid=self.prepare()
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(True)):
-            self.assertEqual(workflow.run(eid)['status'],'PASS_WITHOUT_REPAIR_PROOF')
+            self.assertEqual(self.run_case(eid)['status'],'PASS_WITHOUT_REPAIR_PROOF')
     def test_case_drift_is_rejected(self):
         eid=self.prepare(); path=workflow.directory(eid)/'case.json'; c=json.loads(path.read_text());c['state']['expected_count']=123;path.write_text(json.dumps(c))
         with self.assertRaisesRegex(ValueError,'changed'):workflow.status(eid)
@@ -42,11 +46,11 @@ class WorkflowTests(unittest.TestCase):
         def execute(*args):
             (self.project/'app.py').write_text('changed during test');return self.result(False)
         with patch.object(workflow.core,'run_and_persist',side_effect=execute):
-            self.assertEqual(workflow.run(eid)['status'],'STALE')
+            self.assertEqual(self.run_case(eid)['status'],'STALE')
     def test_control_failure_does_not_establish_baseline(self):
         eid=self.prepare();r=self.result(False);r['control']['ok']=False
         with patch.object(workflow.core,'run_and_persist',return_value=r):
-            self.assertNotEqual(workflow.run(eid)['status'],'REPRODUCED')
+            self.assertNotEqual(self.run_case(eid)['status'],'REPRODUCED')
     def test_evidence_inside_app_is_rejected(self):
         with patch.dict(os.environ,CRASHLAB_DATA_DIR=str(self.project/'evidence')):
             with self.assertRaisesRegex(ValueError,'outside'):self.prepare()
@@ -55,10 +59,10 @@ class WorkflowTests(unittest.TestCase):
         script=self.project/'start.sh';script.write_text('#!/bin/sh\n');script.chmod(0o755)
         eid=self.prepare()
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(False)):
-            workflow.run(eid)
+            self.run_case(eid)
         (self.project/'app.py').write_text('fixed')
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(True)):
-            self.assertEqual(workflow.run(eid)['status'],'VERIFIED')
+            self.assertEqual(self.run_case(eid)['status'],'VERIFIED')
         script.chmod(0o644)
         self.assertEqual(workflow.status(eid)['status'],'STALE')
 
