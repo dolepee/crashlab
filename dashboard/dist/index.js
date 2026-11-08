@@ -264,7 +264,8 @@
         const target = plan.target || plan.base_url || start.base_url || plan.buggy_url || ''
         if (target) lines.push('target: ' + target)
       }
-      if (plan.reset_url) lines.push('reset: ' + plan.reset_url)
+      if (Array.isArray(plan.reset_urls) && plan.reset_urls.length) lines.push('reset: ' + plan.reset_urls.join(' + '))
+      else if (plan.reset_url) lines.push('reset: ' + plan.reset_url)
       return lines.join('\n')
     }
 

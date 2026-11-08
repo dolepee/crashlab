@@ -127,7 +127,7 @@ def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
         # app.start target before an external app.base_url, rather than showing
         # a URL the runner will overwrite after starting the app.
         "target": target,
-        "reset_url": app.get("reset_url"),
+        "reset_url": core.effective_reset_url(contract),
     }
     if tool == "crashlab_compare":
         plan.update(
@@ -149,6 +149,10 @@ def _experiment_plan(tool: str, args: dict[str, Any], *, experiment_raw: bytes |
     case_raw = (folder / "case.json").read_bytes() if case_raw is None else case_raw
     experiment = json.loads(experiment_raw.decode("utf-8"))
     case = json.loads(case_raw.decode("utf-8")) if case is None else case
+    try:
+        from . import crashlab_core as core
+    except ImportError:
+        import crashlab_core as core
     return {
         "tool": tool,
         "experiment_id": experiment_id,
@@ -157,6 +161,8 @@ def _experiment_plan(tool: str, args: dict[str, Any], *, experiment_raw: bytes |
         "case": _sha256(_canonical(case)),
         "project_path": experiment.get("project_path") if isinstance(experiment, dict) else None,
         "app_start": ((case.get("app") or {}).get("start") if isinstance(case, dict) else None),
+        "target": core.effective_base_url(case),
+        "reset_url": core.effective_reset_url(case),
     }
 
 

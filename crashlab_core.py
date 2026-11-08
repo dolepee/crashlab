@@ -459,6 +459,14 @@ def effective_base_url(contract: dict, override: str | None = None, *,
     return value
 
 
+def effective_reset_url(contract: dict) -> str | None:
+    """The reset endpoint the browser runner will call, if the contract has one."""
+    app = contract.get("app") if isinstance(contract, dict) else None
+    app = app if isinstance(app, dict) else {}
+    value = app.get("reset_url")
+    return str(value) if value else None
+
+
 def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = None,
                port_override: int | None = None, initialize: bool = True) -> tuple[subprocess.Popen, str, Path, Any, Path]:
     app = contract["app"]

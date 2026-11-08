@@ -215,6 +215,15 @@ def _digest(value) -> str:
 def capture(args):
     """Freeze the exact target-bound contracts that an approval will cover."""
     campaign_id, target_name, hashes, manifest, contracts = prepare(args, require_target=True)
+    targets = []
+    reset_urls = []
+    for contract in contracts:
+        target = core.effective_base_url(contract)
+        reset = core.effective_reset_url(contract)
+        if target and target not in targets:
+            targets.append(target)
+        if reset and reset not in reset_urls:
+            reset_urls.append(reset)
     plan = {
         "tool": "crashlab_campaign_run",
         "campaign_id": campaign_id,
@@ -223,6 +232,10 @@ def capture(args):
         "evaluator_sha256": hashes,
         "manifest_sha256": _digest(manifest),
         "contract_sha256": [_digest(contract) for contract in contracts],
+        "target": targets[0] if len(targets) == 1 else None,
+        "targets": targets,
+        "reset_url": reset_urls[0] if len(reset_urls) == 1 else None,
+        "reset_urls": reset_urls,
     }
     return {"digest": _digest(plan), "plan": plan, "campaign_id": campaign_id,
             "target_name": target_name, "hashes": hashes, "manifest": manifest,

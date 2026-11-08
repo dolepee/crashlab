@@ -109,6 +109,18 @@ class CampaignPluginTests(unittest.TestCase):
         self.assertEqual(captured["contracts"], snapshot["bundle"]["contracts"])
         self.assertNotEqual(captured["contracts"], bridge.capture(args)["contracts"])
 
+    def test_campaign_plan_shows_the_bound_target_and_reset(self):
+        self.configure(self.target())
+        args = {"campaign_id": "inventory-contention", "target_set": "local", "repetitions": 1}
+        snapshot = approval.capture_plan("crashlab_campaign_run", args)
+        plan = snapshot["plan"]
+        contract = snapshot["bundle"]["contracts"][0]
+        self.assertEqual(plan["target"], contract["app"]["base_url"])
+        self.assertEqual(plan["target"], bridge.core.effective_base_url(contract))
+        self.assertEqual(plan["targets"], [contract["app"]["base_url"]])
+        self.assertEqual(plan["reset_url"], "/reset")
+        self.assertEqual(plan["reset_urls"], ["/reset"])
+
     def test_campaign_approval_keeps_captured_target_contracts(self):
         self.configure(self.target("fixed"))
         args = {"campaign_id": "inventory-contention", "target_set": "local", "repetitions": 1}

@@ -470,6 +470,41 @@ class ApprovalPolicyTests(unittest.TestCase):
         self.assertEqual(plan['target'], 'http://127.0.0.1:4017')
         self.assertEqual(plan['targets'], ['http://127.0.0.1:4017', 'http://127.0.0.1:4018'])
 
+    def test_experiment_plan_uses_the_shared_target_and_reset_resolver(self):
+        base_case = json.loads(CASE.read_text())
+        cases = [
+            ('managed fixed port without a URL',
+             {'base_url': 'http://127.0.0.1:3999',
+              'start': {'port': 4012, 'command': ['{PYTHON}', 'server.py'],
+                        'cwd': '/tmp', 'base_url': None}},
+             'http://127.0.0.1:4012'),
+            ('managed URL wins over a conflicting app URL',
+             {'base_url': 'http://127.0.0.1:3999',
+              'start': {'port': 4012, 'command': ['{PYTHON}', 'server.py'],
+                        'cwd': '/tmp', 'base_url': 'http://127.0.0.1:4013'}},
+             'http://127.0.0.1:4013'),
+        ]
+        with tempfile.TemporaryDirectory() as temporary,              patch.dict('os.environ', {'CRASHLAB_DATA_DIR': temporary}):
+            folder = Path(temporary) / 'experiments' / ('e' * 32)
+            folder.mkdir(parents=True)
+            (folder / 'experiment.json').write_text(json.dumps({
+                'experiment_id': 'e' * 32,
+                'project_path': str(Path(temporary) / 'project'),
+                'intent': 'prepared experiment',
+                'runs': [],
+            }))
+            for label, app, expected in cases:
+                with self.subTest(label=label):
+                    case = copy.deepcopy(base_case)
+                    case['app'] = {**app, 'reset_url': '/reset'}
+                    (folder / 'case.json').write_text(json.dumps(case))
+                    snapshot = approval.capture_plan(
+                        'crashlab_experiment_run', {'experiment_id': 'e' * 32})
+                    plan = snapshot['plan']
+                    self.assertEqual(plan['target'], expected)
+                    self.assertEqual(plan['target'], core.effective_base_url(case))
+                    self.assertEqual(plan['reset_url'], '/reset')
+
     def test_dashboard_shows_the_effective_contract_target(self):
         try:
             from dashboard import plugin_api as api
