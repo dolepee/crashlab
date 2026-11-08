@@ -109,7 +109,10 @@ def _handler(name: str):
                 approved["path"], base_url=kwargs.get("base_url"),
                 frozen_contract=approved["contract"])
         if name == "crashlab_compare":
-            return core.compare(kwargs["contract_path"], kwargs["buggy_url"], kwargs["fixed_url"],
+            # Resolve against the approved snapshot, never the mutable path: a
+            # retargeted symlink here would point the relative observers at
+            # another directory's database after the approval was granted.
+            return core.compare(approved["path"], kwargs["buggy_url"], kwargs["fixed_url"],
                                 frozen_contract=approved["contract"])
         if name == "crashlab_list":
             return {"contracts": core.list_contracts()}

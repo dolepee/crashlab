@@ -259,8 +259,9 @@
       if (plan.project_path) lines.push('project: ' + plan.project_path)
       if (command) lines.push('launches: ' + command)
       if (start.cwd) lines.push('working directory: ' + start.cwd)
-      const target = plan.base_url || start.base_url || plan.buggy_url || ''
+      const target = plan.target || plan.base_url || start.base_url || plan.buggy_url || ''
       if (target) lines.push('target: ' + target)
+      if (plan.reset_url) lines.push('reset: ' + plan.reset_url)
       return lines.join('\n')
     }
 

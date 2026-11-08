@@ -119,6 +119,40 @@ class ApprovalPolicyTests(unittest.TestCase):
             frozen = run.call_args.kwargs['frozen_contract']
             self.assertEqual(frozen['app']['start'], original['app']['start'])
 
+    def test_compare_executes_the_approved_resolved_path_after_a_symlink_swap(self):
+        """A symlink retargeted after the guard must not redirect comparison observers."""
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            approved_dir = root / 'approved'
+            replacement_dir = root / 'replacement'
+            approved_dir.mkdir()
+            replacement_dir.mkdir()
+            original = json.loads(CASE.read_text())
+            (approved_dir / 'case.json').write_text(json.dumps(original))
+            (replacement_dir / 'case.json').write_text(json.dumps(original))
+            link = root / 'case.json'
+            link.symlink_to(approved_dir / 'case.json')
+            args = {'contract_path': str(link), 'buggy_url': 'http://127.0.0.1:3101',
+                    'fixed_url': 'http://127.0.0.1:3102'}
+            approval.pre_tool_call('crashlab_compare', args, tool_call_id='call-1',
+                                   session_id='session-1')
+            approve('crashlab_compare', args)
+            real_prepare = approval.prepare_approved_case
+
+            def prepare_then_retarget(*arguments, **keywords):
+                approved = real_prepare(*arguments, **keywords)
+                link.unlink()
+                link.symlink_to(replacement_dir / 'case.json')
+                return approved
+
+            with patch.object(plugin.core, 'compare', return_value={'ok': True}) as compare, \
+                 patch.object(plugin.approval, 'prepare_approved_case',
+                              side_effect=prepare_then_retarget):
+                result = json.loads(plugin._handler('crashlab_compare')(args, session_id='session-1'))
+            self.assertTrue(result['ok'], result)
+            self.assertEqual(Path(compare.call_args.args[0]),
+                             (approved_dir / 'case.json').resolve())
+
     def test_approval_binds_full_urls_and_tool(self):
         args = {**self.args(), 'base_url': 'http://127.0.0.1:3101'}
         approval.pre_tool_call('crashlab_run', args, tool_call_id='call-1', session_id='session-1')
@@ -389,6 +423,23 @@ class ApprovalPolicyTests(unittest.TestCase):
                          {'ok': True})
         with api._TICKET_LOCK:
             self.assertNotIn(approval_doc['token'], api._TICKETS)
+
+    def test_dashboard_shows_the_effective_contract_target(self):
+        try:
+            from dashboard import plugin_api as api
+        except ImportError:
+            self.skipTest('dashboard dependencies are not installed')
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            case = json.loads(CASE.read_text())
+            case['app'] = {'base_url': 'http://127.0.0.1:3999', 'reset_url': '/reset'}
+            path.write_text(json.dumps(case))
+            with patch.object(api, '_resolve_case', return_value=path):
+                document = asyncio.run(api.create_approval(
+                    api.ApprovalRequest(kind='run', contract_path=str(path))))
+            plan = document.get('plan') or {}
+            self.assertEqual(plan.get('target'), 'http://127.0.0.1:3999')
+            self.assertEqual(plan.get('reset_url'), '/reset')
 
     def test_dashboard_captures_the_plan_before_asking_the_operator(self):
         source = Path('dashboard/dist/index.js').read_text(encoding='utf-8')

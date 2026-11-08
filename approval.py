@@ -107,7 +107,9 @@ def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
     path = Path(args["contract_path"]).expanduser().resolve()
     raw = path.read_bytes() if raw is None else raw
     contract = json.loads(raw.decode("utf-8")) if contract is None else contract
-    start = ((contract.get("app") or {}).get("start") if isinstance(contract, dict) else None)
+    app = contract.get("app") if isinstance(contract, dict) else None
+    app = app if isinstance(app, dict) else {}
+    start = app.get("start")
     plan: dict[str, Any] = {
         "tool": tool,
         "contract_path": str(path),
@@ -115,6 +117,10 @@ def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
         "contract": _sha256(_canonical(contract)),
         "app_start": start,
         "base_url": args.get("base_url"),
+        # The target the operator is actually authorising to modify, including a
+        # contract-declared external app with no start command of its own.
+        "target": args.get("base_url") or app.get("base_url"),
+        "reset_url": app.get("reset_url"),
     }
     if tool == "crashlab_compare":
         plan.update(buggy_url=args.get("buggy_url"), fixed_url=args.get("fixed_url"))
