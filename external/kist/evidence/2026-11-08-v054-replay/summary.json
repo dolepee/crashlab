@@ -1,0 +1,40 @@
+{
+  "source": "b58224928e4b3b102db2101545afcedeaaba0eaa",
+  "version": "0.5.4",
+  "install": "official CLI in fresh Hermes home, documented clone timeout900, npm ci manual sidecar; doctor and validator passed",
+  "old_evaluator_rejected": "Evaluator differs from exported experiment; install the recorded source pin or explicitly prepare a new experiment",
+  "native_host_cycle": [
+    "REPRODUCED",
+    "VERIFIED"
+  ],
+  "separate_process_replay": [
+    "REPRODUCED",
+    "VERIFIED"
+  ],
+  "frozen_behavior_preserved": true,
+  "frozen_launch_preserved": true,
+  "bundle_sha256": "fb3a9e8226fda34c1603cf4365beb13b6a8eb2aa2a967048f9a6971c947e1de9",
+  "controls": "each boundary2/2; all repaired primary1/1",
+  "limits": "Real installed Hermes dispatch and Chrome, deterministic operator once responses under authorized disposable-app tests; retained model-produced app patch; no new model generation or unrelated-user claim",
+  "bundle": "../../recovery-regression-v054.json",
+  "application": {
+    "repository": "https://github.com/grzella/kist-finance",
+    "commit": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+    "operation": "Create savings-goal records; no payments or money movement"
+  },
+  "host": {
+    "version": "0.23",
+    "commit": "2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19",
+    "browser": "Installed native Google Chrome on macOS"
+  },
+  "repair": {
+    "path": "../2026-11-07-hermes-recovery/repair-from-upstream.patch",
+    "sha256": "01fafa50a00024f9be19c17d30d5e321339b685b4df6c51b7f0ab2e2911b4e8c",
+    "provenance": "Retained actual model-produced patch from earlier recorded session; applied by operator for this replay"
+  },
+  "receipts": {
+    "current-evaluator-baseline": "current-evaluator-baseline-receipt.json",
+    "fresh-replay": "fresh-replay-receipt.json"
+  },
+  "normalization": "Absolute private audit-root paths in these recorded JSON receipts are replaced with $AUDIT_WORKSPACE. Digests inside describe original executed cases/source bytes, not the normalized receipt text. Receipts are evidence, not portable input; use the unchanged export bundle for import."
+}

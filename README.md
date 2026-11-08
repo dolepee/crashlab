@@ -1,9 +1,12 @@
 # CrashLab
 
-CrashLab helps Hermes check whether an uncertain operation recovers correctly.
+For developers repairing web apps with Hermes, CrashLab checks that a repair
+preserves the intended saved result when a submission is interrupted or the app
+restarts. Keep the same regression for the next edit, conversation or checkout.
+
 Prevent delivery, lose an acknowledgement after commit, or restart the app before
 retry; inspect what was actually saved, repair the app and rerun the same frozen
-behavior. Keep the regression for the next conversation or checkout.
+behavior.
 
 A legitimate-use control checks that fixing a retry still allows two deliberate
 operations. The comparison freezes the contract and checks evaluator identity
@@ -28,6 +31,12 @@ atomic goal/receipt transaction. It reran the same experiment to VERIFIED; an
 independent run of its application tests passed 279 tests. The full patch retains
 its six new tests and identifies the frontend code supplied in the initial seed.
 See the [actual selected tool events, measurements and patch](external/kist/evidence/2026-11-07-hermes-recovery/summary.json).
+
+To exercise this workflow on the reviewed **0.5.4** evaluator, use the
+[current Kist replay](external/kist/CURRENT_REPLAY.md). Its exported regression
+was independently imported in a separate process, reproduced on a pristine
+checkout and verified after applying the retained repair. This is a measured
+operator replay; the earlier model session has its own recorded verifier pin.
 
 The [operator-controlled boundary comparison](external/kist/evidence/2026-11-07-recovery/summary.json)
 also includes unmodified upstream Kist and the older retained repair. A separate

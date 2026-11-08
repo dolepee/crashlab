@@ -1,0 +1,218 @@
+{
+  "format": "crashlab-regression.v1",
+  "intent": "An uncertain create produces one savings goal before delivery, after commit and across restart; two deliberate identical creates stay possible.",
+  "behavior": {
+    "id": "kist-savings-goal-durable-recovery",
+    "recovery_campaign": [
+      "before_delivery",
+      "after_commit",
+      "restart_after_commit"
+    ],
+    "recovery": {
+      "mode": "retry"
+    },
+    "journey": [
+      {
+        "action": "goto",
+        "path": "/#goals"
+      },
+      {
+        "action": "fill",
+        "selector": "#gName",
+        "value": "CrashLab uncertain savings"
+      },
+      {
+        "action": "fill",
+        "selector": "#gTarget",
+        "value": "12000"
+      },
+      {
+        "action": "fill",
+        "selector": "#gCurrent",
+        "value": "250"
+      },
+      {
+        "action": "fill",
+        "selector": "#gMonthly",
+        "value": "100"
+      },
+      {
+        "action": "click",
+        "selector": "#gAdd"
+      },
+      {
+        "action": "wait_for_fault"
+      },
+      {
+        "action": "click",
+        "selector": "#gAdd"
+      },
+      {
+        "action": "wait_for_count",
+        "selector": "#gList h3:text-is(\"CrashLab uncertain savings\")",
+        "min": 1
+      },
+      {
+        "action": "wait_for_value",
+        "selector": "#gName",
+        "empty": true
+      }
+    ],
+    "fault": {
+      "route": "**/api/goals",
+      "method": "POST",
+      "mode": "suppress_after_upstream",
+      "occurrence": 1
+    },
+    "state": {
+      "mode": "sqlite",
+      "db": "{DATA_DIR}/.finance/finance.db",
+      "table": "goals",
+      "where": "name = 'CrashLab uncertain savings'",
+      "expect": 1,
+      "record_fields": {
+        "name": "CrashLab uncertain savings",
+        "target_amount": 12000,
+        "current_amount": 250,
+        "currency": "PLN",
+        "status": "active"
+      },
+      "request_fields": {
+        "name": "name",
+        "target_amount": "target_amount",
+        "current_amount": "current_amount"
+      }
+    },
+    "control": {
+      "journey": [
+        {
+          "action": "fill",
+          "selector": "#gName",
+          "value": "CrashLab deliberate identical"
+        },
+        {
+          "action": "fill",
+          "selector": "#gTarget",
+          "value": "8000"
+        },
+        {
+          "action": "fill",
+          "selector": "#gCurrent",
+          "value": "300"
+        },
+        {
+          "action": "fill",
+          "selector": "#gMonthly",
+          "value": "50"
+        },
+        {
+          "action": "click",
+          "selector": "#gAdd"
+        },
+        {
+          "action": "wait_for_count",
+          "selector": "#gList h3:text-is(\"CrashLab deliberate identical\")",
+          "min": 1,
+          "max": 1
+        },
+        {
+          "action": "wait_for_value",
+          "selector": "#gName",
+          "empty": true
+        },
+        {
+          "action": "fill",
+          "selector": "#gName",
+          "value": "CrashLab deliberate identical"
+        },
+        {
+          "action": "fill",
+          "selector": "#gTarget",
+          "value": "8000"
+        },
+        {
+          "action": "fill",
+          "selector": "#gCurrent",
+          "value": "300"
+        },
+        {
+          "action": "fill",
+          "selector": "#gMonthly",
+          "value": "50"
+        },
+        {
+          "action": "click",
+          "selector": "#gAdd"
+        },
+        {
+          "action": "wait_for_count",
+          "selector": "#gList h3:text-is(\"CrashLab deliberate identical\")",
+          "min": 2,
+          "max": 2
+        },
+        {
+          "action": "wait_for_value",
+          "selector": "#gName",
+          "empty": true
+        }
+      ],
+      "state": {
+        "mode": "sqlite",
+        "db": "{DATA_DIR}/.finance/finance.db",
+        "table": "goals",
+        "where": "name = 'CrashLab deliberate identical'",
+        "expect": 2,
+        "record_fields": {
+          "name": "CrashLab deliberate identical",
+          "target_amount": 8000,
+          "current_amount": 300,
+          "currency": "PLN",
+          "status": "active"
+        }
+      }
+    },
+    "evidence": {
+      "screenshot_dir": "{DATA_DIR}/shots"
+    }
+  },
+  "launch": {
+    "start": {
+      "cwd": "{PROJECT}",
+      "python": "{APP_PYTHON}",
+      "command": [
+        "{PYTHON}",
+        "server/app.py"
+      ],
+      "env": {
+        "FINANCE_PROJECT_DIR": "{DATA_DIR}",
+        "PORT": "{PORT}",
+        "KIST_NO_SCHEDULED_TASKS": "1"
+      },
+      "base_url": "http://127.0.0.1:{PORT}",
+      "health_path": "/",
+      "setup": [
+        {
+          "path": "/api/app-config",
+          "method": "POST",
+          "json": {
+            "wizard_completed": true
+          }
+        }
+      ]
+    }
+  },
+  "behavior_sha256": "f379c258e1b9557c140f1bafb0f8cc307eefd2d9c1d95ad434f9e9287b84f6e8",
+  "launch_sha256": "5f21b5bb5f1f9a8a10b59fea5195a63d4acf6a5e9c18c33a5e87f3df75796c81",
+  "evaluator_sha256": {
+    "crashlab_core.py": "9dc1bf423fe2640f86a7a907f58db75c0ebd2ac127d913c000285a3cdc6558d7",
+    "crashlab_runner.js": "1ea6b8fdf776987478a8a24877f0f104d7dbdcd1afa55816ec52884d4be0ad31",
+    "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
+    "repair_workflow.py": "ac230d34487181360cca43e411743c59170218542dd249fef8305425c878121c"
+  },
+  "binding_fields": [
+    "project_path",
+    "app_python"
+  ],
+  "notes": "Behavior and launch template are frozen independently. Bind paths to a disposable checkout; dependencies and runtime remain your responsibility. This bundle contains declared setup/environment values and may contain application data. It does not transfer verified status or include a source repair.",
+  "source_pin": "b58224928e4b3b102db2101545afcedeaaba0eaa"
+}
