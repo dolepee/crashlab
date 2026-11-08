@@ -291,9 +291,9 @@ if (require.main === module) {
     });
     responseEvents.push(event);
     if (response.status() >= 300 && response.status() < 400) return;
-    if (response.status() === 204) {
-      // 204 means no content. Record the empty body without asking Playwright
-      // for a body it does not expose.
+    if (response.status() === 204 || response.status() === 205) {
+      // No-content statuses. Record the empty body without asking Playwright
+      // for a body it does not expose; 205 is reset-content by definition.
       event.body_sha256 = sha256('');
       event.body_length = 0;
       event.json = null;
@@ -303,7 +303,12 @@ if (require.main === module) {
       event.body_sha256 = sha256(text);
       event.body_length = text.length;
       const contentType = String(response.headers()['content-type'] || '');
-      if (/json/i.test(contentType)) {
+      if (text.length === 0) {
+        // Parse only a body that exists. An absent body is not invalid JSON,
+        // regardless of a JSON content-type header; a configured reply-ID
+        // predicate still fails because there is no ID to match.
+        event.json = null;
+      } else if (/json/i.test(contentType)) {
         try { event.json = parseJson(text, 'terminal response'); }
         catch (err) { event.json_error = String(err); }
       } else {

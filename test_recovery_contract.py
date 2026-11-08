@@ -121,9 +121,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(399, {'error': 'not terminal'})
         elif mode == '503':
             self._json(503, {'error': 'unavailable'})
-        elif mode == '204':
-            self.send_response(204)
-            self.send_header('Content-Type', 'application/json')
+        elif mode in ('204', '205', '205json'):
+            self.send_response(204 if mode == '204' else 205)
+            if mode != '205':
+                self.send_header('Content-Type', 'application/json')
             self.end_headers()
         elif mode == 'wrongid':
             self._json(201, {'id': record_id + 1})
@@ -151,7 +152,7 @@ async function send(retry=false) {
       headers: {'content-type': params.has('formjson') ? 'application/x-www-form-urlencoded' : 'application/json', 'Idempotency-Key':key},
       body: raw,
     });
-    if (response.status === 204) {
+    if (response.status === 204 || response.status === 205) {
       document.getElementById('status').textContent = 'Saved';
       document.getElementById('retry').style.display = 'none';
       return;
@@ -435,6 +436,24 @@ class RecoveryContractTests(unittest.TestCase):
         self.assertIsNone(result['recovery']['terminal_response']['json'])
         self.assertEqual(result['recovery']['terminal_response']['body_sha256'],
                          'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+
+    def test_empty_205_body_passes_without_parsing(self):
+        for mode in ('205', '205json'):
+            with self.subTest(mode=mode):
+                result = self.run_case(mode=mode, statuses=(205,), response_id=False)
+                self.assertTrue(result['ok'], result)
+                terminal = result['recovery']['terminal_response']
+                self.assertEqual(terminal['status'], 205)
+                self.assertIsNone(terminal['json'])
+                self.assertIsNone(terminal['json_error'])
+                self.assertEqual(terminal['body_sha256'],
+                                 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+
+    def test_absent_reply_id_on_empty_205_still_fails(self):
+        result = self.run_case(mode='205json', statuses=(205,), response_id=True)
+        self.assertFalse(result['ok'], result)
+        self.assertFalse(result['recovery']['response_identity']['ok'], result)
+        self.assertIsNone(result['recovery']['terminal_response']['json'])
 
     def test_unrelated_post_cannot_rescue_retry(self):
         for mode in ('503', 'reset'):
