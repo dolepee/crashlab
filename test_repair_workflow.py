@@ -45,7 +45,26 @@ class WorkflowTests(unittest.TestCase):
         value['project_path']=str(self.project)+'-other'
         workflow.save(path,value)
         with self.assertRaisesRegex(ValueError,'metadata changed'):
-            workflow.run(eid, approval_context={'session_id':'operator'}, approved=snapshot)
+            workflow.run(eid, approval_context={'session_id':'operator'}, approved_snapshot=snapshot)
+
+    def test_unicode_experiment_metadata_runs_the_approved_snapshot(self):
+        """A non-ASCII intent or path must not read as a change after approval."""
+        eid = self.prepare()
+        folder = workflow.directory(eid)
+        path = folder / 'experiment.json'
+        value = json.loads(path.read_text())
+        value['intent'] = 'Vérifier la récupération après « redémarrage »'
+        workflow.save(path, value)
+        args = {'experiment_id': eid}
+        snapshot = approval.capture_plan('crashlab_experiment_run', args)
+        approval.grant_for_operator('crashlab_experiment_run', args,
+                                    session_id='operator', snapshot=snapshot)
+        with patch.object(workflow.core, 'run_and_persist', return_value=self.result(False)) as run:
+            self.assertEqual(workflow.run(eid, approval_context={'session_id': 'operator'},
+                                          approved_snapshot=snapshot)['status'], 'REPRODUCED')
+        run.assert_called_once()
+        self.assertEqual(run.call_args.kwargs['frozen_contract']['app']['start'],
+                         json.loads((folder / 'case.json').read_text())['app']['start'])
 
     def test_cli_operator_flow_shows_the_frozen_plan_it_approves(self):
         import crashlab_replay

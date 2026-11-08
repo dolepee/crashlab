@@ -70,7 +70,10 @@ class ApprovalRequired(PermissionError):
 
 
 def _canonical(value: Any) -> str:
-    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    # Must stay byte-identical to ``repair_workflow.digest``: the workflow recomputes
+    # the experiment metadata digest reported here, and a different escape policy
+    # (``ensure_ascii=False``) made every non-ASCII intent or path look edited.
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
 def _sha256(value: bytes | str) -> str:

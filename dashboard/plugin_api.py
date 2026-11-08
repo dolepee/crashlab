@@ -35,6 +35,10 @@ class ApprovalRequest(BaseModel):
     experiment_id: str | None = None
 
 
+class CancelRequest(BaseModel):
+    token: str
+
+
 _TICKETS: dict[str, tuple[str, dict, str, dict, float]] = {}
 _TICKET_LOCK = threading.Lock()
 _TICKET_SECONDS = 120
@@ -152,17 +156,28 @@ async def contracts() -> dict:
 
 @router.post("/approval")
 async def create_approval(request: ApprovalRequest) -> dict:
-    """Issue a short-lived, single-use ticket after an explicit operator action.
+    """Freeze one execution plan and return it for the operator to inspect.
 
-    The ticket is bound to the exact execution plan and is consumed by one run.
-    It does not replace the Hermes tool approval; it restores the human-facing
-    dashboard/CLI workflow without an unconditional bypass.
+    The ticket is bound to those exact bytes and is consumed by one run. It does
+    not replace the Hermes tool approval; it restores the human-facing
+    dashboard workflow without an unconditional bypass. The plan comes back with
+    the ticket so the confirmation dialog can show what will run, and the same
+    frozen plan is what executes.
     """
     tool, args, digest, snapshot = _plan_for(request.kind, request.contract_path, request.experiment_id)
     token = secrets.token_urlsafe(32)
     with _TICKET_LOCK:
         _TICKETS[token] = (tool, args, digest, snapshot, time.time() + _TICKET_SECONDS)
-    return {"token": token, "expires_in": _TICKET_SECONDS, "tool": tool, "plan_digest": digest}
+    return {"token": token, "expires_in": _TICKET_SECONDS, "tool": tool,
+            "plan_digest": digest, "plan": snapshot["plan"]}
+
+
+@router.post("/approval/cancel")
+async def cancel_approval(request: CancelRequest) -> dict:
+    """Drop a ticket the operator declined so a stale confirmation cannot run."""
+    with _TICKET_LOCK:
+        _TICKETS.pop(request.token, None)
+    return {"ok": True}
 
 
 @router.post("/run")
@@ -232,7 +247,7 @@ async def experiment_run(experiment_id: str, x_crashlab_approval: str | None = H
                                     snapshot=snapshot)
         return await asyncio.to_thread(workflow.run, experiment_id,
                                        approval_context={"session_id": "dashboard:" + token},
-                                       approved=snapshot)
+                                       approved_snapshot=snapshot)
     except approval.ApprovalRequired as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:

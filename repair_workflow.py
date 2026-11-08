@@ -446,9 +446,38 @@ def schemas():
             ('crashlab_experiment_status','Check whether experiment evidence is current for the app source. Edits make old evidence STALE; rerun before claiming verification.')]]]
 
 
+# Public tool arguments. ``invoke`` never forwards a caller's dictionary wholesale:
+# an internal keyword such as a pre-captured approval snapshot must not be
+# reachable from model or API arguments.
+PUBLIC_ARGUMENTS = {
+    'crashlab_prepare': ('project_path', 'intent', 'contract'),
+    'crashlab_experiment_run': ('experiment_id',),
+    'crashlab_experiment_status': ('experiment_id',),
+    'crashlab_experiment_report': ('experiment_id', 'run_index'),
+    'crashlab_experiment_export': ('experiment_id',),
+    'crashlab_experiment_import': ('bundle_path', 'project_path', 'app_python'),
+}
+
+
+def public_arguments(name, args):
+    """Select only the published parameters of a tool, rejecting anything else."""
+    allowed = PUBLIC_ARGUMENTS.get(name)
+    if allowed is None:
+        raise ValueError(name)
+    if args is None:
+        args = {}
+    if not isinstance(args, dict):
+        raise ValueError('CrashLab tool arguments must be an object')
+    extra = sorted(set(args) - set(allowed))
+    if extra:
+        raise ValueError(f'{name} does not accept argument(s): {", ".join(extra)}')
+    return {key: args[key] for key in allowed if key in args}
+
+
 def invoke(name, args, approval_context=None):
+    args = public_arguments(name, args)
     if name == 'crashlab_prepare': return prepare(**args)
-    if name == 'crashlab_experiment_run': return run(**args, approval_context=approval_context)
+    if name == 'crashlab_experiment_run': return run(args['experiment_id'], approval_context=approval_context)
     if name == 'crashlab_experiment_status': return status(**args)
     if name == 'crashlab_experiment_report': return report(**args)
     if name == 'crashlab_experiment_export': return export_experiment(**args)
@@ -456,14 +485,22 @@ def invoke(name, args, approval_context=None):
     raise ValueError(name)
 
 
-def run(experiment_id, *, approval_context=None, approved=None):
+def run(experiment_id, *, approval_context=None, approved_snapshot=None):
+    """Run one prepared experiment against the exact plan a human approved.
+
+    ``approved_snapshot`` is an internal hand-off from the trusted operator
+    routes (dashboard ticket, terminal prompt). It is only ever a *candidate*:
+    every run re-validates it through the approval gate, which checks the frozen
+    identity and spends a live grant, so a caller that invents a snapshot from
+    the experiment's own files still has no authorization.
+    """
     context = approval_context or {}
-    if approved is None:
-        approved = approval.prepare_approved_experiment(
-            experiment_id,
-            session_id=str(context.get('session_id') or ''),
-            task_id=str(context.get('task_id') or ''),
-            tool_call_id=str(context.get('tool_call_id') or ''))
+    approved = approval.prepare_approved_experiment(
+        experiment_id,
+        session_id=str(context.get('session_id') or ''),
+        task_id=str(context.get('task_id') or ''),
+        tool_call_id=str(context.get('tool_call_id') or ''),
+        snapshot=approved_snapshot)
     # One test process owns an experiment; avoid overlapping app executions and lost history.
     with (directory(experiment_id) / '.run.lock').open('a') as lock:
         try:

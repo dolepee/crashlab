@@ -36,7 +36,7 @@ def main():
         elif args.action=='run':
             snapshot=_operator_approval(args.experiment)
             result=workflow.run(args.experiment, approval_context={'session_id':'cli-operator'},
-                                approved=snapshot)
+                                approved_snapshot=snapshot)
         elif args.action=='report':result=workflow.report(args.experiment,args.run_index)
         else:result=workflow.export_experiment(args.experiment)
         print(json.dumps(result,indent=2))

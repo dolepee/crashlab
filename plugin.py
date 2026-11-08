@@ -66,8 +66,25 @@ TOOL_SCHEMAS.extend(repair_workflow.schemas())
 TOOL_SCHEMAS.append(completion_reminder.schema())
 
 
+def _public_arguments(name: str, kwargs):
+    """Keep only the published parameters; reject internal or unknown keywords.
+
+    The handler is the boundary between model/API arguments and internal calls,
+    so nothing a caller supplies can reach a private keyword of an inner route.
+    """
+    schema = next((item for item in TOOL_SCHEMAS if item["name"] == name), None)
+    allowed = set(((schema or {}).get("parameters") or {}).get("properties") or {})
+    if not isinstance(kwargs, dict):
+        raise ValueError(f"{name} arguments must be an object")
+    extra = sorted(set(kwargs) - allowed)
+    if extra:
+        raise ValueError(f"{name} does not accept argument(s): {', '.join(extra)}")
+    return {key: value for key, value in kwargs.items() if key in allowed}
+
+
 def _handler(name: str):
     def invoke(kwargs, context):
+        kwargs = _public_arguments(name, kwargs)
         session_id = str(context.get("session_id") or "")
         task_id = str(context.get("task_id") or "")
         # The host binds the originating call id for the dispatch but does not

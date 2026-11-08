@@ -331,6 +331,72 @@ class ApprovalPolicyTests(unittest.TestCase):
         grant.assert_called_once()
         self.assertIs(grant.call_args.kwargs['snapshot'], snapshot)
 
+    def _prepared_experiment(self, temporary, *, intent='Reproduce the lost response'):
+        folder = Path(temporary) / 'experiments' / ('c' * 32)
+        folder.mkdir(parents=True)
+        (folder / 'case.json').write_text(CASE.read_text(encoding='utf-8'))
+        (folder / 'experiment.json').write_text(json.dumps({
+            'experiment_id': 'c' * 32, 'project_path': str(Path(temporary) / 'project'),
+            'intent': intent, 'runs': []}, ensure_ascii=False), encoding='utf-8')
+        return 'c' * 32
+
+    def test_tool_adapter_rejects_a_caller_supplied_approval_snapshot(self):
+        """Model/API arguments cannot hand the run route its own approval object."""
+        with tempfile.TemporaryDirectory() as temporary, \
+             patch.dict('os.environ', {'CRASHLAB_DATA_DIR': temporary}):
+            experiment = self._prepared_experiment(temporary)
+            snapshot = approval.capture_plan('crashlab_experiment_run', {'experiment_id': experiment})
+        for extra in ('approved', 'approved_snapshot', 'snapshot'):
+            with self.subTest(argument=extra):
+                with patch.object(workflow, '_run') as run:
+                    with self.assertRaises(ValueError):
+                        plugin._handler('crashlab_experiment_run')(
+                            {'experiment_id': experiment, extra: snapshot}, session_id='session-1')
+                    run.assert_not_called()
+
+    def test_invented_snapshot_without_a_grant_does_not_execute(self):
+        """Even an internal caller that builds the snapshot itself gets no lease."""
+        case = json.loads(CASE.read_text())
+        value = {'experiment_id': 'd' * 32, 'project_path': '/tmp/project', 'intent': 'x', 'runs': []}
+        forged = {'tool': 'crashlab_experiment_run', 'args': {'experiment_id': 'd' * 32},
+                  'contract': case, 'experiment': value,
+                  'experiment_digest': workflow.digest(value),
+                  'digest': approval._sha256(approval._canonical({'tool': 'crashlab_experiment_run'}))}
+        with patch.object(workflow, '_run') as run:
+            with self.assertRaises(approval.ApprovalRequired):
+                workflow.run('d' * 32, approval_context={'session_id': 'session-1'},
+                             approved_snapshot=forged)
+            run.assert_not_called()
+
+    def test_unicode_experiment_metadata_matches_the_workflow_digest(self):
+        value = {'intent': 'Vérifier la récupération', 'project_path': '/tmp/proj-ü', 'runs': []}
+        self.assertEqual(approval._sha256(approval._canonical(value)), workflow.digest(value))
+
+    def test_dashboard_approval_shows_the_plan_it_will_execute(self):
+        try:
+            from dashboard import plugin_api as api
+        except ImportError:
+            self.skipTest('dashboard dependencies are not installed')
+        approval_doc = asyncio.run(api.create_approval(
+            api.ApprovalRequest(kind='run', contract_path=str(CASE))))
+        plan = approval_doc.get('plan') or {}
+        self.assertEqual(plan.get('contract_path'), str(CASE))
+        self.assertEqual(plan.get('app_start'), json.loads(CASE.read_text())['app']['start'])
+        self.assertEqual(plan.get('contract_sha256'), approval._sha256(CASE.read_bytes()))
+        with api._TICKET_LOCK:
+            self.assertIn(approval_doc['token'], api._TICKETS)
+        self.assertEqual(asyncio.run(api.cancel_approval(api.CancelRequest(token=approval_doc['token']))),
+                         {'ok': True})
+        with api._TICKET_LOCK:
+            self.assertNotIn(approval_doc['token'], api._TICKETS)
+
+    def test_dashboard_captures_the_plan_before_asking_the_operator(self):
+        source = Path('dashboard/dist/index.js').read_text(encoding='utf-8')
+        self.assertEqual(source.count('window.confirm'), 1,
+                         'every operator confirmation must show the captured plan')
+        self.assertLess(source.index("api('/approval'"), source.index('window.confirm'))
+        self.assertIn('planSummary(ticket.plan)', source)
+
     def test_hooks_are_registered_and_declared(self):
         calls = []
         class Context:
