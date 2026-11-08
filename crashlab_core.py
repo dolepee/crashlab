@@ -425,6 +425,48 @@ def _stop_process(proc: subprocess.Popen) -> None:
             pass
 
 
+def effective_base_url(contract: dict, override: str | None = None, *,
+                        contract_dir: Path | None = None, data: Path | None = None,
+                        port: int | None = None) -> str | None:
+    """The URL execution will actually use for a contract.
+
+    Precedence is the one ``run_contract`` and ``_start_app`` implement:
+    an explicit tool override, then a managed ``app.start`` target, then an
+    unmanaged external ``app.base_url``. A managed start with a fixed port and
+    no URL uses the loopback URL on that port; a dynamic port is unknowable
+    until the process starts, so it is not represented as a stale contract URL.
+    """
+    app = contract.get("app") if isinstance(contract, dict) else None
+    app = app if isinstance(app, dict) else {}
+    start = app.get("start")
+    start = start if isinstance(start, dict) else None
+    value = None
+    if override:
+        value = str(override)
+    elif start is not None:
+        value = start.get("base_url")
+        if not value and port is not None:
+            value = f"http://127.0.0.1:{port}"
+        elif not value and type(start.get("port")) is int:
+            value = f"http://127.0.0.1:{start['port']}"
+    else:
+        value = app.get("base_url")
+    if value is None:
+        return None
+    value = str(value)
+    if contract_dir is not None and data is not None and port is not None:
+        value = str(_expand_start(value, contract_dir=contract_dir, data=data, port=port))
+    return value
+
+
+def effective_reset_url(contract: dict) -> str | None:
+    """The reset endpoint the browser runner will call, if the contract has one."""
+    app = contract.get("app") if isinstance(contract, dict) else None
+    app = app if isinstance(app, dict) else {}
+    value = app.get("reset_url")
+    return str(value) if value else None
+
+
 def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = None,
                port_override: int | None = None, initialize: bool = True) -> tuple[subprocess.Popen, str, Path, Any, Path]:
     app = contract["app"]
@@ -472,8 +514,10 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
         proc._crashlab_pgid = proc.pid
     proc._crashlab_port = port
     try:
-        base = str(_expand_start(start.get("base_url") or f"http://127.0.0.1:{port}",
-                                 contract_dir=contract_dir, data=data, port=port))
+        base = effective_base_url(
+            contract, contract_dir=contract_dir, data=data, port=port)
+        if base is None:
+            raise ValueError("app.start has no usable base URL")
         health = str(start.get("health_path", "/"))
         timeout_s = float(start.get("ready_timeout", 30))
         deadline = time.monotonic() + timeout_s
@@ -658,8 +702,8 @@ def _completed_assertion(run: dict, *, passed: bool) -> bool:
 
 
 def compare(contract_path: str | Path, buggy_url: str, fixed_url: str,
-            timeout: int = 120) -> dict:
-    frozen = load_contract(contract_path)
+            timeout: int = 120, *, frozen_contract: dict | None = None) -> dict:
+    frozen = copy.deepcopy(frozen_contract) if frozen_contract is not None else load_contract(contract_path)
     digest = hashlib.sha256(json.dumps(frozen, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     evaluator_files = (Path(__file__), RUNNER, ROOT / "crashlab_probe.py")
     evaluator = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in evaluator_files}
@@ -681,10 +725,11 @@ def compare(contract_path: str | Path, buggy_url: str, fixed_url: str,
     return _persist(result)
 
 
-def run_and_persist(contract_path: str | Path, base_url: str | None = None) -> dict:
+def run_and_persist(contract_path: str | Path, base_url: str | None = None,
+                    *, frozen_contract: dict | None = None) -> dict:
     """Keep setup errors visible as the latest result across host surfaces."""
     try:
-        result = run_contract(contract_path, base_url=base_url)
+        result = run_contract(contract_path, base_url=base_url, frozen_contract=frozen_contract)
     except Exception as exc:
         result = {"ok": False, "status": "ERROR", "contract": Path(contract_path).stem,
                   "error": f"{type(exc).__name__}: {exc}"}

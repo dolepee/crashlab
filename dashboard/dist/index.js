@@ -9,8 +9,8 @@
 
   async function api(path, options) {
     const response = await SDK.authedFetch('/api/plugins/crashlab' + path, {
-      headers: { 'Content-Type': 'application/json' },
-      ...options
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...(options && options.headers) }
     })
     const body = await response.json().catch(() => ({ ok: false, error: 'invalid response' }))
     if (!response.ok) throw new Error(body.detail || body.error || 'request failed')
@@ -189,14 +189,24 @@
       setBusy(true)
       setExperimentError(null)
       setActiveExperiment({ id: row.experiment_id, action })
+      let approvalToken = null
       if (action === 'run') {
+        try {
+          approvalToken = await operatorTicket('experiment', { experiment_id: row.experiment_id },
+            'Run this frozen case in the local app?' + (row.intent ? '\n\n' + row.intent : ''))
+        } catch (err) {
+          setBusy(false); setActiveExperiment(null); setExperimentError({ id: row.experiment_id, message: String(err.message || err) }); return
+        }
+        if (!approvalToken) { setBusy(false); setActiveExperiment(null); return }
         runningExperiment.current = row.experiment_id
         setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, status: 'RUNNING' } : item))
         setReportData(current => current?.experiment_id === row.experiment_id ? { ...current, current_status: 'RUNNING' } : current)
       }
       try {
         const result = await api('/experiments/' + row.experiment_id + '/' + action, {
-          method: 'POST', body: JSON.stringify(action === 'watch' ? { enabled: !row.watching } : {})
+          method: 'POST',
+          headers: approvalToken ? { 'X-CrashLab-Approval': approvalToken } : {},
+          body: JSON.stringify(action === 'watch' ? { enabled: !row.watching } : {})
         })
         runningExperiment.current = null
         if (action === 'watch') setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, watching: !!result.watching } : item))
@@ -239,12 +249,50 @@
       finally { setExporting(false) }
     }
 
+    function planSummary(plan) {
+      if (!plan || typeof plan !== 'object') return ''
+      const start = plan.app_start || {}
+      const command = Array.isArray(start.command) ? start.command.join(' ') : (start.command || '')
+      const lines = []
+      if (plan.contract_path) lines.push('case file: ' + plan.contract_path)
+      if (plan.experiment_id) lines.push('experiment: ' + plan.experiment_id)
+      if (plan.project_path) lines.push('project: ' + plan.project_path)
+      if (command) lines.push('launches: ' + command)
+      if (start.cwd) lines.push('working directory: ' + start.cwd)
+      if (Array.isArray(plan.targets) && plan.targets.length) lines.push('targets: ' + plan.targets.join(' + '))
+      else {
+        const target = plan.target || plan.base_url || start.base_url || plan.buggy_url || ''
+        if (target) lines.push('target: ' + target)
+      }
+      if (Array.isArray(plan.reset_urls) && plan.reset_urls.length) lines.push('reset: ' + plan.reset_urls.join(' + '))
+      else if (plan.reset_url) lines.push('reset: ' + plan.reset_url)
+      return lines.join('\n')
+    }
+
+    // Freeze the plan first, show that exact plan, and only then ask. Confirming a
+    // case id before the snapshot exists would authorise whatever replaced the file.
+    async function operatorTicket(kind, payload, question) {
+      const ticket = await api('/approval', { method: 'POST', body: JSON.stringify({ ...payload, kind }) })
+      if (!ticket || !ticket.token) throw new Error('approval ticket unavailable; refusing to run')
+      const plan = planSummary(ticket.plan)
+      if (!plan) throw new Error('approval plan unavailable; refusing to run')
+      if (!window.confirm(question + '\n\n' + plan + '\n\nApprove running exactly this plan?')) {
+        try { await api('/approval/cancel', { method: 'POST', body: JSON.stringify({ token: ticket.token }) }) } catch (err) { /* the ticket expires on its own */ }
+        return null
+      }
+      return ticket.token
+    }
+
     async function startRun() {
       if (!selected) return
+      const selectedCase = cases.find(row => row.path === selected)
       setBusy(true)
       setError('')
       try {
-        await api('/run', { method: 'POST', body: JSON.stringify({ contract_path: selected }) })
+        const token = await operatorTicket('run', { contract_path: selected },
+          'Run this saved case in the local app?' + (selectedCase ? ' (' + selectedCase.id + ')' : ''))
+        if (!token) return
+        await api('/run', { method: 'POST', headers: { 'X-CrashLab-Approval': token }, body: JSON.stringify({ contract_path: selected }) })
         await load()
       } catch (err) {
         setError(String(err.message || err))

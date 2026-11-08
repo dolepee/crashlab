@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 import repair_workflow as workflow
+import approval
 
 class WorkflowTests(unittest.TestCase):
     def setUp(self):
@@ -16,6 +17,9 @@ class WorkflowTests(unittest.TestCase):
         self.env=patch.dict(os.environ,CRASHLAB_DATA_DIR=str(self.root/'evidence'));self.env.start();self.addCleanup(self.env.stop)
         self.case=json.loads((workflow.core.ROOT/'cases/checkout-local.json').read_text())
         self.case['app']['start']['cwd']=str(self.project)
+    def run_case(self, eid):
+        approval.grant_for_tests('crashlab_experiment_run', {'experiment_id': eid})
+        return workflow.run(eid, approval_context={'session_id': 'test-session'})
     def prepare(self):
         return workflow.prepare(str(self.project),'Retry saves one order',self.case)['experiment_id']
     def result(self, passed):
@@ -23,30 +27,73 @@ class WorkflowTests(unittest.TestCase):
     def test_repair_then_edit_makes_evidence_stale(self):
         eid=self.prepare()
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(False)):
-            self.assertEqual(workflow.run(eid)['status'],'REPRODUCED')
+            self.assertEqual(self.run_case(eid)['status'],'REPRODUCED')
         (self.project/'app.py').write_text('repaired')
         self.assertEqual(workflow.status(eid)['status'],'STALE')
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(True)):
-            self.assertEqual(workflow.run(eid)['status'],'VERIFIED')
+            self.assertEqual(self.run_case(eid)['status'],'VERIFIED')
         (self.project/'app.py').unlink()
         self.assertEqual(workflow.status(eid)['status'],'STALE')
+    def test_metadata_change_after_capture_cannot_be_attributed_to_the_snapshot(self):
+        eid=self.prepare()
+        args={'experiment_id': eid}
+        snapshot=approval.capture_plan('crashlab_experiment_run', args)
+        approval.grant_for_operator('crashlab_experiment_run', args, session_id='operator',
+                                    snapshot=snapshot)
+        path=workflow.directory(eid)/'experiment.json'
+        value=json.loads(path.read_text())
+        value['project_path']=str(self.project)+'-other'
+        workflow.save(path,value)
+        with self.assertRaisesRegex(ValueError,'metadata changed'):
+            workflow.run(eid, approval_context={'session_id':'operator'}, approved_snapshot=snapshot)
+
+    def test_unicode_experiment_metadata_runs_the_approved_snapshot(self):
+        """A non-ASCII intent or path must not read as a change after approval."""
+        eid = self.prepare()
+        folder = workflow.directory(eid)
+        path = folder / 'experiment.json'
+        value = json.loads(path.read_text())
+        value['intent'] = 'Vérifier la récupération après « redémarrage »'
+        workflow.save(path, value)
+        args = {'experiment_id': eid}
+        snapshot = approval.capture_plan('crashlab_experiment_run', args)
+        approval.grant_for_operator('crashlab_experiment_run', args,
+                                    session_id='operator', snapshot=snapshot)
+        with patch.object(workflow.core, 'run_and_persist', return_value=self.result(False)) as run:
+            self.assertEqual(workflow.run(eid, approval_context={'session_id': 'operator'},
+                                          approved_snapshot=snapshot)['status'], 'REPRODUCED')
+        run.assert_called_once()
+        self.assertEqual(run.call_args.kwargs['frozen_contract']['app']['start'],
+                         json.loads((folder / 'case.json').read_text())['app']['start'])
+
+    def test_cli_operator_flow_shows_the_frozen_plan_it_approves(self):
+        import crashlab_replay
+        eid = self.prepare()
+        with patch('sys.stdin.isatty', return_value=True), \
+             patch('builtins.input', return_value='yes'):
+            snapshot = crashlab_replay._operator_approval(eid)
+        self.assertEqual(snapshot['digest'],
+                         approval._sha256(approval._canonical(snapshot['plan'])))
+        self.assertEqual(snapshot['plan']['app_start'],
+                         json.loads((workflow.directory(eid) / 'case.json').read_text())['app']['start'])
+
     def test_initial_pass_is_not_repair(self):
         eid=self.prepare()
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(True)):
-            self.assertEqual(workflow.run(eid)['status'],'PASS_WITHOUT_REPAIR_PROOF')
+            self.assertEqual(self.run_case(eid)['status'],'PASS_WITHOUT_REPAIR_PROOF')
     def test_case_drift_is_rejected(self):
         eid=self.prepare(); path=workflow.directory(eid)/'case.json'; c=json.loads(path.read_text());c['state']['expected_count']=123;path.write_text(json.dumps(c))
         with self.assertRaisesRegex(ValueError,'changed'):workflow.status(eid)
     def test_edit_during_run_cannot_verify(self):
         eid=self.prepare()
-        def execute(*args):
+        def execute(*args, **kwargs):
             (self.project/'app.py').write_text('changed during test');return self.result(False)
         with patch.object(workflow.core,'run_and_persist',side_effect=execute):
-            self.assertEqual(workflow.run(eid)['status'],'STALE')
+            self.assertEqual(self.run_case(eid)['status'],'STALE')
     def test_control_failure_does_not_establish_baseline(self):
         eid=self.prepare();r=self.result(False);r['control']['ok']=False
         with patch.object(workflow.core,'run_and_persist',return_value=r):
-            self.assertNotEqual(workflow.run(eid)['status'],'REPRODUCED')
+            self.assertNotEqual(self.run_case(eid)['status'],'REPRODUCED')
     def test_evidence_inside_app_is_rejected(self):
         with patch.dict(os.environ,CRASHLAB_DATA_DIR=str(self.project/'evidence')):
             with self.assertRaisesRegex(ValueError,'outside'):self.prepare()
@@ -55,10 +102,10 @@ class WorkflowTests(unittest.TestCase):
         script=self.project/'start.sh';script.write_text('#!/bin/sh\n');script.chmod(0o755)
         eid=self.prepare()
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(False)):
-            workflow.run(eid)
+            self.run_case(eid)
         (self.project/'app.py').write_text('fixed')
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(True)):
-            self.assertEqual(workflow.run(eid)['status'],'VERIFIED')
+            self.assertEqual(self.run_case(eid)['status'],'VERIFIED')
         script.chmod(0o644)
         self.assertEqual(workflow.status(eid)['status'],'STALE')
 

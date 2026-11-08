@@ -20,9 +20,11 @@ from urllib.parse import urlparse
 try:
     from . import campaign as engine
     from . import crashlab_core as core
+    from . import approval
 except ImportError:
     import campaign as engine
     import crashlab_core as core
+    import approval
 
 ROOT = Path(__file__).resolve().parent
 CATALOG = {
@@ -32,7 +34,7 @@ CATALOG = {
 TRUSTED_FILES = (
     "__init__.py", "plugin.py", "plugin.yaml", "campaign_plugin.py", "campaign.py",
     "crashlab_core.py", "crashlab_runner.js", "crashlab_probe.py",
-    "repair_workflow.py", "crashlab_replay.py", "completion_reminder.py", "skills/crashlab/SKILL.md",
+    "approval.py", "repair_workflow.py", "crashlab_replay.py", "completion_reminder.py", "skills/crashlab/SKILL.md",
     "contracts/checkout-lost-response.json", "contracts/booking-lost-response.json",
     "campaign_contracts/inventory-contention.json", "campaigns/inventory.json", "campaigns/mixed.json",
 )
@@ -206,7 +208,41 @@ def prepare(args, require_target=False):
     return campaign_id, target_name, hashes, manifest, contracts
 
 
-def invoke(name, args):
+def _digest(value) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def capture(args):
+    """Freeze the exact target-bound contracts that an approval will cover."""
+    campaign_id, target_name, hashes, manifest, contracts = prepare(args, require_target=True)
+    targets = []
+    reset_urls = []
+    for contract in contracts:
+        target = core.effective_base_url(contract)
+        reset = core.effective_reset_url(contract)
+        if target and target not in targets:
+            targets.append(target)
+        if reset and reset not in reset_urls:
+            reset_urls.append(reset)
+    plan = {
+        "tool": "crashlab_campaign_run",
+        "campaign_id": campaign_id,
+        "target_set": target_name,
+        "repetitions": args.get("repetitions", 1),
+        "evaluator_sha256": hashes,
+        "manifest_sha256": _digest(manifest),
+        "contract_sha256": [_digest(contract) for contract in contracts],
+        "target": targets[0] if len(targets) == 1 else None,
+        "targets": targets,
+        "reset_url": reset_urls[0] if len(reset_urls) == 1 else None,
+        "reset_urls": reset_urls,
+    }
+    return {"digest": _digest(plan), "plan": plan, "campaign_id": campaign_id,
+            "target_name": target_name, "hashes": hashes, "manifest": manifest,
+            "contracts": contracts}
+
+
+def invoke(name, args, approval_context=None):
     """Hermes JSON-compatible outcomes; never leak an exception as a finding."""
     try:
         if name == "crashlab_campaign_list":
@@ -220,7 +256,21 @@ def invoke(name, args):
                 "scope": "Preconfigured disposable loopback fixtures only; no arbitrary contract/evaluator paths"}
         if name not in ("crashlab_campaign_validate", "crashlab_campaign_run"):
             raise CampaignError("INVALID_ARGUMENT", "Unknown campaign tool")
-        campaign_id, target_name, hashes, manifest, contracts = prepare(args, name == "crashlab_campaign_run")
+        if name == "crashlab_campaign_run":
+            context = approval_context or {}
+            approved = approval.prepare_approved_campaign(
+                args,
+                session_id=str(context.get('session_id') or ''),
+                task_id=str(context.get('task_id') or ''),
+                tool_call_id=str(context.get('tool_call_id') or ''))
+            bundle = approved["bundle"]
+            campaign_id = bundle["campaign_id"]
+            target_name = bundle["target_name"]
+            hashes = bundle["hashes"]
+            manifest = bundle["manifest"]
+            contracts = bundle["contracts"]
+        else:
+            campaign_id, target_name, hashes, manifest, contracts = prepare(args, False)
         if name == "crashlab_campaign_validate":
             return {"ok": True, "valid": True, "executed": False, "campaign": campaign_id,
                     "target_set": target_name, "cases": len(contracts),
@@ -248,6 +298,8 @@ def invoke(name, args):
         # Do not overwrite the old single-case/compare latest.json contract.
         engine.write_json(data / "campaign-latest.json", result)
         return result
+    except approval.ApprovalRequired:
+        raise
     except CampaignError as exc:
         return failure(exc.code, str(exc))
     except Exception as exc:

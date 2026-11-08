@@ -9,11 +9,13 @@ try:
     from . import campaign_plugin
     from . import repair_workflow
     from . import completion_reminder
+    from . import approval
 except ImportError:
     import crashlab_core as core
     import campaign_plugin
     import repair_workflow
     import completion_reminder
+    import approval
 
 TOOL_SCHEMAS = [
     {
@@ -64,26 +66,63 @@ TOOL_SCHEMAS.extend(repair_workflow.schemas())
 TOOL_SCHEMAS.append(completion_reminder.schema())
 
 
+def _public_arguments(name: str, kwargs):
+    """Keep only the published parameters; reject internal or unknown keywords.
+
+    The handler is the boundary between model/API arguments and internal calls,
+    so nothing a caller supplies can reach a private keyword of an inner route.
+    """
+    schema = next((item for item in TOOL_SCHEMAS if item["name"] == name), None)
+    allowed = set(((schema or {}).get("parameters") or {}).get("properties") or {})
+    if not isinstance(kwargs, dict):
+        raise ValueError(f"{name} arguments must be an object")
+    extra = sorted(set(kwargs) - allowed)
+    if extra:
+        raise ValueError(f"{name} does not accept argument(s): {', '.join(extra)}")
+    return {key: value for key, value in kwargs.items() if key in allowed}
+
+
 def _handler(name: str):
-    def invoke(kwargs):
+    def invoke(kwargs, context):
+        kwargs = _public_arguments(name, kwargs)
+        session_id = str(context.get("session_id") or "")
+        task_id = str(context.get("task_id") or "")
+        # The host binds the originating call id for the dispatch but does not
+        # pass it as a handler kwarg; read it from the host, never from model args.
+        tool_call_id = approval.host_call_id(context)
+        context = {**context, "tool_call_id": tool_call_id}
+        if name in {"crashlab_run", "crashlab_compare"}:
+            approved = approval.prepare_approved_case(
+                name, kwargs, session_id=session_id, task_id=task_id,
+                tool_call_id=tool_call_id)
         if name == "crashlab_experiment_watch":
             return completion_reminder.watch(**kwargs)
         if name in {schema["name"] for schema in repair_workflow.schemas()}:
-            return repair_workflow.invoke(name, kwargs)
+            return repair_workflow.invoke(name, kwargs, approval_context=context)
         if name.startswith("crashlab_campaign_"):
-            return campaign_plugin.invoke(name, kwargs)
+            return campaign_plugin.invoke(name, kwargs, approval_context=context)
         if name == "crashlab_validate":
             contract = core.load_contract(kwargs["contract_path"])
             return {"ok": True, "contract": contract}
         if name == "crashlab_run":
-            return core.run_and_persist(kwargs["contract_path"], base_url=kwargs.get("base_url"))
+            return core.run_and_persist(
+                approved["path"], base_url=kwargs.get("base_url"),
+                frozen_contract=approved["contract"])
         if name == "crashlab_compare":
-            return core.compare(kwargs["contract_path"], kwargs["buggy_url"], kwargs["fixed_url"])
+            # Resolve against the approved snapshot, never the mutable path: a
+            # retargeted symlink here would point the relative observers at
+            # another directory's database after the approval was granted.
+            return core.compare(approved["path"], kwargs["buggy_url"], kwargs["fixed_url"],
+                                frozen_contract=approved["contract"])
         if name == "crashlab_list":
             return {"contracts": core.list_contracts()}
         raise ValueError(f"unknown CrashLab tool: {name}")
-    def call(args):
-        return json.dumps(invoke(args))
+    def call(args, **context):
+        try:
+            result = invoke(args, context)
+        except approval.ApprovalRequired as exc:
+            result = {"ok": False, "error": str(exc), "needs_approval": True}
+        return json.dumps(result)
     return call
 
 
@@ -117,7 +156,12 @@ def _slash(raw_args: str) -> str:
         if len(args) != 2:
             return "Usage: /crashlab run <case.json>"
         path = args[1]
-        result = core.run_and_persist(path)
+        try:
+            approved = approval.prepare_approved_case("crashlab_run", {"contract_path": path})
+            result = core.run_and_persist(approved["path"], frozen_contract=approved["contract"])
+        except approval.ApprovalRequired:
+            return ("CrashLab needs a human approval for this case. Use the crashlab_run "
+                    "tool from Hermes so the approval gate can show the exact case, command and path.")
         return (f"CrashLab · {_verdict(result)} · {result.get('contract')}\n"
                 f"{result.get('error') or result.get('diagnosis') or 'No diagnosis recorded.'}\n{result.get('evidence_path')}")
     if args[0] in ("help", "?"):
@@ -130,6 +174,8 @@ def _slash(raw_args: str) -> str:
 def register(ctx):
     if hasattr(ctx, "register_hook"):
         ctx.register_hook("pre_verify", completion_reminder.pre_verify)
+        ctx.register_hook("pre_tool_call", approval.pre_tool_call)
+        ctx.register_hook("post_approval_response", approval.post_approval_response)
     from pathlib import Path
     if hasattr(ctx, "register_skill"):
         ctx.register_skill("crashlab", Path(__file__).parent / "skills" / "crashlab" / "SKILL.md", description="Reproduce and verify a local app repair with frozen assertions and current source evidence.")

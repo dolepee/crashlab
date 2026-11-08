@@ -180,6 +180,14 @@ python crashlab_replay.py run --experiment NEW_EXPERIMENT_ID
 python crashlab_replay.py report --experiment NEW_EXPERIMENT_ID
 ```
 
+`run` shows the exact frozen execution plan and requires an interactive terminal
+approval. Piped or non-interactive invocations fail closed; approve the same plan
+through the Hermes `crashlab_experiment_run` tool instead. The Desktop dashboard
+freezes the plan first (case file, launch command, working directory and
+target), shows that plan in its confirmation, and executes the same snapshot
+through a short-lived, single-use ticket; declining drops the ticket. These are
+human-operator paths, not bypasses.
+
 Use the same `CRASHLAB_DATA_DIR` when accessing an existing experiment. A measured
 failing baseline returns a nonzero exit code as expected. Application runtimes,
 dependencies and any external absolute launch paths remain your responsibility.

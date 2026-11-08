@@ -18,23 +18,26 @@ class PluginHandlerTests(unittest.TestCase):
             load.assert_called_once_with('case.json')
 
     def test_run_forwards_args_and_serializes_result(self):
-        with patch.object(plugin.core, 'run_contract', return_value={'ok': False}) as run, \
+        with patch.object(plugin.approval, 'prepare_approved_case', return_value={'path': 'case.json', 'contract': {'id': 'test'}}), \
+             patch.object(plugin.core, 'run_contract', return_value={'ok': False}) as run, \
              patch.object(plugin.core, 'persist_run', side_effect=lambda value: value) as persist:
             result = plugin._handler('crashlab_run')({'contract_path': 'case.json', 'base_url': 'http://localhost:8765'})
             self.assertEqual(json.loads(result), {'ok': False})
-            run.assert_called_once_with('case.json', base_url='http://localhost:8765')
+            run.assert_called_once_with('case.json', base_url='http://localhost:8765', frozen_contract={'id': 'test'})
             persist.assert_called_once_with({'ok': False})
 
     def test_compare_forwards_args_and_serializes_result(self):
-        with patch.object(plugin.core, 'compare', return_value={'ok': True}) as compare:
+        with patch.object(plugin.approval, 'prepare_approved_case', return_value={'path': 'case.json', 'contract': {'id': 'test'}}), \
+             patch.object(plugin.core, 'compare', return_value={'ok': True}) as compare:
             result = plugin._handler('crashlab_compare')({'contract_path': 'case.json', 'buggy_url': 'http://localhost:8765', 'fixed_url': 'http://localhost:8766'})
             self.assertEqual(json.loads(result), {'ok': True})
-            compare.assert_called_once_with('case.json', 'http://localhost:8765', 'http://localhost:8766')
+            compare.assert_called_once_with('case.json', 'http://localhost:8765', 'http://localhost:8766', frozen_contract={'id': 'test'})
 
 
 class FirstUseTests(unittest.TestCase):
     def test_setup_error_is_persisted_and_reported_as_error(self):
-        with patch.object(plugin.core, 'run_contract', side_effect=RuntimeError('interpreter missing')), \
+        with patch.object(plugin.approval, 'prepare_approved_case', return_value={'path': 'case.json', 'contract': {'id': 'test'}}), \
+             patch.object(plugin.core, 'run_contract', side_effect=RuntimeError('interpreter missing')), \
              patch.object(plugin.core, 'persist_run', side_effect=lambda value: value) as persist:
             result = json.loads(plugin._handler('crashlab_run')({'contract_path': 'case.json'}))
         self.assertEqual(result['status'], 'ERROR')
@@ -44,9 +47,11 @@ class FirstUseTests(unittest.TestCase):
 
     def test_slash_accepts_quoted_case_path(self):
         result = {'status': 'PASS', 'ok': True, 'contract': 'test'}
-        with patch.object(plugin.core, 'run_and_persist', return_value=result) as run:
+        approved = {'path': '/my project/case.json', 'contract': {'id': 'test'}}
+        with patch.object(plugin.approval, 'prepare_approved_case', return_value=approved), \
+             patch.object(plugin.core, 'run_and_persist', return_value=result) as run:
             self.assertIn('PASS', plugin._slash('run "/my project/case.json"'))
-        run.assert_called_once_with('/my project/case.json')
+        run.assert_called_once_with('/my project/case.json', frozen_contract={'id': 'test'})
         self.assertIn('Usage:', plugin._slash('run "unclosed'))
         self.assertIn('Usage:', plugin._slash('run /my project/case.json'))
 

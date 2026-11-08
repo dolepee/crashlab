@@ -15,8 +15,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 try:
     from . import crashlab_core as core
+    from . import approval
 except ImportError:
     import crashlab_core as core
+    import approval
 
 
 def digest(value):
@@ -156,10 +158,17 @@ def status(experiment_id):
             'scope': 'Tracked and nonignored untracked project files. Ignored files, dependencies and runtime environment are outside this freshness check. Same-user hashes are not a security boundary.'}
 
 
-def _run(experiment_id):
+def _run(experiment_id, *, frozen_case=None, frozen_experiment=None):
     folder, value, case = load(experiment_id)
+    if frozen_experiment is not None:
+        expected_experiment = frozen_experiment.get('experiment')
+        expected_digest = frozen_experiment.get('experiment_digest')
+        if expected_experiment is None or digest(value) != expected_digest or digest(value) != digest(expected_experiment):
+            raise ValueError('Experiment metadata changed after approval; prepare a new experiment')
+        if frozen_case is None or digest(case) != digest(frozen_case):
+            raise ValueError('Experiment case changed after approval; prepare a new experiment')
     before = fingerprint(value['project_path'])
-    result = core.run_and_persist(folder / 'case.json')
+    result = core.run_and_persist(folder / 'case.json', frozen_contract=frozen_case)
     after = fingerprint(value['project_path'])
     # Recheck identity after execution, before accepting evidence.
     load(experiment_id)
@@ -178,6 +187,9 @@ def _run(experiment_id):
         state = result.get('status', 'ERROR')
     value['runs'].append({'project_sha256': after, 'workflow_status': state, 'result': result,
                           'recorded_at': datetime.now(timezone.utc).isoformat(),
+                          'project_path': value['project_path'],
+                          'experiment_digest': digest(value),
+                          'case_sha256': digest(case),
                           'source_review': source_review(value['project_path'])})
     save(folder / 'experiment.json', value)
     return status(experiment_id)
@@ -220,6 +232,9 @@ def report(experiment_id, run_index=None):
             'runs':[{'index':i,'workflow_status':r['workflow_status'],'recorded_at':r.get('recorded_at'),
                      'project_sha256':r['project_sha256']} for i,r in enumerate(runs)],
             'measurement':runs[run_index] if run_index is not None else None,
+            'recorded_experiment_digest':runs[run_index].get('experiment_digest') if run_index is not None else None,
+            'recorded_project_path':runs[run_index].get('project_path') if run_index is not None else None,
+            'recorded_case_sha256':runs[run_index].get('case_sha256') if run_index is not None else None,
             'scope':'Recorded requests, observed records and process lifecycle only. Historical run status is separate from current project freshness; absent events are not reconstructed.'}
 
 
@@ -431,9 +446,38 @@ def schemas():
             ('crashlab_experiment_status','Check whether experiment evidence is current for the app source. Edits make old evidence STALE; rerun before claiming verification.')]]]
 
 
-def invoke(name, args):
+# Public tool arguments. ``invoke`` never forwards a caller's dictionary wholesale:
+# an internal keyword such as a pre-captured approval snapshot must not be
+# reachable from model or API arguments.
+PUBLIC_ARGUMENTS = {
+    'crashlab_prepare': ('project_path', 'intent', 'contract'),
+    'crashlab_experiment_run': ('experiment_id',),
+    'crashlab_experiment_status': ('experiment_id',),
+    'crashlab_experiment_report': ('experiment_id', 'run_index'),
+    'crashlab_experiment_export': ('experiment_id',),
+    'crashlab_experiment_import': ('bundle_path', 'project_path', 'app_python'),
+}
+
+
+def public_arguments(name, args):
+    """Select only the published parameters of a tool, rejecting anything else."""
+    allowed = PUBLIC_ARGUMENTS.get(name)
+    if allowed is None:
+        raise ValueError(name)
+    if args is None:
+        args = {}
+    if not isinstance(args, dict):
+        raise ValueError('CrashLab tool arguments must be an object')
+    extra = sorted(set(args) - set(allowed))
+    if extra:
+        raise ValueError(f'{name} does not accept argument(s): {", ".join(extra)}')
+    return {key: args[key] for key in allowed if key in args}
+
+
+def invoke(name, args, approval_context=None):
+    args = public_arguments(name, args)
     if name == 'crashlab_prepare': return prepare(**args)
-    if name == 'crashlab_experiment_run': return run(**args)
+    if name == 'crashlab_experiment_run': return run(args['experiment_id'], approval_context=approval_context)
     if name == 'crashlab_experiment_status': return status(**args)
     if name == 'crashlab_experiment_report': return report(**args)
     if name == 'crashlab_experiment_export': return export_experiment(**args)
@@ -441,11 +485,27 @@ def invoke(name, args):
     raise ValueError(name)
 
 
-def run(experiment_id):
+def run(experiment_id, *, approval_context=None, approved_snapshot=None):
+    """Run one prepared experiment against the exact plan a human approved.
+
+    ``approved_snapshot`` is an internal hand-off from the trusted operator
+    routes (dashboard ticket, terminal prompt). It is only ever a *candidate*:
+    every run re-validates it through the approval gate, which checks the frozen
+    identity and spends a live grant, so a caller that invents a snapshot from
+    the experiment's own files still has no authorization.
+    """
+    context = approval_context or {}
+    approved = approval.prepare_approved_experiment(
+        experiment_id,
+        session_id=str(context.get('session_id') or ''),
+        task_id=str(context.get('task_id') or ''),
+        tool_call_id=str(context.get('tool_call_id') or ''),
+        snapshot=approved_snapshot)
     # One test process owns an experiment; avoid overlapping app executions and lost history.
     with (directory(experiment_id) / '.run.lock').open('a') as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise ValueError('Experiment is already running; check status before retrying')
-        return _run(experiment_id)
+        return _run(experiment_id, frozen_case=approved['contract'],
+                    frozen_experiment=approved)
