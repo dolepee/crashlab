@@ -59,6 +59,8 @@ class CampaignPluginTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.data = self.root / "tool-data"
         self.data.mkdir()
+        approval.reset_for_tests()
+        self.addCleanup(approval.reset_for_tests)
         self.addCleanup(patch.stopall)
         patch.dict(os.environ, {"CRASHLAB_DATA_DIR": str(self.data)}).start()
 
@@ -82,6 +84,42 @@ class CampaignPluginTests(unittest.TestCase):
             try: approval.grant_for_tests(name, args)
             except (OSError, ValueError, KeyError, TypeError): pass
         return json.loads(plugin._handler(name)(args, session_id='test-session'))
+
+    def test_campaign_run_executes_captured_contracts_after_target_change(self):
+        self.configure(self.target("fixed"))
+        args = {"campaign_id": "inventory-contention", "target_set": "local", "repetitions": 1}
+        snapshot = approval.capture_plan("crashlab_campaign_run", args)
+        approval.grant_for_operator("crashlab_campaign_run", args, session_id="operator",
+                                    snapshot=snapshot)
+        self.configure(self.target("buggy"))
+        captured = {}
+
+        def run(manifest_path, output_dir, legacy_root):
+            captured["manifest"] = json.loads(Path(manifest_path).read_text())
+            captured["contracts"] = [json.loads((Path(manifest_path).parent / row["contract"]).read_text())
+                                     for row in captured["manifest"]["cases"]]
+            evidence = Path(output_dir) / "run"
+            evidence.mkdir(parents=True, exist_ok=True)
+            return {"status": "PASS", "evidence_dir": str(evidence)}
+
+        with patch.object(bridge.engine, "run_campaign", side_effect=run):
+            result = bridge.invoke("crashlab_campaign_run", args,
+                                   approval_context={"session_id": "operator"})
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(captured["contracts"], snapshot["bundle"]["contracts"])
+        self.assertNotEqual(captured["contracts"], bridge.capture(args)["contracts"])
+
+    def test_campaign_approval_keeps_captured_target_contracts(self):
+        self.configure(self.target("fixed"))
+        args = {"campaign_id": "inventory-contention", "target_set": "local", "repetitions": 1}
+        snapshot = approval.capture_plan("crashlab_campaign_run", args)
+        approval.grant_for_operator("crashlab_campaign_run", args, session_id="operator",
+                                    snapshot=snapshot)
+        self.configure(self.target("buggy"))
+        approved = approval.prepare_approved_campaign(args, session_id="operator")
+        self.assertEqual(approved["bundle"]["contracts"], snapshot["bundle"]["contracts"])
+        self.assertNotEqual(approved["bundle"]["contracts"],
+                            bridge.capture(args)["contracts"])
 
     def test_read_only_validation_does_not_reset_or_create_evidence(self):
         self.configure(self.target())

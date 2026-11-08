@@ -35,7 +35,7 @@ class ApprovalRequest(BaseModel):
     experiment_id: str | None = None
 
 
-_TICKETS: dict[str, tuple[str, dict, str, float]] = {}
+_TICKETS: dict[str, tuple[str, dict, str, dict, float]] = {}
 _TICKET_LOCK = threading.Lock()
 _TICKET_SECONDS = 120
 
@@ -52,20 +52,22 @@ def _plan_for(kind: str, contract_path: str | None, experiment_id: str | None):
     if kind == "run":
         path = _resolve_case(contract_path or "")
         args = {"contract_path": str(path)}
-        return "crashlab_run", args, approval.plan_digest("crashlab_run", args)
-    if kind == "experiment":
+        tool = "crashlab_run"
+    elif kind == "experiment":
         if not isinstance(experiment_id, str):
             raise HTTPException(status_code=400, detail="experiment_id is required")
         args = {"experiment_id": experiment_id}
-        try:
-            digest = approval.plan_digest("crashlab_experiment_run", args)
-        except (OSError, ValueError, KeyError, TypeError) as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        return "crashlab_experiment_run", args, digest
-    raise HTTPException(status_code=400, detail="unknown approval kind")
+        tool = "crashlab_experiment_run"
+    else:
+        raise HTTPException(status_code=400, detail="unknown approval kind")
+    try:
+        snapshot = approval.capture_plan(tool, args)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return tool, args, snapshot["digest"], snapshot
 
 
-def _consume_ticket(token: str | None, tool: str, args: dict) -> None:
+def _consume_ticket(token: str | None, tool: str, args: dict) -> dict:
     if not token:
         raise HTTPException(status_code=403, detail="explicit operator approval is required")
     now = time.time()
@@ -73,11 +75,12 @@ def _consume_ticket(token: str | None, tool: str, args: dict) -> None:
         entry = _TICKETS.pop(token, None)
     if entry is None:
         raise HTTPException(status_code=403, detail="approval is missing, used or expired")
-    saved_tool, saved_args, digest, expiry = entry
+    saved_tool, saved_args, digest, snapshot, expiry = entry
     if expiry <= now or saved_tool != tool or saved_args != args:
         raise HTTPException(status_code=403, detail="approval does not match this exact execution plan")
-    if approval.plan_digest(tool, args) != digest:
-        raise HTTPException(status_code=403, detail="execution plan changed after approval")
+    if snapshot.get("digest") != digest:
+        raise HTTPException(status_code=403, detail="approval snapshot is inconsistent")
+    return snapshot
 
 
 def _read(path: Path) -> dict:
@@ -155,10 +158,10 @@ async def create_approval(request: ApprovalRequest) -> dict:
     It does not replace the Hermes tool approval; it restores the human-facing
     dashboard/CLI workflow without an unconditional bypass.
     """
-    tool, args, digest = _plan_for(request.kind, request.contract_path, request.experiment_id)
+    tool, args, digest, snapshot = _plan_for(request.kind, request.contract_path, request.experiment_id)
     token = secrets.token_urlsafe(32)
     with _TICKET_LOCK:
-        _TICKETS[token] = (tool, args, digest, time.time() + _TICKET_SECONDS)
+        _TICKETS[token] = (tool, args, digest, snapshot, time.time() + _TICKET_SECONDS)
     return {"token": token, "expires_in": _TICKET_SECONDS, "tool": tool, "plan_digest": digest}
 
 
@@ -169,12 +172,13 @@ async def run(request: RunRequest, x_crashlab_approval: str | None = Header(defa
 
     path = _resolve_case(request.contract_path)
     args = {"contract_path": str(path)}
-    _consume_ticket(x_crashlab_approval, "crashlab_run", args)
+    snapshot = _consume_ticket(x_crashlab_approval, "crashlab_run", args)
     token = x_crashlab_approval or ""
     try:
-        approval.grant_for_operator("crashlab_run", args, session_id="dashboard:" + token)
+        approval.grant_for_operator("crashlab_run", args, session_id="dashboard:" + token,
+                                    snapshot=snapshot)
         approved = approval.prepare_approved_case(
-            "crashlab_run", args, session_id="dashboard:" + token)
+            "crashlab_run", args, session_id="dashboard:" + token, snapshot=snapshot)
         return await asyncio.to_thread(run_and_persist, str(path),
                                        frozen_contract=approved["contract"])
     except approval.ApprovalRequired as exc:
@@ -221,12 +225,14 @@ async def experiment_run(experiment_id: str, x_crashlab_approval: str | None = H
         approval.plan_digest("crashlab_experiment_run", args)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    _consume_ticket(x_crashlab_approval, "crashlab_experiment_run", args)
+    snapshot = _consume_ticket(x_crashlab_approval, "crashlab_experiment_run", args)
     token = x_crashlab_approval or ""
     try:
-        approval.grant_for_operator("crashlab_experiment_run", args, session_id="dashboard:" + token)
+        approval.grant_for_operator("crashlab_experiment_run", args, session_id="dashboard:" + token,
+                                    snapshot=snapshot)
         return await asyncio.to_thread(workflow.run, experiment_id,
-                                       approval_context={"session_id": "dashboard:" + token})
+                                       approval_context={"session_id": "dashboard:" + token},
+                                       approved=snapshot)
     except approval.ApprovalRequired as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
     except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:

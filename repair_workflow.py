@@ -158,8 +158,15 @@ def status(experiment_id):
             'scope': 'Tracked and nonignored untracked project files. Ignored files, dependencies and runtime environment are outside this freshness check. Same-user hashes are not a security boundary.'}
 
 
-def _run(experiment_id, *, frozen_case=None):
+def _run(experiment_id, *, frozen_case=None, frozen_experiment=None):
     folder, value, case = load(experiment_id)
+    if frozen_experiment is not None:
+        expected_experiment = frozen_experiment.get('experiment')
+        expected_digest = frozen_experiment.get('experiment_digest')
+        if expected_experiment is None or digest(value) != expected_digest or digest(value) != digest(expected_experiment):
+            raise ValueError('Experiment metadata changed after approval; prepare a new experiment')
+        if frozen_case is None or digest(case) != digest(frozen_case):
+            raise ValueError('Experiment case changed after approval; prepare a new experiment')
     before = fingerprint(value['project_path'])
     result = core.run_and_persist(folder / 'case.json', frozen_contract=frozen_case)
     after = fingerprint(value['project_path'])
@@ -180,6 +187,9 @@ def _run(experiment_id, *, frozen_case=None):
         state = result.get('status', 'ERROR')
     value['runs'].append({'project_sha256': after, 'workflow_status': state, 'result': result,
                           'recorded_at': datetime.now(timezone.utc).isoformat(),
+                          'project_path': value['project_path'],
+                          'experiment_digest': digest(value),
+                          'case_sha256': digest(case),
                           'source_review': source_review(value['project_path'])})
     save(folder / 'experiment.json', value)
     return status(experiment_id)
@@ -222,6 +232,9 @@ def report(experiment_id, run_index=None):
             'runs':[{'index':i,'workflow_status':r['workflow_status'],'recorded_at':r.get('recorded_at'),
                      'project_sha256':r['project_sha256']} for i,r in enumerate(runs)],
             'measurement':runs[run_index] if run_index is not None else None,
+            'recorded_experiment_digest':runs[run_index].get('experiment_digest') if run_index is not None else None,
+            'recorded_project_path':runs[run_index].get('project_path') if run_index is not None else None,
+            'recorded_case_sha256':runs[run_index].get('case_sha256') if run_index is not None else None,
             'scope':'Recorded requests, observed records and process lifecycle only. Historical run status is separate from current project freshness; absent events are not reconstructed.'}
 
 
@@ -443,16 +456,19 @@ def invoke(name, args, approval_context=None):
     raise ValueError(name)
 
 
-def run(experiment_id, *, approval_context=None):
+def run(experiment_id, *, approval_context=None, approved=None):
     context = approval_context or {}
-    approved = approval.prepare_approved_experiment(
-        experiment_id,
-        session_id=str(context.get('session_id') or ''),
-        task_id=str(context.get('task_id') or ''))
+    if approved is None:
+        approved = approval.prepare_approved_experiment(
+            experiment_id,
+            session_id=str(context.get('session_id') or ''),
+            task_id=str(context.get('task_id') or ''),
+            tool_call_id=str(context.get('tool_call_id') or ''))
     # One test process owns an experiment; avoid overlapping app executions and lost history.
     with (directory(experiment_id) / '.run.lock').open('a') as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise ValueError('Experiment is already running; check status before retrying')
-        return _run(experiment_id, frozen_case=approved['contract'])
+        return _run(experiment_id, frozen_case=approved['contract'],
+                    frozen_experiment=approved)

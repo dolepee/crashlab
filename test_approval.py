@@ -52,7 +52,9 @@ class ApprovalPolicyTests(unittest.TestCase):
                     # Missing experiment metadata is a plan-resolution error, not a bypass.
                     self.assertEqual(directive['action'], 'block')
                 elif name == 'crashlab_campaign_run':
-                    self.assertEqual(directive['action'], 'approve')
+                    # No disposable target is configured in this fixture, so
+                    # the campaign plan cannot be frozen and must block.
+                    self.assertEqual(directive['action'], 'block')
                 else:
                     self.assertEqual(directive['action'], 'approve')
         self.assertIsNone(approval.pre_tool_call('crashlab_validate', self.args()))
@@ -114,6 +116,68 @@ class ApprovalPolicyTests(unittest.TestCase):
             with patch.object(plugin.core, 'run_and_persist', return_value={'ok': True}) as run:
                 result = json.loads(plugin._handler('crashlab_run')(args, session_id='session-1'))
             self.assertTrue(result['ok'], result)
+            frozen = run.call_args.kwargs['frozen_contract']
+            self.assertEqual(frozen['app']['start'], original['app']['start'])
+
+    def test_approval_binds_full_urls_and_tool(self):
+        args = {**self.args(), 'base_url': 'http://127.0.0.1:3101'}
+        approval.pre_tool_call('crashlab_run', args, tool_call_id='call-1', session_id='session-1')
+        approve('crashlab_run', args)
+        with patch.object(plugin.core, 'run_and_persist', return_value={'ok': True}) as run:
+            changed = {**args, 'base_url': 'http://127.0.0.1:3102'}
+            self.blocked(json.loads(plugin._handler('crashlab_run')(changed, session_id='session-1')))
+            compare = {'contract_path': str(CASE), 'buggy_url': 'http://127.0.0.1:3101',
+                       'fixed_url': 'http://127.0.0.1:3102'}
+            self.blocked(json.loads(plugin._handler('crashlab_compare')(compare, session_id='session-1')))
+        run.assert_not_called()
+
+    def test_approval_binds_originating_call(self):
+        args = self.args()
+        approval.pre_tool_call('crashlab_run', args, tool_call_id='call-A', session_id='session-1')
+        approval.post_approval_response(
+            pattern_key='plugin_rule:' + approval._rule_key('crashlab_run', approval.plan_digest('crashlab_run', args)),
+            choice='once', tool_call_id='call-A', session_id='session-1')
+        with patch.object(plugin.core, 'run_and_persist', return_value={'ok': True}) as run:
+            self.blocked(json.loads(plugin._handler('crashlab_run')(
+                args, session_id='session-1', tool_call_id='call-B')))
+            self.assertEqual(json.loads(plugin._handler('crashlab_run')(
+                args, session_id='session-1', tool_call_id='call-A')), {'ok': True})
+        run.assert_called_once()
+
+    def test_operator_snapshot_survives_source_replacement(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            original = json.loads(CASE.read_text())
+            path.write_text(json.dumps(original))
+            args = self.args(path)
+            snapshot = approval.capture_plan('crashlab_run', args)
+            approval.grant_for_operator('crashlab_run', args, session_id='operator', snapshot=snapshot)
+            changed = copy.deepcopy(original)
+            changed['app']['start']['command'] = ['/bin/sh', '-c', 'touch should-not-run']
+            path.write_text(json.dumps(changed))
+            approved = approval.prepare_approved_case('crashlab_run', args,
+                                                       session_id='operator', snapshot=snapshot)
+            self.assertEqual(approved['contract']['app']['start'], original['app']['start'])
+
+    def test_dashboard_ticket_executes_the_snapshot_operator_saw(self):
+        try:
+            from dashboard import plugin_api as api
+        except ImportError:
+            self.skipTest('dashboard dependencies are not installed')
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            original = json.loads(CASE.read_text())
+            path.write_text(json.dumps(original))
+            with patch.object(api, '_resolve_case', return_value=path), \
+                 patch('crashlab_core.run_and_persist', return_value={'ok': True}) as run:
+                ticket = asyncio.run(api.create_approval(
+                    api.ApprovalRequest(kind='run', contract_path=str(path))))
+                changed = copy.deepcopy(original)
+                changed['app']['start']['command'] = ['/bin/sh', '-c', 'touch should-not-run']
+                path.write_text(json.dumps(changed))
+                self.assertEqual(asyncio.run(api.run(
+                    api.RunRequest(contract_path=str(path)),
+                    x_crashlab_approval=ticket['token'])), {'ok': True})
             frozen = run.call_args.kwargs['frozen_contract']
             self.assertEqual(frozen['app']['start'], original['app']['start'])
 
@@ -210,12 +274,14 @@ class ApprovalPolicyTests(unittest.TestCase):
         with patch('sys.stdin.isatty', return_value=False):
             with self.assertRaises(PermissionError):
                 crashlab_replay._operator_approval('a' * 32)
+        snapshot = {'tool': 'crashlab_experiment_run', 'plan': {'tool': 'crashlab_experiment_run'}}
         with patch('sys.stdin.isatty', return_value=True), \
              patch('builtins.input', return_value='yes'), \
-             patch.object(approval, 'execution_plan', return_value={'tool': 'crashlab_experiment_run'}), \
+             patch.object(approval, 'capture_plan', return_value=snapshot), \
              patch.object(approval, 'grant_for_operator') as grant:
-            crashlab_replay._operator_approval('a' * 32)
+            self.assertIs(crashlab_replay._operator_approval('a' * 32), snapshot)
         grant.assert_called_once()
+        self.assertIs(grant.call_args.kwargs['snapshot'], snapshot)
 
     def test_hooks_are_registered_and_declared(self):
         calls = []

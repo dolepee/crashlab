@@ -208,6 +208,27 @@ def prepare(args, require_target=False):
     return campaign_id, target_name, hashes, manifest, contracts
 
 
+def _digest(value) -> str:
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def capture(args):
+    """Freeze the exact target-bound contracts that an approval will cover."""
+    campaign_id, target_name, hashes, manifest, contracts = prepare(args, require_target=True)
+    plan = {
+        "tool": "crashlab_campaign_run",
+        "campaign_id": campaign_id,
+        "target_set": target_name,
+        "repetitions": args.get("repetitions", 1),
+        "evaluator_sha256": hashes,
+        "manifest_sha256": _digest(manifest),
+        "contract_sha256": [_digest(contract) for contract in contracts],
+    }
+    return {"digest": _digest(plan), "plan": plan, "campaign_id": campaign_id,
+            "target_name": target_name, "hashes": hashes, "manifest": manifest,
+            "contracts": contracts}
+
+
 def invoke(name, args, approval_context=None):
     """Hermes JSON-compatible outcomes; never leak an exception as a finding."""
     try:
@@ -222,12 +243,21 @@ def invoke(name, args, approval_context=None):
                 "scope": "Preconfigured disposable loopback fixtures only; no arbitrary contract/evaluator paths"}
         if name not in ("crashlab_campaign_validate", "crashlab_campaign_run"):
             raise CampaignError("INVALID_ARGUMENT", "Unknown campaign tool")
-        campaign_id, target_name, hashes, manifest, contracts = prepare(args, name == "crashlab_campaign_run")
         if name == "crashlab_campaign_run":
             context = approval_context or {}
-            approval.require_approval(name, args,
-                                      session_id=str(context.get('session_id') or ''),
-                                      task_id=str(context.get('task_id') or ''))
+            approved = approval.prepare_approved_campaign(
+                args,
+                session_id=str(context.get('session_id') or ''),
+                task_id=str(context.get('task_id') or ''),
+                tool_call_id=str(context.get('tool_call_id') or ''))
+            bundle = approved["bundle"]
+            campaign_id = bundle["campaign_id"]
+            target_name = bundle["target_name"]
+            hashes = bundle["hashes"]
+            manifest = bundle["manifest"]
+            contracts = bundle["contracts"]
+        else:
+            campaign_id, target_name, hashes, manifest, contracts = prepare(args, False)
         if name == "crashlab_campaign_validate":
             return {"ok": True, "valid": True, "executed": False, "campaign": campaign_id,
                     "target_set": target_name, "cases": len(contracts),

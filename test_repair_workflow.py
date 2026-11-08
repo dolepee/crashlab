@@ -34,6 +34,19 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(self.run_case(eid)['status'],'VERIFIED')
         (self.project/'app.py').unlink()
         self.assertEqual(workflow.status(eid)['status'],'STALE')
+    def test_metadata_change_after_capture_cannot_be_attributed_to_the_snapshot(self):
+        eid=self.prepare()
+        args={'experiment_id': eid}
+        snapshot=approval.capture_plan('crashlab_experiment_run', args)
+        approval.grant_for_operator('crashlab_experiment_run', args, session_id='operator',
+                                    snapshot=snapshot)
+        path=workflow.directory(eid)/'experiment.json'
+        value=json.loads(path.read_text())
+        value['project_path']=str(self.project)+'-other'
+        workflow.save(path,value)
+        with self.assertRaisesRegex(ValueError,'metadata changed'):
+            workflow.run(eid, approval_context={'session_id':'operator'}, approved=snapshot)
+
     def test_initial_pass_is_not_repair(self):
         eid=self.prepare()
         with patch.object(workflow.core,'run_and_persist',return_value=self.result(True)):

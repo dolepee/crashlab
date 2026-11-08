@@ -70,9 +70,11 @@ def _handler(name: str):
     def invoke(kwargs, context):
         session_id = str(context.get("session_id") or "")
         task_id = str(context.get("task_id") or "")
+        tool_call_id = str(context.get("tool_call_id") or "")
         if name in {"crashlab_run", "crashlab_compare"}:
             approved = approval.prepare_approved_case(
-                name, kwargs, session_id=session_id, task_id=task_id)
+                name, kwargs, session_id=session_id, task_id=task_id,
+                tool_call_id=tool_call_id)
         if name == "crashlab_experiment_watch":
             return completion_reminder.watch(**kwargs)
         if name in {schema["name"] for schema in repair_workflow.schemas()}:

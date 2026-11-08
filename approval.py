@@ -20,6 +20,7 @@ confirmation; neither path silently grants execution.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import os
@@ -49,17 +50,18 @@ _READ_ONLY_TOOLS = {
 }
 
 _LOCK = threading.RLock()
-_REQUESTS: dict[str, float] = {}
+_REQUESTS: dict[tuple[str, str], float] = {}
 # A once-only human decision is a single grant, indexed by every scope alias it
 # was issued for (a host may supply both a session id and a session key).
 # Consuming it removes every alias, so one "once" cannot authorize two runs.
-_ONCE_GRANTS: dict[int, tuple[str, float, tuple[str, ...]]] = {}
-_ONCE_INDEX: dict[tuple[str, str], int] = {}
+_ONCE_GRANTS: dict[int, tuple[str, float, tuple[str, ...], str]] = {}
+_ONCE_INDEX: dict[tuple[str, str, str], int] = {}
 _ONCE_SEQ = 0
 _SESSION_APPROVALS: dict[tuple[str, str], float] = {}
 _PERMANENT_APPROVALS: set[str] = set()
 _CASE_SNAPSHOTS: dict[tuple[str, str, str], tuple[float, dict[str, Any]]] = {}
 _EXPERIMENT_SNAPSHOTS: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
+_CAMPAIGN_SNAPSHOTS: dict[tuple[str, str], tuple[float, dict[str, Any]]] = {}
 LEASE_SECONDS = 300
 
 
@@ -138,26 +140,14 @@ def _experiment_plan(tool: str, args: dict[str, Any], *, experiment_raw: bytes |
 
 
 def _campaign_plan(tool: str, args: dict[str, Any]) -> dict[str, Any]:
-    campaign_id = args.get("campaign_id")
-    catalog = {
-        "inventory-contention": "campaigns/inventory.json",
-        "checkout-and-inventory": "campaigns/mixed.json",
-    }
-    if campaign_id not in catalog:
-        raise ValueError("unknown campaign_id")
-    root = Path(__file__).resolve().parent
-    campaign_path = root / catalog[campaign_id]
-    target_path = _data_dir() / "campaign-targets.json"
-    plan = {
-        "tool": tool,
-        "campaign_id": campaign_id,
-        "target_set": args.get("target_set"),
-        "repetitions": args.get("repetitions", 1),
-        "campaign_sha256": _sha256(campaign_path.read_bytes()),
-    }
-    if target_path.is_file():
-        plan["target_sha256"] = _sha256(target_path.read_bytes())
-    return plan
+    try:
+        from . import campaign_plugin
+    except ImportError:
+        import campaign_plugin
+    try:
+        return campaign_plugin.capture(args)["plan"]
+    except Exception as exc:
+        raise ValueError(str(exc)) from exc
 
 
 def execution_plan(tool_name: str, args: dict[str, Any] | None) -> dict[str, Any]:
@@ -200,34 +190,89 @@ def _scopes(*, session_id: str = "", task_id: str = "", session_key: str = "") -
     return values
 
 
-def _grant_once(scopes: list[str], digest: str, now: float) -> None:
+def _snapshot_args(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
+    """Canonical arguments that identify one invocation, including every URL."""
+    value = copy.deepcopy(args)
+    if tool_name in {"crashlab_run", "crashlab_compare"}:
+        value["contract_path"] = _resolved(value["contract_path"])
+    return value
+
+
+def _snapshot_key(tool_name: str, args: dict[str, Any], session_id: str = "",
+                  task_id: str = "", tool_call_id: str = "") -> tuple[str, str]:
+    scope = session_id or task_id or ""
+    args_digest = _sha256(_canonical(_snapshot_args(tool_name, args)))
+    return (args_digest, f"{scope}\0{tool_call_id or ''}")
+
+
+def _find_snapshot(store: dict, tool_name: str, args: dict[str, Any], *,
+                   session_id: str = "", task_id: str = "", tool_call_id: str = ""):
+    key = _snapshot_key(tool_name, args, session_id, task_id, tool_call_id)
+    with _LOCK:
+        entry = store.get(key)
+        if entry is not None and entry[0] > time.time():
+            return entry[1]
+        if entry is not None:
+            store.pop(key, None)
+        if tool_call_id:
+            return None
+        scope = session_id or task_id or ""
+        args_digest = key[0]
+        candidates = [(item_key, item) for item_key, item in store.items()
+                      if item_key[0] == args_digest and item_key[1].split("\0", 1)[0] == scope
+                      and item[0] > time.time()]
+        if len(candidates) == 1:
+            return candidates[0][1][1]
+    return None
+
+
+def _store_snapshot(store: dict, tool_name: str, args: dict[str, Any], snapshot: dict[str, Any],
+                    *, session_id: str = "", task_id: str = "", tool_call_id: str = "",
+                    replace: bool = False) -> None:
+    key = _snapshot_key(tool_name, args, session_id, task_id, tool_call_id)
+    with _LOCK:
+        current = store.get(key)
+        if replace or current is None or current[0] <= time.time():
+            store[key] = (time.time() + LEASE_SECONDS, snapshot)
+
+
+def _grant_once(scopes: list[str], digest: str, now: float, tool_call_id: str = "") -> None:
     """Record one single-use grant, reachable through all of its aliases."""
     global _ONCE_SEQ
     _ONCE_SEQ += 1
     grant = _ONCE_SEQ
     aliases = tuple(dict.fromkeys(scopes)) or ("",)
-    _ONCE_GRANTS[grant] = (digest, now + LEASE_SECONDS, aliases)
+    call = tool_call_id or ""
+    _ONCE_GRANTS[grant] = (digest, now + LEASE_SECONDS, aliases, call)
     for scope in aliases:
-        _ONCE_INDEX[(scope, digest)] = grant
+        _ONCE_INDEX[(scope, digest, call)] = grant
 
 
 def _drop_once(grant: int) -> None:
     entry = _ONCE_GRANTS.pop(grant, None)
     if entry is None:
         return
-    digest, _expiry, aliases = entry
+    digest, _expiry, aliases, call = entry
     for scope in aliases:
-        if _ONCE_INDEX.get((scope, digest)) == grant:
-            _ONCE_INDEX.pop((scope, digest), None)
+        if _ONCE_INDEX.get((scope, digest, call)) == grant:
+            _ONCE_INDEX.pop((scope, digest, call), None)
 
 
-def _consume_once(digest: str, scopes: list[str], now: float) -> bool:
+def _consume_once(digest: str, scopes: list[str], now: float, tool_call_id: str = "") -> bool:
     """Spend a single-use grant atomically, whichever alias is presented."""
     grant = None
+    call = tool_call_id or ""
     for scope in scopes:
-        grant = _ONCE_INDEX.get((scope, digest))
+        grant = _ONCE_INDEX.get((scope, digest, call))
         if grant is not None:
             break
+    if grant is None and not tool_call_id:
+        # Older hosts do not pass a call id to the handler. A once grant with
+        # exactly one live entry is still unambiguous; anything else fails closed.
+        matches = [gid for gid, entry in _ONCE_GRANTS.items()
+                   if entry[0] == digest and entry[1] > now and any(scope in entry[2] for scope in scopes)]
+        if len(matches) == 1:
+            grant = matches[0]
     if grant is None:
         return False
     entry = _ONCE_GRANTS.get(grant)
@@ -236,7 +281,7 @@ def _consume_once(digest: str, scopes: list[str], now: float) -> bool:
 
 
 def _purge(now: float) -> None:
-    for grant, (_digest, expiry, _aliases) in list(_ONCE_GRANTS.items()):
+    for grant, (_digest, expiry, _aliases, _call) in list(_ONCE_GRANTS.items()):
         if expiry <= now:
             _drop_once(grant)
     for key, expiry in list(_SESSION_APPROVALS.items()):
@@ -251,6 +296,9 @@ def _purge(now: float) -> None:
     for key, (expiry, _snapshot) in list(_EXPERIMENT_SNAPSHOTS.items()):
         if expiry <= now:
             _EXPERIMENT_SNAPSHOTS.pop(key, None)
+    for key, (expiry, _snapshot) in list(_CAMPAIGN_SNAPSHOTS.items()):
+        if expiry <= now:
+            _CAMPAIGN_SNAPSHOTS.pop(key, None)
 
 
 def _has_approval(digest: str, *, scopes: list[str]) -> bool:
@@ -269,6 +317,8 @@ def _case_snapshot(tool_name: str, args: dict[str, Any]) -> dict[str, Any]:
     contract = _validate_contract(contract)
     plan = _case_plan(tool_name, args, raw=raw, contract=contract)
     return {
+        "tool": tool_name,
+        "args": _snapshot_args(tool_name, args),
         "path": str(path),
         "raw": raw,
         "contract": contract,
@@ -282,17 +332,37 @@ def _experiment_snapshot(experiment_id: str) -> dict[str, Any]:
     folder = _data_dir() / "experiments" / experiment_id
     experiment_raw = (folder / "experiment.json").read_bytes()
     case_raw = (folder / "case.json").read_bytes()
+    experiment = json.loads(experiment_raw.decode("utf-8"))
     case = json.loads(case_raw.decode("utf-8"))
     case = _validate_contract(case)
     plan = _experiment_plan("crashlab_experiment_run", args,
                             experiment_raw=experiment_raw, case_raw=case_raw, case=case)
-    return {"folder": str(folder), "contract": case, "digest": _sha256(_canonical(plan))}
+    return {
+        "tool": "crashlab_experiment_run",
+        "args": args,
+        "folder": str(folder),
+        "contract": case,
+        "experiment": experiment,
+        "experiment_digest": _sha256(_canonical(experiment)),
+        "experiment_sha256": _sha256(experiment_raw),
+        "case_sha256": _sha256(case_raw),
+        "digest": _sha256(_canonical(plan)),
+    }
 
 
-def _snapshot_scope(tool_name: str, args: dict[str, Any], session_id: str) -> tuple[str, str]:
-    if tool_name in {"crashlab_run", "crashlab_compare"}:
-        return ("case", str(Path(args["contract_path"]).expanduser().resolve()), session_id or "")
-    return ("experiment", str(args.get("experiment_id") or ""), session_id or "")
+def _campaign_snapshot(args: dict[str, Any]) -> dict[str, Any]:
+    try:
+        from . import campaign_plugin
+    except ImportError:
+        import campaign_plugin
+    bundle = campaign_plugin.capture(args)
+    return {
+        "tool": "crashlab_campaign_run",
+        "args": _snapshot_args("crashlab_campaign_run", args),
+        "digest": bundle["digest"],
+        "plan": bundle["plan"],
+        "bundle": bundle,
+    }
 
 
 def pre_tool_call(tool_name: str, args: dict[str, Any] | None, *,
@@ -304,26 +374,25 @@ def pre_tool_call(tool_name: str, args: dict[str, Any] | None, *,
     try:
         if tool_name in {"crashlab_run", "crashlab_compare"}:
             snapshot = _case_snapshot(tool_name, args)
-            digest = snapshot["digest"]
-            with _LOCK:
-                _CASE_SNAPSHOTS[_snapshot_scope(tool_name, args, scope)] = (
-                    time.time() + LEASE_SECONDS, snapshot)
+            _store_snapshot(_CASE_SNAPSHOTS, tool_name, args, snapshot,
+                            session_id=session_id, task_id=task_id, tool_call_id=tool_call_id)
         elif tool_name == "crashlab_experiment_run":
             snapshot = _experiment_snapshot(args["experiment_id"])
-            digest = snapshot["digest"]
-            with _LOCK:
-                _EXPERIMENT_SNAPSHOTS[(args["experiment_id"], scope)] = (
-                    time.time() + LEASE_SECONDS, snapshot)
+            _store_snapshot(_EXPERIMENT_SNAPSHOTS, tool_name, args, snapshot,
+                            session_id=session_id, task_id=task_id, tool_call_id=tool_call_id)
         else:
-            digest = plan_digest(tool_name, args)
-    except (OSError, ValueError, TypeError, KeyError) as exc:
+            snapshot = _campaign_snapshot(args)
+            _store_snapshot(_CAMPAIGN_SNAPSHOTS, tool_name, args, snapshot,
+                            session_id=session_id, task_id=task_id, tool_call_id=tool_call_id)
+        digest = snapshot["digest"]
+    except Exception as exc:
         return {"action": "block",
                 "message": f"CrashLab cannot approve this execution plan: {exc}"}
     scopes = _scopes(session_id=session_id, task_id=task_id)
     if _has_approval(digest, scopes=scopes):
         return None
     with _LOCK:
-        _REQUESTS[digest] = time.time()
+        _REQUESTS[(digest, tool_call_id or "")] = time.time()
     return {
         "action": "approve",
         "message": f"CrashLab will execute {tool_name} for this exact frozen plan.",
@@ -342,8 +411,12 @@ def post_approval_response(command: str = "", description: str = "", pattern_key
     now = time.time()
     with _LOCK:
         _purge(now)
-        if digest not in _REQUESTS:
+        request_key = (digest, tool_call_id or "")
+        if request_key not in _REQUESTS and tool_call_id:
+            request_key = (digest, "")
+        if request_key not in _REQUESTS:
             return
+        _REQUESTS.pop(request_key, None)
         if choice == "always":
             _PERMANENT_APPROVALS.add(digest)
             return
@@ -351,19 +424,19 @@ def post_approval_response(command: str = "", description: str = "", pattern_key
         if not scopes:
             scopes = [""]
         if choice == "once":
-            _grant_once(scopes, digest, now)
+            _grant_once(scopes, digest, now, tool_call_id)
         else:
             for scope in scopes:
                 _SESSION_APPROVALS[(scope, digest)] = now + LEASE_SECONDS
 
 
-def _require_digest(digest: str, *, scopes: list[str]) -> None:
+def _require_digest(digest: str, *, scopes: list[str], tool_call_id: str = "") -> None:
     if _has_approval(digest, scopes=scopes):
         return
     now = time.time()
     with _LOCK:
         _purge(now)
-        if _consume_once(digest, scopes, now):
+        if _consume_once(digest, scopes, now, tool_call_id):
             return
     raise ApprovalRequired(
         "CrashLab execution requires a human approval for this exact case, command, "
@@ -372,36 +445,51 @@ def _require_digest(digest: str, *, scopes: list[str]) -> None:
 
 
 def require_approval(tool_name: str, args: dict[str, Any] | None, *,
-                     session_id: str = "", task_id: str = "", session_key: str = "") -> None:
+                     session_id: str = "", task_id: str = "", session_key: str = "",
+                     tool_call_id: str = "") -> None:
     """Fail closed unless this exact plan has a live human-approval lease."""
     if tool_name not in EXECUTION_TOOLS:
         return
     digest = plan_digest(tool_name, args)
     scopes = _scopes(session_id=session_id, task_id=task_id, session_key=session_key)
-    _require_digest(digest, scopes=scopes or [""])
+    _require_digest(digest, scopes=scopes or [""], tool_call_id=tool_call_id)
+
+
+def capture_plan(tool_name: str, args: dict[str, Any], *, session_id: str = "",
+                 task_id: str = "", tool_call_id: str = "") -> dict[str, Any]:
+    """Read and freeze one execution plan without granting it."""
+    if tool_name in {"crashlab_run", "crashlab_compare"}:
+        snapshot = _case_snapshot(tool_name, args)
+        store = _CASE_SNAPSHOTS
+    elif tool_name == "crashlab_experiment_run":
+        snapshot = _experiment_snapshot(args["experiment_id"])
+        store = _EXPERIMENT_SNAPSHOTS
+    elif tool_name == "crashlab_campaign_run":
+        snapshot = _campaign_snapshot(args)
+        store = _CAMPAIGN_SNAPSHOTS
+    else:
+        raise ValueError(f"not an execution tool: {tool_name}")
+    _store_snapshot(store, tool_name, args, snapshot, session_id=session_id,
+                    task_id=task_id, tool_call_id=tool_call_id, replace=True)
+    return snapshot
 
 
 def prepare_approved_case(tool_name: str, args: dict[str, Any], *,
                           session_id: str = "", task_id: str = "",
-                          session_key: str = "") -> dict[str, Any]:
-    """Read the approved case once and return the exact contract to execute.
-
-    The case is not reopened after this point. A replacement file after the
-    approval cannot change the command that runs.
-    """
+                          session_key: str = "", tool_call_id: str = "",
+                          snapshot: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Return the exact frozen case, never a later replacement file."""
     if tool_name not in {"crashlab_run", "crashlab_compare"}:
         raise ValueError(f"not a case tool: {tool_name}")
-    scope = session_id or task_id or ""
-    key = _snapshot_scope(tool_name, args, scope)
-    with _LOCK:
-        cached = _CASE_SNAPSHOTS.get(key)
-        if cached is not None and cached[0] <= time.time():
-            _CASE_SNAPSHOTS.pop(key, None)
-            cached = None
-    if cached is not None:
-        snapshot = cached[1]
-        _require_digest(snapshot["digest"], scopes=_scopes(session_id=session_id, task_id=task_id,
-                                                           session_key=session_key) or [""])
+    scopes = _scopes(session_id=session_id, task_id=task_id, session_key=session_key) or [""]
+    if snapshot is None:
+        snapshot = _find_snapshot(_CASE_SNAPSHOTS, tool_name, args,
+                                  session_id=session_id, task_id=task_id,
+                                  tool_call_id=tool_call_id)
+    if snapshot is not None:
+        if snapshot.get("tool") != tool_name or snapshot.get("args") != _snapshot_args(tool_name, args):
+            raise ApprovalRequired("CrashLab approval belongs to a different invocation")
+        _require_digest(snapshot["digest"], scopes=scopes, tool_call_id=tool_call_id)
         return snapshot
     path = Path(args["contract_path"]).expanduser().resolve()
     raw = path.read_bytes()
@@ -409,29 +497,47 @@ def prepare_approved_case(tool_name: str, args: dict[str, Any], *,
     contract = _validate_contract(contract)
     plan = _case_plan(tool_name, args, raw=raw, contract=contract)
     digest = _sha256(_canonical(plan))
-    _require_digest(digest, scopes=_scopes(session_id=session_id, task_id=task_id,
-                                            session_key=session_key) or [""])
-    return {"path": str(path), "contract": contract, "sha256": _sha256(raw), "digest": digest}
+    _require_digest(digest, scopes=scopes, tool_call_id=tool_call_id)
+    return {"tool": tool_name, "args": _snapshot_args(tool_name, args), "path": str(path),
+            "contract": contract, "sha256": _sha256(raw), "digest": digest}
 
 
 def prepare_approved_experiment(experiment_id: str, *, session_id: str = "",
-                                 task_id: str = "", session_key: str = "") -> dict[str, Any]:
-    """Read the approved experiment case once and return it for execution."""
-    scope = session_id or task_id or ""
-    key = (experiment_id, scope)
-    with _LOCK:
-        cached = _EXPERIMENT_SNAPSHOTS.get(key)
-        if cached is not None and cached[0] <= time.time():
-            _EXPERIMENT_SNAPSHOTS.pop(key, None)
-            cached = None
-    if cached is not None:
-        snapshot = cached[1]
-        _require_digest(snapshot["digest"], scopes=_scopes(session_id=session_id, task_id=task_id,
-                                                           session_key=session_key) or [""])
+                                task_id: str = "", session_key: str = "",
+                                tool_call_id: str = "",
+                                snapshot: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Return the frozen experiment contract and metadata for one execution."""
+    args = {"experiment_id": experiment_id}
+    scopes = _scopes(session_id=session_id, task_id=task_id, session_key=session_key) or [""]
+    if snapshot is None:
+        snapshot = _find_snapshot(_EXPERIMENT_SNAPSHOTS, "crashlab_experiment_run", args,
+                                  session_id=session_id, task_id=task_id,
+                                  tool_call_id=tool_call_id)
+    if snapshot is not None:
+        if snapshot.get("tool") != "crashlab_experiment_run" or snapshot.get("args") != args:
+            raise ApprovalRequired("CrashLab approval belongs to a different invocation")
+        _require_digest(snapshot["digest"], scopes=scopes, tool_call_id=tool_call_id)
         return snapshot
     snapshot = _experiment_snapshot(experiment_id)
-    _require_digest(snapshot["digest"], scopes=_scopes(session_id=session_id, task_id=task_id,
-                                                       session_key=session_key) or [""])
+    _require_digest(snapshot["digest"], scopes=scopes, tool_call_id=tool_call_id)
+    return snapshot
+
+
+def prepare_approved_campaign(args: dict[str, Any], *, session_id: str = "",
+                              task_id: str = "", session_key: str = "",
+                              tool_call_id: str = "",
+                              snapshot: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Return the exact campaign contracts/target captured for this approval."""
+    scopes = _scopes(session_id=session_id, task_id=task_id, session_key=session_key) or [""]
+    if snapshot is None:
+        snapshot = _find_snapshot(_CAMPAIGN_SNAPSHOTS, "crashlab_campaign_run", args,
+                                  session_id=session_id, task_id=task_id,
+                                  tool_call_id=tool_call_id)
+    if snapshot is None:
+        snapshot = _campaign_snapshot(args)
+    if snapshot.get("tool") != "crashlab_campaign_run" or snapshot.get("args") != _snapshot_args("crashlab_campaign_run", args):
+        raise ApprovalRequired("CrashLab approval belongs to a different invocation")
+    _require_digest(snapshot["digest"], scopes=scopes, tool_call_id=tool_call_id)
     return snapshot
 
 
@@ -444,35 +550,48 @@ def reset_for_tests() -> None:
         _PERMANENT_APPROVALS.clear()
         _CASE_SNAPSHOTS.clear()
         _EXPERIMENT_SNAPSHOTS.clear()
+        _CAMPAIGN_SNAPSHOTS.clear()
 
 
-def grant_for_operator(tool_name: str, args: dict[str, Any], *, session_id: str = "operator") -> str:
+def grant_for_operator(tool_name: str, args: dict[str, Any], *, session_id: str = "operator",
+                       tool_call_id: str = "", snapshot: dict[str, Any] | None = None) -> str:
     """Create a short-lived grant after an explicit local operator confirmation."""
+    if snapshot is None:
+        snapshot = capture_plan(tool_name, args, session_id=session_id,
+                                tool_call_id=tool_call_id)
     if tool_name in {"crashlab_run", "crashlab_compare"}:
-        snapshot = _case_snapshot(tool_name, args)
+        store = _CASE_SNAPSHOTS
     elif tool_name == "crashlab_experiment_run":
-        snapshot = _experiment_snapshot(args["experiment_id"])
+        store = _EXPERIMENT_SNAPSHOTS
+    elif tool_name == "crashlab_campaign_run":
+        store = _CAMPAIGN_SNAPSHOTS
     else:
-        snapshot = None
-    digest = snapshot["digest"] if snapshot else plan_digest(tool_name, args)
+        raise ValueError(f"not an execution tool: {tool_name}")
+    digest = snapshot["digest"]
     now = time.time()
+    _store_snapshot(store, tool_name, args, snapshot, session_id=session_id,
+                    tool_call_id=tool_call_id, replace=True)
     with _LOCK:
-        _REQUESTS[digest] = now
-        _grant_once([session_id], digest, now)
-        if snapshot is not None:
-            if tool_name in {"crashlab_run", "crashlab_compare"}:
-                _CASE_SNAPSHOTS[_snapshot_scope(tool_name, args, session_id)] = (now + LEASE_SECONDS, snapshot)
-            else:
-                _EXPERIMENT_SNAPSHOTS[(args["experiment_id"], session_id)] = (now + LEASE_SECONDS, snapshot)
+        _REQUESTS[(digest, tool_call_id or "")] = now
+        _grant_once([session_id], digest, now, tool_call_id)
     return digest
 
 
 def grant_for_tests(tool_name: str, args: dict[str, Any], *, scope: str = "session") -> str:
     """Test helper mimicking a human approval response, never used in production."""
-    digest = plan_digest(tool_name, args)
+    if tool_name == "crashlab_campaign_run":
+        try:
+            snapshot = _campaign_snapshot(args)
+            digest = snapshot["digest"]
+            _store_snapshot(_CAMPAIGN_SNAPSHOTS, tool_name, args, snapshot,
+                            session_id="test-session", replace=True)
+        except Exception:
+            digest = _sha256(_canonical({"tool": tool_name, "args": args}))
+    else:
+        digest = plan_digest(tool_name, args)
     now = time.time()
     with _LOCK:
-        _REQUESTS[digest] = now
+        _REQUESTS[(digest, "")] = now
         if scope == "always":
             _PERMANENT_APPROVALS.add(digest)
         elif scope == "session":
