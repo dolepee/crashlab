@@ -76,6 +76,28 @@ class ApprovalPolicyTests(unittest.TestCase):
             run.assert_called_once()
         self.blocked(json.loads(plugin._handler('crashlab_run')(args, session_id='session-1')))
 
+    def test_once_approval_is_single_use_across_host_aliases(self):
+        args = self.args()
+        approval.pre_tool_call('crashlab_run', args, tool_call_id='call-1',
+                               session_id='session-1', task_id='session-key-1')
+        digest = approval.plan_digest('crashlab_run', args)
+        # The host reports both a session id and a session key for one decision.
+        approval.post_approval_response(
+            pattern_key='plugin_rule:' + approval._rule_key('crashlab_run', digest),
+            choice='once', tool_call_id='call-1',
+            session_id='session-1', session_key='session-key-1')
+        with patch.object(plugin.core, 'run_and_persist', return_value={'ok': True}) as run:
+            self.assertEqual(
+                json.loads(plugin._handler('crashlab_run')(args, session_id='session-1',
+                                                          task_id='session-key-1')),
+                {'ok': True})
+            # Neither alias may spend the same once decision a second time.
+            self.blocked(json.loads(plugin._handler('crashlab_run')(args, session_id='session-1',
+                                                                   task_id='session-key-1')))
+            self.blocked(json.loads(plugin._handler('crashlab_run')(args, session_id='session-key-1',
+                                                                   task_id='session-1')))
+            run.assert_called_once()
+
     def test_approved_case_runs_the_frozen_snapshot_after_a_file_swap(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / 'case.json'

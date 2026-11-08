@@ -49,6 +49,9 @@ class HermesHostDispatchTests(unittest.TestCase):
         self.approval_mod = approval_mod
         self.registry = registry
         self.manager = PluginManager()
+        # Each test loads its own copy of the plugin; use the host's test-only
+        # clean slate so the handler under test is the one just loaded.
+        lifecycle._reset_plugin_managers_for_tests()
         self.manager.discover_and_load()
         lifecycle._plugin_manager = self.manager
         lifecycle._plugin_managers_by_home[Path(self.manager.scope_key)] = self.manager
@@ -61,12 +64,14 @@ class HermesHostDispatchTests(unittest.TestCase):
         self.call = 'native-call-1'
         self.args = {'contract_path': str(CASE)}
 
-    def dispatch(self):
+    def dispatch(self, session=None):
+        session = session or self.session
         return json.loads(self.registry.dispatch(
             'crashlab_run', self.args, scope=self.manager.scope_key,
-            task_id=self.session, session_id=self.session))
+            task_id=session, session_id=session))
 
-    def run_with_decision(self, decision):
+    def run_with_decision(self, decision, *, session_key=None):
+        session_key = session_key or self.session
         if decision == 'deny':
             def fake(tool_name, reason, *, rule_key='', **kwargs):
                 return {'approved': False, 'message': 'human denied'}
@@ -76,7 +81,7 @@ class HermesHostDispatchTests(unittest.TestCase):
                     'post_approval_response', command='<crashlab_run>', description=reason,
                     pattern_key='plugin_rule:' + rule_key,
                     pattern_keys=['plugin_rule:' + rule_key],
-                    session_key=self.session, session_id=self.session, surface='cli',
+                    session_key=session_key, session_id=self.session, surface='cli',
                     tool_call_id=self.call, choice='once')
                 return {'approved': True, 'message': None}
         with patch.object(self.approval_mod, 'request_tool_approval', side_effect=fake):
@@ -100,6 +105,20 @@ class HermesHostDispatchTests(unittest.TestCase):
         self.assertEqual(result, {'ok': True})
         self.assertEqual(run.call_count, 1)
         self.assertIn('frozen_contract', run.call_args.kwargs)
+
+    def test_once_decision_with_a_distinct_session_key_authorises_one_dispatch(self):
+        with patch.object(self.module.core, 'run_and_persist', return_value={'ok': True}) as run:
+            block, result = self.run_with_decision('approve', session_key='host-key')
+            self.assertIsNone(block)
+            self.assertEqual(result, {'ok': True})
+            # The host reports two scope aliases for one decision; neither may
+            # spend it again, in either order.
+            second = self.dispatch()
+            third = self.dispatch('host-key')
+        self.assertEqual(run.call_count, 1)
+        for replay in (second, third):
+            self.assertFalse(replay['ok'], replay)
+            self.assertTrue(replay['needs_approval'], replay)
 
 
 if __name__ == '__main__':

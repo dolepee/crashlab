@@ -50,7 +50,12 @@ _READ_ONLY_TOOLS = {
 
 _LOCK = threading.RLock()
 _REQUESTS: dict[str, float] = {}
-_ONCE_APPROVALS: dict[tuple[str, str], float] = {}
+# A once-only human decision is a single grant, indexed by every scope alias it
+# was issued for (a host may supply both a session id and a session key).
+# Consuming it removes every alias, so one "once" cannot authorize two runs.
+_ONCE_GRANTS: dict[int, tuple[str, float, tuple[str, ...]]] = {}
+_ONCE_INDEX: dict[tuple[str, str], int] = {}
+_ONCE_SEQ = 0
 _SESSION_APPROVALS: dict[tuple[str, str], float] = {}
 _PERMANENT_APPROVALS: set[str] = set()
 _CASE_SNAPSHOTS: dict[tuple[str, str, str], tuple[float, dict[str, Any]]] = {}
@@ -195,10 +200,45 @@ def _scopes(*, session_id: str = "", task_id: str = "", session_key: str = "") -
     return values
 
 
+def _grant_once(scopes: list[str], digest: str, now: float) -> None:
+    """Record one single-use grant, reachable through all of its aliases."""
+    global _ONCE_SEQ
+    _ONCE_SEQ += 1
+    grant = _ONCE_SEQ
+    aliases = tuple(dict.fromkeys(scopes)) or ("",)
+    _ONCE_GRANTS[grant] = (digest, now + LEASE_SECONDS, aliases)
+    for scope in aliases:
+        _ONCE_INDEX[(scope, digest)] = grant
+
+
+def _drop_once(grant: int) -> None:
+    entry = _ONCE_GRANTS.pop(grant, None)
+    if entry is None:
+        return
+    digest, _expiry, aliases = entry
+    for scope in aliases:
+        if _ONCE_INDEX.get((scope, digest)) == grant:
+            _ONCE_INDEX.pop((scope, digest), None)
+
+
+def _consume_once(digest: str, scopes: list[str], now: float) -> bool:
+    """Spend a single-use grant atomically, whichever alias is presented."""
+    grant = None
+    for scope in scopes:
+        grant = _ONCE_INDEX.get((scope, digest))
+        if grant is not None:
+            break
+    if grant is None:
+        return False
+    entry = _ONCE_GRANTS.get(grant)
+    _drop_once(grant)
+    return entry is not None and entry[1] > now
+
+
 def _purge(now: float) -> None:
-    for key, expiry in list(_ONCE_APPROVALS.items()):
+    for grant, (_digest, expiry, _aliases) in list(_ONCE_GRANTS.items()):
         if expiry <= now:
-            _ONCE_APPROVALS.pop(key, None)
+            _drop_once(grant)
     for key, expiry in list(_SESSION_APPROVALS.items()):
         if expiry <= now:
             _SESSION_APPROVALS.pop(key, None)
@@ -310,9 +350,11 @@ def post_approval_response(command: str = "", description: str = "", pattern_key
         scopes = _scopes(session_id=session_id, session_key=session_key)
         if not scopes:
             scopes = [""]
-        target = _ONCE_APPROVALS if choice == "once" else _SESSION_APPROVALS
-        for scope in scopes:
-            target[(scope, digest)] = now + LEASE_SECONDS
+        if choice == "once":
+            _grant_once(scopes, digest, now)
+        else:
+            for scope in scopes:
+                _SESSION_APPROVALS[(scope, digest)] = now + LEASE_SECONDS
 
 
 def _require_digest(digest: str, *, scopes: list[str]) -> None:
@@ -321,10 +363,8 @@ def _require_digest(digest: str, *, scopes: list[str]) -> None:
     now = time.time()
     with _LOCK:
         _purge(now)
-        for scope in scopes:
-            expiry = _ONCE_APPROVALS.pop((scope, digest), None)
-            if expiry is not None and expiry > now:
-                return
+        if _consume_once(digest, scopes, now):
+            return
     raise ApprovalRequired(
         "CrashLab execution requires a human approval for this exact case, command, "
         "path and target. Run it through the Hermes crashlab tool or the explicit "
@@ -398,7 +438,8 @@ def prepare_approved_experiment(experiment_id: str, *, session_id: str = "",
 def reset_for_tests() -> None:
     with _LOCK:
         _REQUESTS.clear()
-        _ONCE_APPROVALS.clear()
+        _ONCE_GRANTS.clear()
+        _ONCE_INDEX.clear()
         _SESSION_APPROVALS.clear()
         _PERMANENT_APPROVALS.clear()
         _CASE_SNAPSHOTS.clear()
@@ -417,7 +458,7 @@ def grant_for_operator(tool_name: str, args: dict[str, Any], *, session_id: str 
     now = time.time()
     with _LOCK:
         _REQUESTS[digest] = now
-        _ONCE_APPROVALS[(session_id, digest)] = now + LEASE_SECONDS
+        _grant_once([session_id], digest, now)
         if snapshot is not None:
             if tool_name in {"crashlab_run", "crashlab_compare"}:
                 _CASE_SNAPSHOTS[_snapshot_scope(tool_name, args, session_id)] = (now + LEASE_SECONDS, snapshot)
@@ -437,5 +478,5 @@ def grant_for_tests(tool_name: str, args: dict[str, Any], *, scope: str = "sessi
         elif scope == "session":
             _SESSION_APPROVALS[("test-session", digest)] = now + LEASE_SECONDS
         else:
-            _ONCE_APPROVALS[("test-session", digest)] = now + LEASE_SECONDS
+            _grant_once(["test-session"], digest, now)
     return digest
