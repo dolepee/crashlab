@@ -1,0 +1,89 @@
+{
+  "first": {
+    "status": 200,
+    "author": "",
+    "create_archive": false,
+    "create_ebook": false,
+    "createdAt": "2026-11-08 17:28:53",
+    "excerpt": "",
+    "hasArchive": false,
+    "hasContent": false,
+    "hasEbook": false,
+    "id": 1,
+    "imageURL": "",
+    "modifiedAt": "2026-11-08 17:28:53",
+    "public": 0,
+    "tags": [],
+    "title": "CRASHLAB_SHIORI_HERMES_IDENTITY",
+    "url": "https://example.com/crashlab-shiori-hermes-identity"
+  },
+  "retry": {
+    "status": 200,
+    "author": "",
+    "create_archive": false,
+    "create_ebook": false,
+    "createdAt": "2026-11-08 17:28:53",
+    "excerpt": "",
+    "hasArchive": false,
+    "hasContent": false,
+    "hasEbook": false,
+    "id": 1,
+    "imageURL": "",
+    "modifiedAt": "2026-11-08 17:28:53",
+    "public": 0,
+    "tags": [],
+    "title": "CRASHLAB_SHIORI_HERMES_IDENTITY",
+    "url": "https://example.com/crashlab-shiori-hermes-identity"
+  },
+  "primary_database_rows": [
+    [
+      1,
+      "https://example.com/crashlab-shiori-hermes-identity",
+      "CRASHLAB_SHIORI_HERMES_IDENTITY"
+    ]
+  ],
+  "final_database_rows": [
+    [
+      1,
+      "https://example.com/crashlab-shiori-hermes-identity",
+      "CRASHLAB_SHIORI_HERMES_IDENTITY"
+    ],
+    [
+      2,
+      "https://example.com/crashlab-shiori-hermes-identity-control-a",
+      "CRASHLAB_SHIORI_HERMES_IDENTITY_CONTROL_1"
+    ],
+    [
+      3,
+      "https://example.com/crashlab-shiori-hermes-identity-control-b",
+      "CRASHLAB_SHIORI_HERMES_IDENTITY_CONTROL_2"
+    ]
+  ],
+  "control": [
+    {
+      "status": 200,
+      "id": 2,
+      "url": "https://example.com/crashlab-shiori-hermes-identity-control-a",
+      "title": "CRASHLAB_SHIORI_HERMES_IDENTITY_CONTROL_1"
+    },
+    {
+      "status": 200,
+      "id": 3,
+      "url": "https://example.com/crashlab-shiori-hermes-identity-control-b",
+      "title": "CRASHLAB_SHIORI_HERMES_IDENTITY_CONTROL_2"
+    }
+  ],
+  "assertions": {
+    "first_and_retry_http_200": true,
+    "retry_id_equals_first_id": true,
+    "retry_url_preserved": true,
+    "retry_title_preserved": true,
+    "database_primary_row_count_1": true,
+    "database_primary_id_matches": true,
+    "database_url_matches": true,
+    "database_title_matches": true,
+    "database_final_row_count_3": true,
+    "control_distinct_urls_200": true,
+    "control_ids_distinct": true
+  }
+}

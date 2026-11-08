@@ -1,0 +1,4 @@
+command: git apply --reverse --check exact-repair.patch
+exit: 0
+stdout:
+stderr:

@@ -1,0 +1,18 @@
+diff --git a/internal/webserver/handler-api.go b/internal/webserver/handler-api.go
+index 932b5df..ea5bcc1 100644
+--- a/internal/webserver/handler-api.go
++++ b/internal/webserver/handler-api.go
+@@ -225,6 +225,13 @@ func (h *Handler) ApiInsertBookmark(w http.ResponseWriter, r *http.Request, ps h
+ 	// Save bookmark to database
+ 	results, err := h.DB.SaveBookmarks(ctx, true, *book)
+ 	if err != nil || len(results) == 0 {
++		// A retried create may refer to a bookmark that was already committed.
++		existing, exists, lookupErr := h.DB.GetBookmark(ctx, 0, book.URL)
++		if lookupErr == nil && exists {
++			w.Header().Set("Content-Type", "application/json")
++			checkError(json.NewEncoder(w).Encode(existing))
++			return
++		}
+ 		panic(fmt.Errorf("failed to save bookmark: %v", err))
+ 	}
+ 

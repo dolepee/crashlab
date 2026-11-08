@@ -1,0 +1,14 @@
+You are working on a pristine checkout of go-shiori/shiori at commit da56f82faac5bf350fc4175e5ff50726cb10d956. Do not change the pinned commit; make only application source edits in this checkout.
+
+Context from an independent CrashLab baseline:
+- After a first bookmark creation commits, the response is suppressed and the browser retries the identical create.
+- On the unmodified app, the retry reaches the server, the server panics on the duplicate bookmark URL, the connection closes without a response, and the original bookmark row remains.
+- A legitimate control creates two distinct bookmark URLs successfully.
+
+Your task: make the smallest correct application change so that an identical retry after an uncertain successful create returns the existing bookmark with the same bookmark ID, URL and title, without a panic or duplicate row. Preserve the legitimate control behavior. Do not change the CrashLab evaluator, contract, evidence, database schema, or tests to accommodate the app; do not use a test-only bypass.
+
+Environment:
+- Go 1.23.6 is available at /workspace/tmp/go/go/bin/go. Use caches outside the checkout: GOMODCACHE=/tmp/shiori-gomod, GOCACHE=/tmp/shiori-gocache, GOPATH=/tmp/shiori-gopath, CGO_ENABLED=0.
+- Build with: go build -tags osusergo,netgo,fts5 -ldflags="-s -w -X main.version=v1.8.0-hermes-repair -X main.date=2026-11-08" -o /tmp/shiori-hermes-bin/shiori .
+- Run: go test -tags osusergo,netgo,fts5 ./internal/webserver
+- Inspect the actual handler and database APIs before editing. Return the exact source change, test result and build result.

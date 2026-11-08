@@ -1,0 +1,3 @@
+$ go test -count=1 -tags osusergo,netgo,fts5 ./internal/webserver
+ok  	github.com/go-shiori/shiori/internal/webserver	0.002s
+exit=0

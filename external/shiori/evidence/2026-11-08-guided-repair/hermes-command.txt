@@ -1,0 +1,7 @@
+HERMES_HOME=/tmp/hermes-crashlab-official-06 PYTHONPATH=/workspace/work/hermes-agent \
+  /tmp/hermes-src/.venv/bin/python -m hermes_cli.main chat \
+  --in /workspace/tmp/shiori-hermes-pristine \
+  --query-file /workspace/tmp/hermes-shiori-prompt.txt \
+  --oneshot --format stream-json --yolo \
+  --model openai/gpt-6-astra --provider openrouter \
+  --reasoning medium --max-turns 80

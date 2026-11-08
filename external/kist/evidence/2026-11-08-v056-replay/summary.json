@@ -1,0 +1,128 @@
+{
+  "version": "0.5.6",
+  "installed_pin": "1d8acf8ea7a5d90904c26a0f9887f83abb3af6cc",
+  "merge_pin": "4851dc9a65201e51cdd4b0a86ce66e801f8c13cc",
+  "scope": "Independent official macOS install, real Hermes dispatch/middleware and Chrome, deterministic operator once approval responses, retained historical model repair replay; not fresh autonomous generation or unrelated end-user adoption",
+  "runs": [
+    {
+      "stage": "current-evaluator-baseline",
+      "receipt": "current-evaluator-baseline-receipt.json",
+      "sha256": "c3dddc28e533616e1286b358d603aead65df45de21ac2113a6fda362ddb57671",
+      "measurements": [
+        {
+          "label": "pristine-baseline",
+          "status": "REPRODUCED",
+          "cases": [
+            {
+              "name": "before_delivery",
+              "status": "PASS",
+              "observed": 1,
+              "control": 2
+            },
+            {
+              "name": "after_commit",
+              "status": "FAIL",
+              "observed": 2,
+              "control": 2
+            },
+            {
+              "name": "restart_after_commit",
+              "status": "FAIL",
+              "observed": 2,
+              "control": 2
+            }
+          ]
+        },
+        {
+          "label": "retained-repair",
+          "status": "VERIFIED",
+          "cases": [
+            {
+              "name": "before_delivery",
+              "status": "PASS",
+              "observed": 1,
+              "control": 2
+            },
+            {
+              "name": "after_commit",
+              "status": "PASS",
+              "observed": 1,
+              "control": 2
+            },
+            {
+              "name": "restart_after_commit",
+              "status": "PASS",
+              "observed": 1,
+              "control": 2
+            }
+          ]
+        }
+      ],
+      "original_execution_receipt_sha256": "5f6cdcc8eedaeba494772aba29ae98322bd7fbba9575859cf4e8dd28790d21bc"
+    },
+    {
+      "stage": "fresh-replay",
+      "receipt": "fresh-replay-receipt.json",
+      "sha256": "088c897e4a35ca5044a7255f499931e08bb021cdf9113ee56ace0782e49de8a4",
+      "measurements": [
+        {
+          "label": "pristine-baseline",
+          "status": "REPRODUCED",
+          "cases": [
+            {
+              "name": "before_delivery",
+              "status": "PASS",
+              "observed": 1,
+              "control": 2
+            },
+            {
+              "name": "after_commit",
+              "status": "FAIL",
+              "observed": 2,
+              "control": 2
+            },
+            {
+              "name": "restart_after_commit",
+              "status": "FAIL",
+              "observed": 2,
+              "control": 2
+            }
+          ]
+        },
+        {
+          "label": "retained-repair",
+          "status": "VERIFIED",
+          "cases": [
+            {
+              "name": "before_delivery",
+              "status": "PASS",
+              "observed": 1,
+              "control": 2
+            },
+            {
+              "name": "after_commit",
+              "status": "PASS",
+              "observed": 1,
+              "control": 2
+            },
+            {
+              "name": "restart_after_commit",
+              "status": "PASS",
+              "observed": 1,
+              "control": 2
+            }
+          ]
+        }
+      ],
+      "original_execution_receipt_sha256": "632ddec1337eec51baa91f6e6e6528af5a4c3c4489b1cf388eb0f16158247609"
+    }
+  ],
+  "memory_negative": {
+    "receipt": "memory-negative-receipt.json",
+    "sha256": "323f8b33b5e7287739ca0a85220e61ad2f11c36d1ac4a344f0065f1adabfa953",
+    "scope": "Deliberately operator-injected memory-only negative control; not an observed model mistake",
+    "original_execution_receipt_sha256": "c72729241e3ae62ceae90a234bb1377e1ac4a470470798a86d7a5a950416447a"
+  },
+  "regression_bundle_sha256": "77cadd748cf35a01d2b028b5deb06898a01138a7ea040ab7b034a1e26a2ac84e",
+  "normalization": "Private audit-root paths replaced with $AUDIT_WORKSPACE; original execution digests remain historical original-byte identities, not normalized receipt hashes."
+}

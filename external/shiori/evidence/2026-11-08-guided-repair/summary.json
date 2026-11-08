@@ -1,0 +1,72 @@
+{
+  "scope": "Fresh guided Hermes-produced application patch from supplied diagnosis; operator CrashLab baseline and repaired run, not end-to-end interactive plugin execution",
+  "app": {
+    "repository": "https://github.com/go-shiori/shiori",
+    "pin": "da56f82faac5bf350fc4175e5ff50726cb10d956",
+    "release": "v1.8.0"
+  },
+  "crashlab": {
+    "version": "0.5.6",
+    "installed_pin": "4851dc9a65201e51cdd4b0a86ce66e801f8c13cc",
+    "reviewed_head": "1d8acf8ea7a5d90904c26a0f9887f83abb3af6cc"
+  },
+  "hermes_host": "2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19",
+  "session": "local-0cf275ee78c7d5a22be04d871bc4ce560427911a54349a14e045822c6a9e3385",
+  "model": "openai/gpt-6-astra",
+  "provider": "openrouter",
+  "approvals": "--yolo automatic approval; zero crashlab_* model tool calls. Operator separately prepared and ran frozen experiment.",
+  "case_sha256": "0c0dde8002ec94adde19af56301f4ab9f96e81c181cf9bed9fad9c635ab1ca09",
+  "contract_digest": "b93c472e1c880c3f88c8998f35aab304bdf903ad577190c66140ccfafb052fec",
+  "patch_sha256": "61aba530ac26ce11a0177a9cf2d08016de0b82a7bd6c9fd539ad1535aa66a74c",
+  "baseline": {
+    "workflow_status": "REPRODUCED",
+    "status": "FAIL",
+    "observed": 1,
+    "expected": 1,
+    "recovery": "matching retry transport failed ECONNRESET after valid committed write",
+    "control": "PASS2/2 distinct permitted URLs"
+  },
+  "repair": {
+    "workflow_status": "VERIFIED",
+    "status": "PASS",
+    "observed": 1,
+    "expected": 1,
+    "recovery": "one successful matching retry",
+    "control": "PASS2/2 distinct permitted URLs"
+  },
+  "independent_mac_baseline": {
+    "method": "Current evaluator and native Chrome using official checksum-verified Darwinarm64 release binary; only launch paths rebound",
+    "status": "FAIL",
+    "scenario_valid": true,
+    "recovery_ok": false,
+    "control_ok": true,
+    "control_observed": 2,
+    "source_build_confirmation": {
+      "compiler": "Go1.26.6, same CGO0/tags as patched local build",
+      "status": "FAIL",
+      "scenario_valid": true,
+      "control": "PASS2/2",
+      "binary_sha256": "da8cafb0583673d39f859ad6dc447a1b6b45f618afa07fd1f05a885dabd092da",
+      "receipt": "independent-mac/source-baseline.json"
+    }
+  },
+  "independent_mac_repaired_replay": {
+    "method": "Exact supplied model patch byte-matches git diff on independently pinned pristine source; locally compiled with Go1.26.6 CGO0 osusergo,netgo,fts5; native Chrome current0.5.6 engine, same behavior with onlylaunchpathsrebound",
+    "result": "PASS",
+    "recovery_ok": true,
+    "matching_retries": 1,
+    "observed": 1,
+    "control": "PASS2/2",
+    "http_identity": "first/retry200, equaloriginalID/URL/title, primary1row, distinctcontrolIDs/final3rows",
+    "app_tests": "Uncached go test -count=1 -tags osusergo,netgo,fts5 ./internal/webserver PASS",
+    "binary_sha256": "0ffc2542ea12b0c188b042de4a8c48a8ac300b1493c27a9d071877497332e65e",
+    "evidence": "independent-mac/"
+  },
+  "limits": [
+    "Supplied diagnosis, not autonomous bug discovery",
+    "Native interactive approval journey not exercised by this model session",
+    "Ordinary frozen Go experiment; portable Go export/import unsupported",
+    "Fresh disposable database, configured assertions only; not upstream release, adoption or production safety",
+    "Earlier operator-applied patch packet is separate and superseded for model-authorship claims"
+  ]
+}
