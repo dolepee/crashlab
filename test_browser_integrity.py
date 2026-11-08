@@ -128,6 +128,41 @@ class BrowserIntegrity(unittest.TestCase):
         self.assertTrue(result['control']['ok'], result)
         self.assertTrue(core._completed_assertion(result, passed=False), result)
 
+    def test_retry_timeout_with_transport_keyword_in_url_is_error(self):
+        # A timeout whose request URL contains a transport keyword is still a
+        # timeout. Only the leading cause line/structured code may classify a
+        # recovery transport failure.
+        case = copy.deepcopy(self.case)
+        case['id'] = 'retry-timeout-keyword-url'
+        case['journey'] = [
+            {'action': 'goto', 'path': '/'},
+            {'action': 'click', 'selector': '#buy'},
+            {'action': 'wait_for_selector', 'selector': '#retry'},
+            {'action': 'click', 'selector': '#retry'},
+            {'action': 'wait_for_timeout', 'ms': 1200},
+        ]
+        source = self.source.replace(
+            "fetch('/order', {method:'POST'",
+            "fetch('/ECONNRESET/order', {method:'POST'",
+        )
+        source = source.replace('if self.path != "/order":', 'if not self.path.endswith("/order"):')
+        source = source.replace('import sqlite3', 'import sqlite3\nimport time')
+        source = source.replace(
+            'if row:\n                    con.commit()\n                    self._send(200, {"id": row[0], "deduplicated": True})\n                    return',
+            'if row:\n                    con.commit()\n                    time.sleep(2)\n                    self.connection.close()\n                    return',
+        )
+        with patch.dict(os.environ, {'CRASHLAB_RETRY_FETCH_TIMEOUT_MS': '300'}):
+            result = self.run_case(source, case)
+        self.assertEqual(result['status'], 'ERROR', result)
+        self.assertFalse(result['ok'], result)
+        retry_events = [e for e in result.get('network', []) if e.get('after_interruption')]
+        self.assertEqual(len(retry_events), 1, result)
+        event = retry_events[0]
+        self.assertTrue(event.get('unclassified_recovery_transport'), result)
+        self.assertNotIn('failed_recovery_transport', event)
+        self.assertTrue(event.get('transport_cause', '').startswith('route.fetch: Timeout'), event)
+        self.assertIn('/ECONNRESET/order', event.get('transport_error', ''), event)
+
     def test_initial_transport_failure_is_not_reproduced(self):
         case = copy.deepcopy(self.case)
         case['id'] = 'initial-transport-failure'

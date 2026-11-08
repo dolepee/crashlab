@@ -9,6 +9,32 @@ function nowId() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+// Only a leading transport cause or a structured error code can prove a
+// connection failure. Never scan request logs, URLs, headers or payloads.
+function recoveryTransportCause(err) {
+  const name = String(err && err.name ? err.name : '');
+  const code = String(err && err.code ? err.code : '');
+  const message = String(err && err.message ? err.message : err);
+  const firstLine = message.split(/\r?\n/, 1)[0].trim();
+  if (/^(?:TimeoutError|TargetClosedError|BrowserClosedError)$/i.test(name)
+      || /^route\.fetch:\s*Timeout\b/i.test(firstLine)) return null;
+  if (/^route\.fetch:\s*(?:Target page|Browser|browser|Page|Context).*(?:closed|closed\b)/i.test(firstLine)
+      || /browser has been closed|Target page, context or browser has been closed/i.test(firstLine)) return null;
+  const allowedCodes = new Set(['ECONNRESET', 'ERR_CONNECTION_RESET', 'ERR_CONNECTION_CLOSED']);
+  if (allowedCodes.has(code)) return { firstLine, code };
+  const prefix = 'route.fetch:';
+  if (!firstLine.toLowerCase().startsWith(prefix)) return null;
+  const cause = firstLine.slice(prefix.length).trim();
+  if (/^(?:socket hang up|connection reset|connection closed)(?:\s*\((?:ECONNRESET|ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED)\))?$/i.test(cause)) {
+    return { firstLine, code: code || null };
+  }
+  if (/^(?:read|write|connect)\s+(?:ECONNRESET|ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED)$/i.test(cause)) {
+    return { firstLine, code: code || null };
+  }
+  if (/^net::(?:ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED)$/i.test(cause)) return { firstLine, code: code || null };
+  return null;
+}
+
 (async () => {
   const contractPath = process.argv[2];
   if (!contractPath) throw new Error('contract path required');
@@ -20,12 +46,16 @@ function nowId() {
   const evidenceDir = path.resolve(contract.evidence?.screenshot_dir || 'evidence');
   fs.mkdirSync(evidenceDir, { recursive: true });
   const runId = `${contract.id}-${nowId()}`;
+  const configuredRetryTimeout = Number(process.env.CRASHLAB_RETRY_FETCH_TIMEOUT_MS || 30000);
+  const retryFetchTimeoutMs = Number.isFinite(configuredRetryTimeout) && configuredRetryTimeout > 0
+    ? configuredRetryTimeout : 30000;
   const observations = {};
   const screenshots = [];
   let interrupted = false;
   let faultMatched = false;
   let faultDelivered = false;
   let faultError = null;
+  let retryError = null;
   let upstreamStatus = null;
   let faultState = null;
   let faultContentsValid = false;
@@ -102,19 +132,27 @@ function nowId() {
         // the failed request event and let the measured state/control verdict
         // decide the outcome.
         try {
-          const response = await route.fetch({ maxRedirects: 0 });
+          const response = await route.fetch({ maxRedirects: 0, timeout: retryFetchTimeoutMs });
           event.status = response.status();
           await route.fulfill({ response });
         } catch (err) {
           const message = String(err && err.message ? err.message : err);
-          // Only a positively observed connection failure is a measured
-          // recovery failure. A timeout, closed browser, or other runner
-          // fault must still surface as ERROR rather than be relabelled.
-          if (!/(ECONNRESET|socket hang up|ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED)/i.test(message)) {
-            throw err;
+          const transport = recoveryTransportCause(err);
+          event.transport_error = message;
+          event.transport_name = String(err && err.name ? err.name : '');
+          event.transport_code = String(err && err.code ? err.code : '');
+          event.transport_cause = String(err && err.message ? err.message : err).split(/\r?\n/, 1)[0].trim();
+          if (!transport) {
+            event.unclassified_recovery_transport = true;
+            retryError = err;
+            try {
+              await route.abort('failed');
+            } catch (abortErr) {
+              event.transport_abort_error = String(abortErr && abortErr.message ? abortErr.message : abortErr);
+            }
+            return;
           }
           event.status = null;
-          event.transport_error = message;
           event.failed_recovery_transport = true;
           try {
             await route.abort('failed');
@@ -385,6 +423,7 @@ function nowId() {
     recordEvent('baseline', { state: baseline });
     if (contract.fault && baseline.observed !== 0) throw new Error("INVALID: fault experiment requires an empty scoped baseline");
     await run(contract.journey);
+    if (retryError) throw retryError;
     // Keep interception for request identity capture; fault only fires once.
     const primary = await readState(contract.state);
     recordEvent('final_state', { state: primary });
