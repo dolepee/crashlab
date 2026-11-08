@@ -1,0 +1,6 @@
+{
+  "external/kist/recovery-regression-v054.json": "fb3a9e8226fda34c1603cf4365beb13b6a8eb2aa2a967048f9a6971c947e1de9",
+  "external/kist/evidence/2026-11-08-v054-replay/summary.json": "7e5a7e2246c646ed94ad7dd1ffa9f52608b48fb1814227344a2ac28ea6319eaf",
+  "external/kist/evidence/2026-11-08-v054-replay/current-evaluator-baseline-receipt.json": "a55198554e6d252839af6c83e9fa5c6b009e3bf1c329641ef17e8acfc74e380d",
+  "external/kist/evidence/2026-11-08-v054-replay/fresh-replay-receipt.json": "d2bb6760155a7dfc2e6b74caf096bb384e2ffb39271eadca64d912653045d95d"
+}

@@ -1,0 +1,2875 @@
+{
+  "stage": "current-evaluator-baseline",
+  "source": "b58224928e4b3b102db2101545afcedeaaba0eaa",
+  "version": "0.5.4",
+  "upstream": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+  "scope": "Real installed Hermes dispatch and Chrome, deterministic operator once responses under authorized disposable-app tests; retained model-produced app patch; no new model generation or unrelated-user claim",
+  "project": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/kist",
+  "measurements": [
+    {
+      "label": "pristine-baseline",
+      "summary": {
+        "status": "REPRODUCED",
+        "experiment_id": "f4cf56c1f2a147a0a41c2bec0bc578f7",
+        "intent": "An uncertain create produces one savings goal before delivery, after commit and across restart; two deliberate identical creates stay possible.",
+        "project_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/kist",
+        "contract_sha256": "81ab2398be28f964691596337ef315d08cb739cf160f65219899187126027b9e",
+        "history_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/data/experiments/f4cf56c1f2a147a0a41c2bec0bc578f7/experiment.json",
+        "run_count": 1,
+        "runs": [
+          {
+            "workflow_status": "REPRODUCED",
+            "result": {
+              "status": "FAIL",
+              "observed": 2,
+              "expected": 1,
+              "diagnosis": "Duplicate write: one intent produced 2 persisted records, expected 1.",
+              "error": null,
+              "evidence_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/data/runs/run-1794146218520-f1fc9f75.json",
+              "control": {
+                "ok": true,
+                "observed": 6,
+                "expected": 6
+              }
+            }
+          }
+        ],
+        "current_project_sha256": "5a1c4a2896bcbb11f7f41429f3f78927ab4843e28fc9301b7537476d9cb2ebaa",
+        "scope": "Tracked and nonignored untracked project files. Ignored files, dependencies and runtime environment are outside this freshness check. Same-user hashes are not a security boundary."
+      },
+      "record": {
+        "project_sha256": "5a1c4a2896bcbb11f7f41429f3f78927ab4843e28fc9301b7537476d9cb2ebaa",
+        "workflow_status": "REPRODUCED",
+        "result": {
+          "contract": "kist-savings-goal-durable-recovery",
+          "kind": "recovery_campaign",
+          "cases": [
+            {
+              "name": "before_delivery",
+              "result": {
+                "contract": "kist-savings-goal-durable-recovery-before_delivery",
+                "run_id": "kist-savings-goal-durable-recovery-before_delivery-2026-11-08T13-56-53-074Z",
+                "base_url": "http://127.0.0.1:56703",
+                "ok": true,
+                "primary_ok": true,
+                "expected": 1,
+                "observed": 1,
+                "observations": {},
+                "status": "PASS",
+                "upstream_status": null,
+                "scenario": {
+                  "matched": true,
+                  "delivered": true,
+                  "upstream_status": null,
+                  "committed_after_fault": 0,
+                  "mode": "prevent_before_delivery",
+                  "valid": true
+                },
+                "recovery": {
+                  "mode": "retry",
+                  "ok": true,
+                  "matching_retries": 1,
+                  "write_requests": 2,
+                  "initial_request": {
+                    "sequence": 2,
+                    "elapsed_ms": 649,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56703/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": false
+                  },
+                  "reason": "Observed a repeated write with the original request identity and payload."
+                },
+                "network": [
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 649,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56703/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": false
+                  },
+                  {
+                    "sequence": 5,
+                    "elapsed_ms": 826,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56703/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 8,
+                    "elapsed_ms": 1042,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56703/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1192,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56703/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  }
+                ],
+                "events": [
+                  {
+                    "sequence": 1,
+                    "elapsed_ms": 501,
+                    "phase": "primary",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 1,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-xtzektso/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 649,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56703/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": false
+                  },
+                  {
+                    "sequence": 3,
+                    "elapsed_ms": 686,
+                    "phase": "primary",
+                    "kind": "undelivered_state",
+                    "state": {
+                      "observed": 0,
+                      "expected": 1,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-xtzektso/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 4,
+                    "elapsed_ms": 686,
+                    "phase": "primary",
+                    "kind": "interruption",
+                    "mode": "prevent_before_delivery",
+                    "completed": true
+                  },
+                  {
+                    "sequence": 5,
+                    "elapsed_ms": 826,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56703/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 6,
+                    "elapsed_ms": 972,
+                    "phase": "primary",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "793d9d21-e5a9-410b-8572-75837a8c1755",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:53",
+                          "updated_at": "2026-11-08T14:56:53"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-xtzektso/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 7,
+                    "elapsed_ms": 1001,
+                    "phase": "control",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 2,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-xtzektso/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 8,
+                    "elapsed_ms": 1042,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56703/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1192,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56703/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 10,
+                    "elapsed_ms": 1325,
+                    "phase": "control",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 2,
+                      "expected": 2,
+                      "records": [
+                        {
+                          "id": "605af5b8-6127-4d3e-b365-8a139581868c",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:54",
+                          "updated_at": "2026-11-08T14:56:54"
+                        },
+                        {
+                          "id": "48f13f52-6200-4320-ac9b-89be7de90f7c",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:54",
+                          "updated_at": "2026-11-08T14:56:54"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-xtzektso/.finance/finance.db"
+                    }
+                  }
+                ],
+                "baseline": {
+                  "observed": 0,
+                  "expected": 1,
+                  "records": [],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-xtzektso/.finance/finance.db"
+                },
+                "state_after_interruption": {
+                  "observed": 0,
+                  "expected": 1,
+                  "records": [],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-xtzektso/.finance/finance.db"
+                },
+                "screenshots": [],
+                "records": [
+                  {
+                    "id": "793d9d21-e5a9-410b-8572-75837a8c1755",
+                    "name": "CrashLab uncertain savings",
+                    "target_amount": 12000,
+                    "current_amount": 250,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-08T14:56:53",
+                    "updated_at": "2026-11-08T14:56:53"
+                  }
+                ],
+                "control": {
+                  "observed": 2,
+                  "expected": 2,
+                  "records": [
+                    {
+                      "id": "605af5b8-6127-4d3e-b365-8a139581868c",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:56:54",
+                      "updated_at": "2026-11-08T14:56:54"
+                    },
+                    {
+                      "id": "48f13f52-6200-4320-ac9b-89be7de90f7c",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:56:54",
+                      "updated_at": "2026-11-08T14:56:54"
+                    }
+                  ],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-xtzektso/.finance/finance.db",
+                  "ok": true
+                },
+                "returncode": 0,
+                "app_lifecycle": [],
+                "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+                "case_sha256": "0fa2098c77ced3ca18e7d8572de92d39d53997d03717b377ef977274248bd25d"
+              }
+            },
+            {
+              "name": "after_commit",
+              "result": {
+                "contract": "kist-savings-goal-durable-recovery-after_commit",
+                "run_id": "kist-savings-goal-durable-recovery-after_commit-2026-11-08T13-56-55-012Z",
+                "base_url": "http://127.0.0.1:56761",
+                "ok": false,
+                "primary_ok": false,
+                "expected": 1,
+                "observed": 2,
+                "observations": {},
+                "status": "FAIL",
+                "upstream_status": 201,
+                "scenario": {
+                  "matched": true,
+                  "delivered": true,
+                  "upstream_status": 201,
+                  "committed_after_fault": 1,
+                  "mode": "suppress_after_upstream",
+                  "valid": true
+                },
+                "recovery": {
+                  "mode": "retry",
+                  "ok": true,
+                  "matching_retries": 1,
+                  "write_requests": 2,
+                  "initial_request": {
+                    "sequence": 2,
+                    "elapsed_ms": 564,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56761/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  "reason": "Observed a repeated write with the original request identity and payload."
+                },
+                "network": [
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 564,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56761/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 5,
+                    "elapsed_ms": 694,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56761/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 8,
+                    "elapsed_ms": 894,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56761/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1044,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56761/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  }
+                ],
+                "events": [
+                  {
+                    "sequence": 1,
+                    "elapsed_ms": 383,
+                    "phase": "primary",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 1,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-7j9ptro_/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 564,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56761/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 3,
+                    "elapsed_ms": 613,
+                    "phase": "primary",
+                    "kind": "committed_state",
+                    "state": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "0ca25e14-ebcf-4593-86be-72d1d0183021",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:55",
+                          "updated_at": "2026-11-08T14:56:55"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-7j9ptro_/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 4,
+                    "elapsed_ms": 613,
+                    "phase": "primary",
+                    "kind": "interruption",
+                    "mode": "suppress_after_upstream",
+                    "completed": true
+                  },
+                  {
+                    "sequence": 5,
+                    "elapsed_ms": 694,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56761/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 6,
+                    "elapsed_ms": 837,
+                    "phase": "primary",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 2,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "0ca25e14-ebcf-4593-86be-72d1d0183021",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:55",
+                          "updated_at": "2026-11-08T14:56:55"
+                        },
+                        {
+                          "id": "96fea832-912c-426e-b3bd-744f1b4ec836",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:55",
+                          "updated_at": "2026-11-08T14:56:55"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-7j9ptro_/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 7,
+                    "elapsed_ms": 864,
+                    "phase": "control",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 2,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-7j9ptro_/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 8,
+                    "elapsed_ms": 894,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56761/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1044,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56761/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 10,
+                    "elapsed_ms": 1177,
+                    "phase": "control",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 2,
+                      "expected": 2,
+                      "records": [
+                        {
+                          "id": "6947c3a8-babf-4663-aafb-5210b3a2d984",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:55",
+                          "updated_at": "2026-11-08T14:56:55"
+                        },
+                        {
+                          "id": "95c715ea-6346-4062-96ae-aada79a13a25",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:56",
+                          "updated_at": "2026-11-08T14:56:56"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-7j9ptro_/.finance/finance.db"
+                    }
+                  }
+                ],
+                "baseline": {
+                  "observed": 0,
+                  "expected": 1,
+                  "records": [],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-7j9ptro_/.finance/finance.db"
+                },
+                "state_after_interruption": {
+                  "observed": 1,
+                  "expected": 1,
+                  "records": [
+                    {
+                      "id": "0ca25e14-ebcf-4593-86be-72d1d0183021",
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:56:55",
+                      "updated_at": "2026-11-08T14:56:55"
+                    }
+                  ],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-7j9ptro_/.finance/finance.db"
+                },
+                "screenshots": [],
+                "records": [
+                  {
+                    "id": "0ca25e14-ebcf-4593-86be-72d1d0183021",
+                    "name": "CrashLab uncertain savings",
+                    "target_amount": 12000,
+                    "current_amount": 250,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-08T14:56:55",
+                    "updated_at": "2026-11-08T14:56:55"
+                  },
+                  {
+                    "id": "96fea832-912c-426e-b3bd-744f1b4ec836",
+                    "name": "CrashLab uncertain savings",
+                    "target_amount": 12000,
+                    "current_amount": 250,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-08T14:56:55",
+                    "updated_at": "2026-11-08T14:56:55"
+                  }
+                ],
+                "control": {
+                  "observed": 2,
+                  "expected": 2,
+                  "records": [
+                    {
+                      "id": "6947c3a8-babf-4663-aafb-5210b3a2d984",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:56:55",
+                      "updated_at": "2026-11-08T14:56:55"
+                    },
+                    {
+                      "id": "95c715ea-6346-4062-96ae-aada79a13a25",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:56:56",
+                      "updated_at": "2026-11-08T14:56:56"
+                    }
+                  ],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-7j9ptro_/.finance/finance.db",
+                  "ok": true
+                },
+                "returncode": 1,
+                "app_lifecycle": [],
+                "diagnosis": "Duplicate write: one intent produced 2 persisted records, expected 1.",
+                "case_sha256": "e7a6e1dfa9edc6804ea6cde04243a8f67c44296e774193de24ddfbd425d2063d"
+              }
+            },
+            {
+              "name": "restart_after_commit",
+              "result": {
+                "contract": "kist-savings-goal-durable-recovery-restart_after_commit",
+                "run_id": "kist-savings-goal-durable-recovery-restart_after_commit-2026-11-08T13-56-56-785Z",
+                "base_url": "http://127.0.0.1:56816",
+                "ok": false,
+                "primary_ok": false,
+                "expected": 1,
+                "observed": 2,
+                "observations": {},
+                "status": "FAIL",
+                "upstream_status": 201,
+                "scenario": {
+                  "matched": true,
+                  "delivered": true,
+                  "upstream_status": 201,
+                  "committed_after_fault": 1,
+                  "mode": "suppress_after_upstream",
+                  "valid": true
+                },
+                "recovery": {
+                  "mode": "retry",
+                  "ok": true,
+                  "matching_retries": 1,
+                  "write_requests": 2,
+                  "initial_request": {
+                    "sequence": 2,
+                    "elapsed_ms": 540,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56816/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  "reason": "Observed a repeated write with the original request identity and payload."
+                },
+                "network": [
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 540,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56816/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 6,
+                    "elapsed_ms": 1018,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56816/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1218,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56816/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 10,
+                    "elapsed_ms": 1369,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56816/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  }
+                ],
+                "events": [
+                  {
+                    "sequence": 1,
+                    "elapsed_ms": 397,
+                    "phase": "primary",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 1,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-fky1g68y/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 540,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56816/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 3,
+                    "elapsed_ms": 585,
+                    "phase": "primary",
+                    "kind": "committed_state",
+                    "state": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "4930b042-5e09-4a8e-a558-2760287057b0",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:57",
+                          "updated_at": "2026-11-08T14:56:57"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-fky1g68y/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 4,
+                    "elapsed_ms": 585,
+                    "phase": "primary",
+                    "kind": "interruption",
+                    "mode": "suppress_after_upstream",
+                    "completed": true
+                  },
+                  {
+                    "sequence": 5,
+                    "elapsed_ms": 673,
+                    "phase": "primary",
+                    "kind": "restart",
+                    "completed": true,
+                    "state_before": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "4930b042-5e09-4a8e-a558-2760287057b0",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:57",
+                          "updated_at": "2026-11-08T14:56:57"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-fky1g68y/.finance/finance.db"
+                    },
+                    "state_after": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "4930b042-5e09-4a8e-a558-2760287057b0",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:57",
+                          "updated_at": "2026-11-08T14:56:57"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-fky1g68y/.finance/finance.db"
+                    },
+                    "lifecycle": {
+                      "ok": true,
+                      "old_pid": 84530,
+                      "new_pid": 84556,
+                      "same_port": true,
+                      "same_data_directory": true,
+                      "setup_replayed": false,
+                      "reset_replayed": false
+                    },
+                    "scoped_records_preserved": true
+                  },
+                  {
+                    "sequence": 6,
+                    "elapsed_ms": 1018,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56816/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 7,
+                    "elapsed_ms": 1159,
+                    "phase": "primary",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 2,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "4930b042-5e09-4a8e-a558-2760287057b0",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:57",
+                          "updated_at": "2026-11-08T14:56:57"
+                        },
+                        {
+                          "id": "75da8580-4980-4952-90be-46a0fe49c6ff",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:57",
+                          "updated_at": "2026-11-08T14:56:57"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-fky1g68y/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 8,
+                    "elapsed_ms": 1187,
+                    "phase": "control",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 2,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-fky1g68y/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1218,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56816/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 10,
+                    "elapsed_ms": 1369,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56816/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 11,
+                    "elapsed_ms": 1504,
+                    "phase": "control",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 2,
+                      "expected": 2,
+                      "records": [
+                        {
+                          "id": "582d45f0-4be2-4f00-8aa0-85e65ca4221b",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:58",
+                          "updated_at": "2026-11-08T14:56:58"
+                        },
+                        {
+                          "id": "45ae06c5-8dca-43f1-b8ad-ec571d587cd3",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:58",
+                          "updated_at": "2026-11-08T14:56:58"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-fky1g68y/.finance/finance.db"
+                    }
+                  }
+                ],
+                "baseline": {
+                  "observed": 0,
+                  "expected": 1,
+                  "records": [],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-fky1g68y/.finance/finance.db"
+                },
+                "state_after_interruption": {
+                  "observed": 1,
+                  "expected": 1,
+                  "records": [
+                    {
+                      "id": "4930b042-5e09-4a8e-a558-2760287057b0",
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:56:57",
+                      "updated_at": "2026-11-08T14:56:57"
+                    }
+                  ],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-fky1g68y/.finance/finance.db"
+                },
+                "screenshots": [],
+                "records": [
+                  {
+                    "id": "4930b042-5e09-4a8e-a558-2760287057b0",
+                    "name": "CrashLab uncertain savings",
+                    "target_amount": 12000,
+                    "current_amount": 250,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-08T14:56:57",
+                    "updated_at": "2026-11-08T14:56:57"
+                  },
+                  {
+                    "id": "75da8580-4980-4952-90be-46a0fe49c6ff",
+                    "name": "CrashLab uncertain savings",
+                    "target_amount": 12000,
+                    "current_amount": 250,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-08T14:56:57",
+                    "updated_at": "2026-11-08T14:56:57"
+                  }
+                ],
+                "control": {
+                  "observed": 2,
+                  "expected": 2,
+                  "records": [
+                    {
+                      "id": "582d45f0-4be2-4f00-8aa0-85e65ca4221b",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:56:58",
+                      "updated_at": "2026-11-08T14:56:58"
+                    },
+                    {
+                      "id": "45ae06c5-8dca-43f1-b8ad-ec571d587cd3",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:56:58",
+                      "updated_at": "2026-11-08T14:56:58"
+                    }
+                  ],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-fky1g68y/.finance/finance.db",
+                  "ok": true
+                },
+                "returncode": 1,
+                "app_lifecycle": [
+                  {
+                    "old_pid": 84530,
+                    "new_pid": 84556,
+                    "same_port": true,
+                    "same_data_directory": true,
+                    "setup_replayed": false,
+                    "reset_replayed": false
+                  }
+                ],
+                "diagnosis": "Duplicate write: one intent produced 2 persisted records, expected 1.",
+                "case_sha256": "665dfcf3a14c795fe4d43d674247575e342d71e25c0db97d58a78ae555258b03"
+              }
+            }
+          ],
+          "ok": false,
+          "primary_ok": false,
+          "status": "FAIL",
+          "error": null,
+          "returncode": 1,
+          "observed": 2,
+          "expected": 1,
+          "representative_scenario": "after_commit",
+          "scenario": {
+            "valid": true
+          },
+          "recovery": {
+            "ok": true,
+            "reason": "Inspect each recorded recovery boundary."
+          },
+          "control": {
+            "ok": true,
+            "observed": 6,
+            "expected": 6
+          },
+          "run_id": "run-1794146218520-f1fc9f75",
+          "diagnosis": "Duplicate write: one intent produced 2 persisted records, expected 1.",
+          "evidence_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/data/runs/run-1794146218520-f1fc9f75.json"
+        },
+        "recorded_at": "2026-11-08T13:56:58.544835+00:00",
+        "project_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/kist",
+        "experiment_digest": "c0bc7d6d4ff4551ef4f9862ca262f4c5cb914cd312993f60f268ff136920f621",
+        "case_sha256": "81ab2398be28f964691596337ef315d08cb739cf160f65219899187126027b9e",
+        "source_review": {
+          "git_head": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+          "diff_against_head": "",
+          "truncated": false,
+          "untracked_files": [],
+          "basis": "Actual tracked-file diff against this run's Git HEAD; may include pre-existing edits. Untracked content is not included. This is not an attributed baseline-to-repair patch."
+        }
+      }
+    },
+    {
+      "label": "retained-repair",
+      "summary": {
+        "status": "VERIFIED",
+        "experiment_id": "f4cf56c1f2a147a0a41c2bec0bc578f7",
+        "intent": "An uncertain create produces one savings goal before delivery, after commit and across restart; two deliberate identical creates stay possible.",
+        "project_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/kist",
+        "contract_sha256": "81ab2398be28f964691596337ef315d08cb739cf160f65219899187126027b9e",
+        "history_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/data/experiments/f4cf56c1f2a147a0a41c2bec0bc578f7/experiment.json",
+        "run_count": 2,
+        "runs": [
+          {
+            "workflow_status": "REPRODUCED",
+            "result": {
+              "status": "FAIL",
+              "observed": 2,
+              "expected": 1,
+              "diagnosis": "Duplicate write: one intent produced 2 persisted records, expected 1.",
+              "error": null,
+              "evidence_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/data/runs/run-1794146218520-f1fc9f75.json",
+              "control": {
+                "ok": true,
+                "observed": 6,
+                "expected": 6
+              }
+            }
+          },
+          {
+            "workflow_status": "VERIFIED",
+            "result": {
+              "status": "PASS",
+              "observed": 1,
+              "expected": 1,
+              "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+              "error": null,
+              "evidence_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/data/runs/run-1794146224514-8c6753b1.json",
+              "control": {
+                "ok": true,
+                "observed": 6,
+                "expected": 6
+              }
+            }
+          }
+        ],
+        "current_project_sha256": "6c97b596c17c11a660290793a68125ff5ed83b0427c34dca9150fcb5fcb1189b",
+        "scope": "Tracked and nonignored untracked project files. Ignored files, dependencies and runtime environment are outside this freshness check. Same-user hashes are not a security boundary."
+      },
+      "record": {
+        "project_sha256": "6c97b596c17c11a660290793a68125ff5ed83b0427c34dca9150fcb5fcb1189b",
+        "workflow_status": "VERIFIED",
+        "result": {
+          "contract": "kist-savings-goal-durable-recovery",
+          "kind": "recovery_campaign",
+          "cases": [
+            {
+              "name": "before_delivery",
+              "result": {
+                "contract": "kist-savings-goal-durable-recovery-before_delivery",
+                "run_id": "kist-savings-goal-durable-recovery-before_delivery-2026-11-08T13-56-59-045Z",
+                "base_url": "http://127.0.0.1:56874",
+                "ok": true,
+                "primary_ok": true,
+                "expected": 1,
+                "observed": 1,
+                "observations": {},
+                "status": "PASS",
+                "upstream_status": null,
+                "scenario": {
+                  "matched": true,
+                  "delivered": true,
+                  "upstream_status": null,
+                  "committed_after_fault": 0,
+                  "mode": "prevent_before_delivery",
+                  "valid": true
+                },
+                "recovery": {
+                  "mode": "retry",
+                  "ok": true,
+                  "matching_retries": 1,
+                  "write_requests": 2,
+                  "initial_request": {
+                    "sequence": 2,
+                    "elapsed_ms": 547,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56874/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "4cd05347-aa64-4a11-b7a1-6746d3907ab2"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"4cd05347-aa64-4a11-b7a1-6746d3907ab2\"}",
+                    "after_interruption": false
+                  },
+                  "reason": "Observed a repeated write with the original request identity and payload."
+                },
+                "network": [
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 547,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56874/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "4cd05347-aa64-4a11-b7a1-6746d3907ab2"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"4cd05347-aa64-4a11-b7a1-6746d3907ab2\"}",
+                    "after_interruption": false
+                  },
+                  {
+                    "sequence": 5,
+                    "elapsed_ms": 715,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56874/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "4cd05347-aa64-4a11-b7a1-6746d3907ab2"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"4cd05347-aa64-4a11-b7a1-6746d3907ab2\"}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 8,
+                    "elapsed_ms": 944,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56874/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "51e71a9b-8a33-42db-bc04-aa31cb906613"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"51e71a9b-8a33-42db-bc04-aa31cb906613\"}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1094,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56874/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "8f0ab5a3-a669-419d-9ac1-2f1e1410825f"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"8f0ab5a3-a669-419d-9ac1-2f1e1410825f\"}",
+                    "after_interruption": true
+                  }
+                ],
+                "events": [
+                  {
+                    "sequence": 1,
+                    "elapsed_ms": 417,
+                    "phase": "primary",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 1,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-r0qvyy5_/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 547,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56874/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "4cd05347-aa64-4a11-b7a1-6746d3907ab2"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"4cd05347-aa64-4a11-b7a1-6746d3907ab2\"}",
+                    "after_interruption": false
+                  },
+                  {
+                    "sequence": 3,
+                    "elapsed_ms": 580,
+                    "phase": "primary",
+                    "kind": "undelivered_state",
+                    "state": {
+                      "observed": 0,
+                      "expected": 1,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-r0qvyy5_/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 4,
+                    "elapsed_ms": 580,
+                    "phase": "primary",
+                    "kind": "interruption",
+                    "mode": "prevent_before_delivery",
+                    "completed": true
+                  },
+                  {
+                    "sequence": 5,
+                    "elapsed_ms": 715,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56874/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "4cd05347-aa64-4a11-b7a1-6746d3907ab2"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"4cd05347-aa64-4a11-b7a1-6746d3907ab2\"}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 6,
+                    "elapsed_ms": 876,
+                    "phase": "primary",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "dc3d88b8-8e6a-4ac8-96ec-7608b0952447",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:59",
+                          "updated_at": "2026-11-08T14:56:59"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-r0qvyy5_/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 7,
+                    "elapsed_ms": 905,
+                    "phase": "control",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 2,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-r0qvyy5_/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 8,
+                    "elapsed_ms": 944,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56874/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "51e71a9b-8a33-42db-bc04-aa31cb906613"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"51e71a9b-8a33-42db-bc04-aa31cb906613\"}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1094,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56874/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "8f0ab5a3-a669-419d-9ac1-2f1e1410825f"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"8f0ab5a3-a669-419d-9ac1-2f1e1410825f\"}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 10,
+                    "elapsed_ms": 1228,
+                    "phase": "control",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 2,
+                      "expected": 2,
+                      "records": [
+                        {
+                          "id": "9621f124-6df4-4eca-a039-a6a33732ed3a",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:56:59",
+                          "updated_at": "2026-11-08T14:56:59"
+                        },
+                        {
+                          "id": "ea9d7f9e-3068-45cc-a14e-a3fe32cc5f5b",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:00",
+                          "updated_at": "2026-11-08T14:57:00"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-r0qvyy5_/.finance/finance.db"
+                    }
+                  }
+                ],
+                "baseline": {
+                  "observed": 0,
+                  "expected": 1,
+                  "records": [],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-r0qvyy5_/.finance/finance.db"
+                },
+                "state_after_interruption": {
+                  "observed": 0,
+                  "expected": 1,
+                  "records": [],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-r0qvyy5_/.finance/finance.db"
+                },
+                "screenshots": [],
+                "records": [
+                  {
+                    "id": "dc3d88b8-8e6a-4ac8-96ec-7608b0952447",
+                    "name": "CrashLab uncertain savings",
+                    "target_amount": 12000,
+                    "current_amount": 250,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-08T14:56:59",
+                    "updated_at": "2026-11-08T14:56:59"
+                  }
+                ],
+                "control": {
+                  "observed": 2,
+                  "expected": 2,
+                  "records": [
+                    {
+                      "id": "9621f124-6df4-4eca-a039-a6a33732ed3a",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:56:59",
+                      "updated_at": "2026-11-08T14:56:59"
+                    },
+                    {
+                      "id": "ea9d7f9e-3068-45cc-a14e-a3fe32cc5f5b",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:57:00",
+                      "updated_at": "2026-11-08T14:57:00"
+                    }
+                  ],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-r0qvyy5_/.finance/finance.db",
+                  "ok": true
+                },
+                "returncode": 0,
+                "app_lifecycle": [],
+                "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+                "case_sha256": "0fa2098c77ced3ca18e7d8572de92d39d53997d03717b377ef977274248bd25d"
+              }
+            },
+            {
+              "name": "after_commit",
+              "result": {
+                "contract": "kist-savings-goal-durable-recovery-after_commit",
+                "run_id": "kist-savings-goal-durable-recovery-after_commit-2026-11-08T13-57-00-896Z",
+                "base_url": "http://127.0.0.1:56927",
+                "ok": true,
+                "primary_ok": true,
+                "expected": 1,
+                "observed": 1,
+                "observations": {},
+                "status": "PASS",
+                "upstream_status": 201,
+                "scenario": {
+                  "matched": true,
+                  "delivered": true,
+                  "upstream_status": 201,
+                  "committed_after_fault": 1,
+                  "mode": "suppress_after_upstream",
+                  "valid": true
+                },
+                "recovery": {
+                  "mode": "retry",
+                  "ok": true,
+                  "matching_retries": 1,
+                  "write_requests": 2,
+                  "initial_request": {
+                    "sequence": 2,
+                    "elapsed_ms": 589,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56927/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "821d62e3-2756-400c-9178-ac47c53d5dd8"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"821d62e3-2756-400c-9178-ac47c53d5dd8\"}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  "reason": "Observed a repeated write with the original request identity and payload."
+                },
+                "network": [
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 589,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56927/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "821d62e3-2756-400c-9178-ac47c53d5dd8"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"821d62e3-2756-400c-9178-ac47c53d5dd8\"}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 5,
+                    "elapsed_ms": 724,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56927/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "821d62e3-2756-400c-9178-ac47c53d5dd8"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"821d62e3-2756-400c-9178-ac47c53d5dd8\"}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 8,
+                    "elapsed_ms": 951,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56927/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "17d9c47a-9eb2-4eec-bd33-fd0b0af30118"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"17d9c47a-9eb2-4eec-bd33-fd0b0af30118\"}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1102,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56927/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "2b039059-fd9f-49e1-be40-7f95b8ab5cdf"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"2b039059-fd9f-49e1-be40-7f95b8ab5cdf\"}",
+                    "after_interruption": true
+                  }
+                ],
+                "events": [
+                  {
+                    "sequence": 1,
+                    "elapsed_ms": 440,
+                    "phase": "primary",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 1,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-5regcyv7/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 589,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56927/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "821d62e3-2756-400c-9178-ac47c53d5dd8"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"821d62e3-2756-400c-9178-ac47c53d5dd8\"}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 3,
+                    "elapsed_ms": 640,
+                    "phase": "primary",
+                    "kind": "committed_state",
+                    "state": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "d82b7c30-04f6-47f7-ab8d-4dc009bf2b95",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:01",
+                          "updated_at": "2026-11-08T14:57:01"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-5regcyv7/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 4,
+                    "elapsed_ms": 640,
+                    "phase": "primary",
+                    "kind": "interruption",
+                    "mode": "suppress_after_upstream",
+                    "completed": true
+                  },
+                  {
+                    "sequence": 5,
+                    "elapsed_ms": 724,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56927/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "821d62e3-2756-400c-9178-ac47c53d5dd8"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"821d62e3-2756-400c-9178-ac47c53d5dd8\"}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 6,
+                    "elapsed_ms": 887,
+                    "phase": "primary",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "d82b7c30-04f6-47f7-ab8d-4dc009bf2b95",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:01",
+                          "updated_at": "2026-11-08T14:57:01"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-5regcyv7/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 7,
+                    "elapsed_ms": 915,
+                    "phase": "control",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 2,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-5regcyv7/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 8,
+                    "elapsed_ms": 951,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56927/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "17d9c47a-9eb2-4eec-bd33-fd0b0af30118"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"17d9c47a-9eb2-4eec-bd33-fd0b0af30118\"}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1102,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56927/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "2b039059-fd9f-49e1-be40-7f95b8ab5cdf"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"2b039059-fd9f-49e1-be40-7f95b8ab5cdf\"}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 10,
+                    "elapsed_ms": 1235,
+                    "phase": "control",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 2,
+                      "expected": 2,
+                      "records": [
+                        {
+                          "id": "5aa70ed0-d433-401a-bbd5-856a780d1cde",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:01",
+                          "updated_at": "2026-11-08T14:57:01"
+                        },
+                        {
+                          "id": "3ed1a49e-b229-4a59-a748-9cbd40c6bf48",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:02",
+                          "updated_at": "2026-11-08T14:57:02"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-5regcyv7/.finance/finance.db"
+                    }
+                  }
+                ],
+                "baseline": {
+                  "observed": 0,
+                  "expected": 1,
+                  "records": [],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-5regcyv7/.finance/finance.db"
+                },
+                "state_after_interruption": {
+                  "observed": 1,
+                  "expected": 1,
+                  "records": [
+                    {
+                      "id": "d82b7c30-04f6-47f7-ab8d-4dc009bf2b95",
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:57:01",
+                      "updated_at": "2026-11-08T14:57:01"
+                    }
+                  ],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-5regcyv7/.finance/finance.db"
+                },
+                "screenshots": [],
+                "records": [
+                  {
+                    "id": "d82b7c30-04f6-47f7-ab8d-4dc009bf2b95",
+                    "name": "CrashLab uncertain savings",
+                    "target_amount": 12000,
+                    "current_amount": 250,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-08T14:57:01",
+                    "updated_at": "2026-11-08T14:57:01"
+                  }
+                ],
+                "control": {
+                  "observed": 2,
+                  "expected": 2,
+                  "records": [
+                    {
+                      "id": "5aa70ed0-d433-401a-bbd5-856a780d1cde",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:57:01",
+                      "updated_at": "2026-11-08T14:57:01"
+                    },
+                    {
+                      "id": "3ed1a49e-b229-4a59-a748-9cbd40c6bf48",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:57:02",
+                      "updated_at": "2026-11-08T14:57:02"
+                    }
+                  ],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-5regcyv7/.finance/finance.db",
+                  "ok": true
+                },
+                "returncode": 0,
+                "app_lifecycle": [],
+                "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+                "case_sha256": "e7a6e1dfa9edc6804ea6cde04243a8f67c44296e774193de24ddfbd425d2063d"
+              }
+            },
+            {
+              "name": "restart_after_commit",
+              "result": {
+                "contract": "kist-savings-goal-durable-recovery-restart_after_commit",
+                "run_id": "kist-savings-goal-durable-recovery-restart_after_commit-2026-11-08T13-57-02-737Z",
+                "base_url": "http://127.0.0.1:56981",
+                "ok": true,
+                "primary_ok": true,
+                "expected": 1,
+                "observed": 1,
+                "observations": {},
+                "status": "PASS",
+                "upstream_status": 201,
+                "scenario": {
+                  "matched": true,
+                  "delivered": true,
+                  "upstream_status": 201,
+                  "committed_after_fault": 1,
+                  "mode": "suppress_after_upstream",
+                  "valid": true
+                },
+                "recovery": {
+                  "mode": "retry",
+                  "ok": true,
+                  "matching_retries": 1,
+                  "write_requests": 2,
+                  "initial_request": {
+                    "sequence": 2,
+                    "elapsed_ms": 589,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56981/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "62054684-9151-402f-a153-df9988a2ef23"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"62054684-9151-402f-a153-df9988a2ef23\"}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  "reason": "Observed a repeated write with the original request identity and payload."
+                },
+                "network": [
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 589,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56981/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "62054684-9151-402f-a153-df9988a2ef23"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"62054684-9151-402f-a153-df9988a2ef23\"}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 6,
+                    "elapsed_ms": 1069,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56981/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "62054684-9151-402f-a153-df9988a2ef23"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"62054684-9151-402f-a153-df9988a2ef23\"}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1269,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56981/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "b8fa15be-681e-4455-beda-de8accf9c6ba"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"b8fa15be-681e-4455-beda-de8accf9c6ba\"}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 10,
+                    "elapsed_ms": 1418,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56981/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "60276784-14e4-4e10-bcfa-1f3490099b5e"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"60276784-14e4-4e10-bcfa-1f3490099b5e\"}",
+                    "after_interruption": true
+                  }
+                ],
+                "events": [
+                  {
+                    "sequence": 1,
+                    "elapsed_ms": 416,
+                    "phase": "primary",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 1,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-q0cihjs3/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 2,
+                    "elapsed_ms": 589,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56981/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "62054684-9151-402f-a153-df9988a2ef23"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"62054684-9151-402f-a153-df9988a2ef23\"}",
+                    "after_interruption": false,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 3,
+                    "elapsed_ms": 635,
+                    "phase": "primary",
+                    "kind": "committed_state",
+                    "state": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "90704cf9-49f5-4720-82cb-55904b80d6c3",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:03",
+                          "updated_at": "2026-11-08T14:57:03"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-q0cihjs3/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 4,
+                    "elapsed_ms": 635,
+                    "phase": "primary",
+                    "kind": "interruption",
+                    "mode": "suppress_after_upstream",
+                    "completed": true
+                  },
+                  {
+                    "sequence": 5,
+                    "elapsed_ms": 723,
+                    "phase": "primary",
+                    "kind": "restart",
+                    "completed": true,
+                    "state_before": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "90704cf9-49f5-4720-82cb-55904b80d6c3",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:03",
+                          "updated_at": "2026-11-08T14:57:03"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-q0cihjs3/.finance/finance.db"
+                    },
+                    "state_after": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "90704cf9-49f5-4720-82cb-55904b80d6c3",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:03",
+                          "updated_at": "2026-11-08T14:57:03"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-q0cihjs3/.finance/finance.db"
+                    },
+                    "lifecycle": {
+                      "ok": true,
+                      "old_pid": 84637,
+                      "new_pid": 84663,
+                      "same_port": true,
+                      "same_data_directory": true,
+                      "setup_replayed": false,
+                      "reset_replayed": false
+                    },
+                    "scoped_records_preserved": true
+                  },
+                  {
+                    "sequence": 6,
+                    "elapsed_ms": 1069,
+                    "phase": "primary",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56981/api/goals",
+                    "body": {
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "monthly_contribution": 100,
+                      "create_intent_id": "62054684-9151-402f-a153-df9988a2ef23"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab uncertain savings\",\"target_amount\":12000,\"current_amount\":250,\"monthly_contribution\":100,\"create_intent_id\":\"62054684-9151-402f-a153-df9988a2ef23\"}",
+                    "after_interruption": true,
+                    "status": 201
+                  },
+                  {
+                    "sequence": 7,
+                    "elapsed_ms": 1211,
+                    "phase": "primary",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 1,
+                      "expected": 1,
+                      "records": [
+                        {
+                          "id": "90704cf9-49f5-4720-82cb-55904b80d6c3",
+                          "name": "CrashLab uncertain savings",
+                          "target_amount": 12000,
+                          "current_amount": 250,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:03",
+                          "updated_at": "2026-11-08T14:57:03"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-q0cihjs3/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 8,
+                    "elapsed_ms": 1240,
+                    "phase": "control",
+                    "kind": "baseline",
+                    "state": {
+                      "observed": 0,
+                      "expected": 2,
+                      "records": [],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-q0cihjs3/.finance/finance.db"
+                    }
+                  },
+                  {
+                    "sequence": 9,
+                    "elapsed_ms": 1269,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56981/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "b8fa15be-681e-4455-beda-de8accf9c6ba"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"b8fa15be-681e-4455-beda-de8accf9c6ba\"}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 10,
+                    "elapsed_ms": 1418,
+                    "phase": "control",
+                    "kind": "write",
+                    "method": "POST",
+                    "url": "http://127.0.0.1:56981/api/goals",
+                    "body": {
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "monthly_contribution": 50,
+                      "create_intent_id": "60276784-14e4-4e10-bcfa-1f3490099b5e"
+                    },
+                    "raw_body": "{\"name\":\"CrashLab deliberate identical\",\"target_amount\":8000,\"current_amount\":300,\"monthly_contribution\":50,\"create_intent_id\":\"60276784-14e4-4e10-bcfa-1f3490099b5e\"}",
+                    "after_interruption": true
+                  },
+                  {
+                    "sequence": 11,
+                    "elapsed_ms": 1551,
+                    "phase": "control",
+                    "kind": "final_state",
+                    "state": {
+                      "observed": 2,
+                      "expected": 2,
+                      "records": [
+                        {
+                          "id": "69fbaf81-d2a7-48d0-8b2e-4f7f8b63db80",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:04",
+                          "updated_at": "2026-11-08T14:57:04"
+                        },
+                        {
+                          "id": "0c40448b-b229-49a3-a968-c9b90bb07f13",
+                          "name": "CrashLab deliberate identical",
+                          "target_amount": 8000,
+                          "current_amount": 300,
+                          "target_date": null,
+                          "currency": "PLN",
+                          "status": "active",
+                          "created_at": "2026-11-08T14:57:04",
+                          "updated_at": "2026-11-08T14:57:04"
+                        }
+                      ],
+                      "records_available": true,
+                      "observer": "sqlite",
+                      "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-q0cihjs3/.finance/finance.db"
+                    }
+                  }
+                ],
+                "baseline": {
+                  "observed": 0,
+                  "expected": 1,
+                  "records": [],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-q0cihjs3/.finance/finance.db"
+                },
+                "state_after_interruption": {
+                  "observed": 1,
+                  "expected": 1,
+                  "records": [
+                    {
+                      "id": "90704cf9-49f5-4720-82cb-55904b80d6c3",
+                      "name": "CrashLab uncertain savings",
+                      "target_amount": 12000,
+                      "current_amount": 250,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:57:03",
+                      "updated_at": "2026-11-08T14:57:03"
+                    }
+                  ],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-q0cihjs3/.finance/finance.db"
+                },
+                "screenshots": [],
+                "records": [
+                  {
+                    "id": "90704cf9-49f5-4720-82cb-55904b80d6c3",
+                    "name": "CrashLab uncertain savings",
+                    "target_amount": 12000,
+                    "current_amount": 250,
+                    "target_date": null,
+                    "currency": "PLN",
+                    "status": "active",
+                    "created_at": "2026-11-08T14:57:03",
+                    "updated_at": "2026-11-08T14:57:03"
+                  }
+                ],
+                "control": {
+                  "observed": 2,
+                  "expected": 2,
+                  "records": [
+                    {
+                      "id": "69fbaf81-d2a7-48d0-8b2e-4f7f8b63db80",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:57:04",
+                      "updated_at": "2026-11-08T14:57:04"
+                    },
+                    {
+                      "id": "0c40448b-b229-49a3-a968-c9b90bb07f13",
+                      "name": "CrashLab deliberate identical",
+                      "target_amount": 8000,
+                      "current_amount": 300,
+                      "target_date": null,
+                      "currency": "PLN",
+                      "status": "active",
+                      "created_at": "2026-11-08T14:57:04",
+                      "updated_at": "2026-11-08T14:57:04"
+                    }
+                  ],
+                  "records_available": true,
+                  "observer": "sqlite",
+                  "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-q0cihjs3/.finance/finance.db",
+                  "ok": true
+                },
+                "returncode": 0,
+                "app_lifecycle": [
+                  {
+                    "old_pid": 84637,
+                    "new_pid": 84663,
+                    "same_port": true,
+                    "same_data_directory": true,
+                    "setup_replayed": false,
+                    "reset_replayed": false
+                  }
+                ],
+                "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+                "case_sha256": "665dfcf3a14c795fe4d43d674247575e342d71e25c0db97d58a78ae555258b03"
+              }
+            }
+          ],
+          "ok": true,
+          "primary_ok": true,
+          "status": "PASS",
+          "error": null,
+          "returncode": 0,
+          "observed": 1,
+          "expected": 1,
+          "representative_scenario": "restart_after_commit",
+          "scenario": {
+            "valid": true
+          },
+          "recovery": {
+            "ok": true,
+            "reason": "Inspect each recorded recovery boundary."
+          },
+          "control": {
+            "ok": true,
+            "observed": 6,
+            "expected": 6
+          },
+          "run_id": "run-1794146224514-8c6753b1",
+          "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+          "evidence_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/data/runs/run-1794146224514-8c6753b1.json"
+        },
+        "recorded_at": "2026-11-08T13:57:04.540954+00:00",
+        "project_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/kist",
+        "experiment_digest": "ba081b6650b0342ac875e68f99bcd20c111edd3f2dffd47616e84be5928b5eac",
+        "case_sha256": "81ab2398be28f964691596337ef315d08cb739cf160f65219899187126027b9e",
+        "source_review": {
+          "git_head": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+          "diff_against_head": "diff --git a/server/planner_core.py b/server/planner_core.py\nindex 23b212f..dac2c47 100644\n--- a/server/planner_core.py\n+++ b/server/planner_core.py\n@@ -26,6 +26,11 @@ def ensure_tables():\n         value real not null, created_at text not null)\"\"\")\n     eb._exec(\"\"\"create table if not exists goal_meta (\n         goal_id text primary key, monthly_contribution real)\"\"\")\n+    # Additive upgrade: existing goals need no synthetic intent IDs. Keep receipts\n+    # after deletion so a delayed retry cannot resurrect a deliberately deleted goal.\n+    eb._exec(\"\"\"create table if not exists goal_create_receipts (\n+        intent_id text primary key, goal_id text not null,\n+        payload text not null)\"\"\")\n     eb._exec(\"\"\"create table if not exists job_offers (\n         id text primary key, company text not null, role text default '',\n         recruiter text default '', total_monthly real not null,\ndiff --git a/server/planner_goals.py b/server/planner_goals.py\nindex b2ebfea..33f431f 100644\n--- a/server/planner_goals.py\n+++ b/server/planner_goals.py\n@@ -2,11 +2,14 @@\n \n Split out of planner.py on 2026-09-05 (code moved 1:1; other modules are reached through `P`).\n \"\"\"\n+import json\n import uuid\n from datetime import date, datetime\n \n+import db\n import engine_bridge as eb\n from planner_proxy import P\n+from werkzeug.exceptions import BadRequest, Conflict\n \n # ---------- goals ----------\n \n@@ -47,17 +50,47 @@ def _project(goal, cfg):\n \n \n def add_goal(data):\n-    goal_id = str(uuid.uuid4())\n-    eb._exec(\n-        \"insert into goals (id, name, target_amount, current_amount, target_date, \"\n-        \"currency, status, created_at, updated_at) values (?,?,?,?,?,?,?,?,?)\",\n-        (goal_id, data[\"name\"], float(data[\"target_amount\"]),\n-         float(data.get(\"current_amount\", 0)), data.get(\"target_date\"),\n-         data.get(\"currency\", \"PLN\"), \"active\", P._now(), P._now()))\n-    if data.get(\"monthly_contribution\") is not None:\n-        eb._exec(\"insert into goal_meta (goal_id, monthly_contribution) values (?,?)\",\n-                 (goal_id, float(data[\"monthly_contribution\"])))\n-    P._audit(\"goal\", goal_id, \"add\", data)\n+    key = data.get(\"create_intent_id\")\n+    if key is not None and (not isinstance(key, str) or not key.strip() or len(key) > 200):\n+        raise BadRequest(\"create_intent_id must be a nonempty string of at most 200 characters\")\n+    payload = {\n+        \"name\": data[\"name\"], \"target_amount\": float(data[\"target_amount\"]),\n+        \"current_amount\": float(data.get(\"current_amount\", 0)),\n+        \"target_date\": data.get(\"target_date\"), \"currency\": data.get(\"currency\", \"PLN\"),\n+        \"monthly_contribution\": (float(data[\"monthly_contribution\"])\n+                                 if data.get(\"monthly_contribution\") is not None else None),\n+    }\n+    encoded = json.dumps(payload, sort_keys=True, ensure_ascii=False)\n+    # Serialize concurrent retries BEFORE checking the receipt. Goal, metadata,\n+    # audit and receipt commit together; any failure rolls the whole intent back.\n+    with db.get_conn() as conn:\n+        conn.execute(\"BEGIN IMMEDIATE\")\n+        if key is not None:\n+            receipt = conn.execute(\n+                \"select goal_id, payload from goal_create_receipts where intent_id = ?\",\n+                (key,)).fetchone()\n+            if receipt:\n+                if receipt[\"payload\"] != encoded:\n+                    raise Conflict(\"create_intent_id already used for different goal content\")\n+                return receipt[\"goal_id\"]\n+        goal_id = str(uuid.uuid4())\n+        now = P._now()\n+        conn.execute(\n+            \"insert into goals (id, name, target_amount, current_amount, target_date, \"\n+            \"currency, status, created_at, updated_at) values (?,?,?,?,?,?,?,?,?)\",\n+            (goal_id, payload[\"name\"], payload[\"target_amount\"], payload[\"current_amount\"],\n+             payload[\"target_date\"], payload[\"currency\"], \"active\", now, now))\n+        if payload[\"monthly_contribution\"] is not None:\n+            conn.execute(\"insert into goal_meta (goal_id, monthly_contribution) values (?,?)\",\n+                         (goal_id, payload[\"monthly_contribution\"]))\n+        conn.execute(\n+            \"insert into app_audit (id, ts, entity, entity_id, action, payload) values (?,?,?,?,?,?)\",\n+            (str(uuid.uuid4()), now, \"goal\", goal_id, \"add\",\n+             json.dumps(data, ensure_ascii=False, default=str)))\n+        if key is not None:\n+            conn.execute(\n+                \"insert into goal_create_receipts (intent_id, goal_id, payload) values (?,?,?)\",\n+                (key, goal_id, encoded))\n     return goal_id\n \n \ndiff --git a/static/js/views/goals.js b/static/js/views/goals.js\nindex 00eefee..0cce7e6 100644\n--- a/static/js/views/goals.js\n+++ b/static/js/views/goals.js\n@@ -66,17 +66,36 @@ async function renderGoals(el) {\n     await api.put(\"/api/settings\", { monthly_savings: parseNum(document.getElementById(\"gSavings\")) || \"\" });\n     route();\n   });\n-  document.getElementById(\"gAdd\").addEventListener(\"click\", async () => {\n+  let pendingCreate = null;\n+  try { pendingCreate = JSON.parse(sessionStorage.getItem(\"goalPendingCreate\")); } catch (_) { /* optional storage */ }\n+  const addButton = document.getElementById(\"gAdd\");\n+  addButton.addEventListener(\"click\", async () => {\n     const name = document.getElementById(\"gName\").value.trim();\n     const target = parseNum(document.getElementById(\"gTarget\"));\n     if (!name || !target) { alert(\"Enter a name and target amount\"); return; }\n     const monthly = parseNum(document.getElementById(\"gMonthly\"));\n-    await api.post(\"/api/goals\", {\n+    const payload = {\n       name, target_amount: target,\n       current_amount: parseNum(document.getElementById(\"gCurrent\")) || 0,\n       monthly_contribution: isNaN(monthly) ? undefined : monthly,\n-    });\n-    route();\n+    };\n+    const encoded = JSON.stringify(payload);\n+    if (!pendingCreate || pendingCreate.payload !== encoded) {\n+      pendingCreate = { payload: encoded, id: crypto.randomUUID() };\n+    }\n+    try { sessionStorage.setItem(\"goalPendingCreate\", JSON.stringify(pendingCreate)); } catch (_) { /* optional storage */ }\n+    addButton.disabled = true;\n+    try {\n+      await api.post(\"/api/goals\", { ...payload, create_intent_id: pendingCreate.id });\n+      pendingCreate = null;\n+      try { sessionStorage.removeItem(\"goalPendingCreate\"); } catch (_) { /* optional storage */ }\n+      route();\n+    } catch (err) {\n+      // An error may mean the response was lost AFTER commit. Reuse the intent.\n+      alert(\"Goal not confirmed. Retry to confirm it: \" + err.message);\n+    } finally {\n+      addButton.disabled = false;\n+    }\n   });\n   list.querySelectorAll(\"[data-gupd]\").forEach((b) =>\n     b.addEventListener(\"click\", async () => {\n",
+          "truncated": false,
+          "untracked_files": [
+            "tests/test_goal_recovery.py"
+          ],
+          "basis": "Actual tracked-file diff against this run's Git HEAD; may include pre-existing edits. Untracked content is not included. This is not an attributed baseline-to-repair patch."
+        }
+      }
+    }
+  ],
+  "old_bundle_rejection": "Evaluator differs from exported experiment; install the recorded source pin or explicitly prepare a new experiment",
+  "explicit_rebaseline": "Current evaluator prepared anew; identical behavior assertions, only launch environment rebound; no historical VERIFIED status inherited",
+  "prepare": {
+    "experiment_id": "f4cf56c1f2a147a0a41c2bec0bc578f7",
+    "project_path": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/kist",
+    "intent": "An uncertain create produces one savings goal before delivery, after commit and across restart; two deliberate identical creates stay possible.",
+    "contract_sha256": "81ab2398be28f964691596337ef315d08cb739cf160f65219899187126027b9e",
+    "evaluator_sha256": {
+      "crashlab_core.py": "9dc1bf423fe2640f86a7a907f58db75c0ebd2ac127d913c000285a3cdc6558d7",
+      "crashlab_runner.js": "1ea6b8fdf776987478a8a24877f0f104d7dbdcd1afa55816ec52884d4be0ad31",
+      "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
+      "repair_workflow.py": "ac230d34487181360cca43e411743c59170218542dd249fef8305425c878121c"
+    },
+    "runs": [],
+    "status": "PREPARED",
+    "case": {
+      "id": "kist-savings-goal-durable-recovery",
+      "recovery_campaign": [
+        "before_delivery",
+        "after_commit",
+        "restart_after_commit"
+      ],
+      "recovery": {
+        "mode": "retry"
+      },
+      "journey": [
+        {
+          "action": "goto",
+          "path": "/#goals"
+        },
+        {
+          "action": "fill",
+          "selector": "#gName",
+          "value": "CrashLab uncertain savings"
+        },
+        {
+          "action": "fill",
+          "selector": "#gTarget",
+          "value": "12000"
+        },
+        {
+          "action": "fill",
+          "selector": "#gCurrent",
+          "value": "250"
+        },
+        {
+          "action": "fill",
+          "selector": "#gMonthly",
+          "value": "100"
+        },
+        {
+          "action": "click",
+          "selector": "#gAdd"
+        },
+        {
+          "action": "wait_for_fault"
+        },
+        {
+          "action": "click",
+          "selector": "#gAdd"
+        },
+        {
+          "action": "wait_for_count",
+          "selector": "#gList h3:text-is(\"CrashLab uncertain savings\")",
+          "min": 1
+        },
+        {
+          "action": "wait_for_value",
+          "selector": "#gName",
+          "empty": true
+        }
+      ],
+      "fault": {
+        "route": "**/api/goals",
+        "method": "POST",
+        "mode": "suppress_after_upstream",
+        "occurrence": 1
+      },
+      "state": {
+        "mode": "sqlite",
+        "db": "{DATA_DIR}/.finance/finance.db",
+        "table": "goals",
+        "where": "name = 'CrashLab uncertain savings'",
+        "expect": 1,
+        "record_fields": {
+          "name": "CrashLab uncertain savings",
+          "target_amount": 12000,
+          "current_amount": 250,
+          "currency": "PLN",
+          "status": "active"
+        },
+        "request_fields": {
+          "name": "name",
+          "target_amount": "target_amount",
+          "current_amount": "current_amount"
+        }
+      },
+      "control": {
+        "journey": [
+          {
+            "action": "fill",
+            "selector": "#gName",
+            "value": "CrashLab deliberate identical"
+          },
+          {
+            "action": "fill",
+            "selector": "#gTarget",
+            "value": "8000"
+          },
+          {
+            "action": "fill",
+            "selector": "#gCurrent",
+            "value": "300"
+          },
+          {
+            "action": "fill",
+            "selector": "#gMonthly",
+            "value": "50"
+          },
+          {
+            "action": "click",
+            "selector": "#gAdd"
+          },
+          {
+            "action": "wait_for_count",
+            "selector": "#gList h3:text-is(\"CrashLab deliberate identical\")",
+            "min": 1,
+            "max": 1
+          },
+          {
+            "action": "wait_for_value",
+            "selector": "#gName",
+            "empty": true
+          },
+          {
+            "action": "fill",
+            "selector": "#gName",
+            "value": "CrashLab deliberate identical"
+          },
+          {
+            "action": "fill",
+            "selector": "#gTarget",
+            "value": "8000"
+          },
+          {
+            "action": "fill",
+            "selector": "#gCurrent",
+            "value": "300"
+          },
+          {
+            "action": "fill",
+            "selector": "#gMonthly",
+            "value": "50"
+          },
+          {
+            "action": "click",
+            "selector": "#gAdd"
+          },
+          {
+            "action": "wait_for_count",
+            "selector": "#gList h3:text-is(\"CrashLab deliberate identical\")",
+            "min": 2,
+            "max": 2
+          },
+          {
+            "action": "wait_for_value",
+            "selector": "#gName",
+            "empty": true
+          }
+        ],
+        "state": {
+          "mode": "sqlite",
+          "db": "{DATA_DIR}/.finance/finance.db",
+          "table": "goals",
+          "where": "name = 'CrashLab deliberate identical'",
+          "expect": 2,
+          "record_fields": {
+            "name": "CrashLab deliberate identical",
+            "target_amount": 8000,
+            "current_amount": 300,
+            "currency": "PLN",
+            "status": "active"
+          }
+        }
+      },
+      "evidence": {
+        "screenshot_dir": "{DATA_DIR}/shots"
+      },
+      "app": {
+        "start": {
+          "cwd": "$AUDIT_WORKSPACE/final-054-external-acceptance/current-evaluator-baseline/kist",
+          "python": "$AUDIT_WORKSPACE/kist-venv/bin/python",
+          "command": [
+            "{PYTHON}",
+            "server/app.py"
+          ],
+          "env": {
+            "FINANCE_PROJECT_DIR": "{DATA_DIR}",
+            "PORT": "{PORT}",
+            "KIST_NO_SCHEDULED_TASKS": "1"
+          },
+          "base_url": "http://127.0.0.1:{PORT}",
+          "health_path": "/",
+          "setup": [
+            {
+              "path": "/api/app-config",
+              "method": "POST",
+              "json": {
+                "wizard_completed": true
+              }
+            }
+          ]
+        }
+      }
+    },
+    "next_action": "Inspect the intended behavior and assertions, then run crashlab_experiment_run. The first valid failing run establishes the baseline."
+  },
+  "experiment_id": "f4cf56c1f2a147a0a41c2bec0bc578f7",
+  "operator_decisions": [
+    {
+      "tool": "crashlab_experiment_run",
+      "decision": "once",
+      "call": 2
+    },
+    {
+      "tool": "crashlab_experiment_run",
+      "decision": "once",
+      "call": 3
+    }
+  ]
+}

@@ -88,6 +88,13 @@ patch and evidence above are explicitly named to keep those releases distinct.
 
 ## Recovery campaign and fresh-session regression
 
+For the reviewed 0.5.4 evaluator, follow the
+[current replay instructions](CURRENT_REPLAY.md) and use
+[`recovery-regression-v054.json`](recovery-regression-v054.json). Its separate
+process import, pristine baseline and retained-patch verification were measured
+with that evaluator. The older bundle below remains historical and may be
+rejected by newer evaluators, as intended.
+
 The latest recovery examples extend the same create operation across delivery
 uncertainty and process restart; they do not claim unrelated bug families.
 
