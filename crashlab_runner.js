@@ -606,6 +606,12 @@ if (require.main === module) {
     const writes = network.filter(event => event.phase === 'primary' && event.kind === 'write');
     const successStatuses = Array.isArray(recoverySpec.success_statuses)
       ? recoverySpec.success_statuses : [];
+    // One validity rule for every primary-mode write. A later same-intent
+    // write can carry unsupported numeric data even when the initial request
+    // was safe; reconciliation must not ignore it just because it only needs
+    // the initial intent for the query comparison.
+    const unsafePrimaryRequest = Boolean(initialRequest?.body_error)
+      || writes.some(event => Boolean(event.body_error));
     if (!successStatuses.length) {
       return { mode: recoverySpec.mode || 'retry', ok: false,
         success_statuses: successStatuses,
@@ -631,7 +637,6 @@ if (require.main === module) {
       const terminal = responseEvents.filter(event => event.retry_chain && event.terminal
         && matchingSequences.has(event.retry_write_sequence)).at(-1) || null;
       const terminalOK = Boolean(terminal && successStatuses.includes(terminal.status));
-      const unsafeRequest = Boolean(initialRequest?.body_error) || writes.some(event => event.body_error);
       const unsafeResponse = responseEvents.some(event => event.json_error);
       let responseIdentity = {
         configured: false,
@@ -657,7 +662,7 @@ if (require.main === module) {
         };
       }
       let reason;
-      if (unsafeRequest) {
+      if (unsafePrimaryRequest) {
         reason = 'A configured request identity contained an unsafe integer; CrashLab rejects it before it can be rounded.';
       } else if (unsafeResponse) {
         reason = 'An observed JSON response contained an unsafe integer; CrashLab rejects it before it can be rounded.';
@@ -676,9 +681,9 @@ if (require.main === module) {
           ? 'Observed a repeated write with the original request identity and payload, a terminal success, and the configured reply/record identity match.'
           : 'Observed a repeated write with the original request identity and payload plus a terminal success; no response identity predicate was configured.';
       }
-      return { mode: 'retry', ok: !unsafeRequest && !unsafeResponse
+      return { mode: 'retry', ok: !unsafePrimaryRequest && !unsafeResponse
           && matchingWrites.length > 0 && terminalOK && responseIdentity.ok,
-        invalid_measurement: unsafeRequest || unsafeResponse,
+        invalid_measurement: unsafePrimaryRequest || unsafeResponse,
         matching_retries: retries.length,
         failed_recovery_transports: failedTransports.length,
         success_statuses: successStatuses,
@@ -711,13 +716,22 @@ if (require.main === module) {
         && successStatuses.includes(event.status)
         && id !== null && ids.length === 1 && identityKey(ids[0]) !== null && identityKey(ids[0]) === id;
     });
-    return { mode: 'reconcile', ok: confirmations.length > 0, confirmations: confirmations.length,
-      invalid_measurement: Boolean(initialRequest?.body_error) || historiesInvalid(reconciliations),
-      success_statuses: successStatuses,
-      initial_request: initialRequest, responses: reconciliations,
-      reason: confirmations.length
+    const unsafeReconciliation = historiesInvalid(reconciliations);
+    const ok = confirmations.length > 0 && !unsafePrimaryRequest && !unsafeReconciliation;
+    let reason;
+    if (unsafePrimaryRequest) {
+      reason = 'A configured request identity contained an unsafe integer; CrashLab rejects it before it can be rounded.';
+    } else if (unsafeReconciliation) {
+      reason = 'An observed reconciliation response contained an unsupported value; CrashLab rejects it before it can be rounded.';
+    } else {
+      reason = confirmations.length
         ? 'Server readback confirmed the original intent and independently observed record ID with a configured success status.'
-        : 'No successful server readback linked the original intent to the observed record ID.' };
+        : 'No successful server readback linked the original intent to the observed record ID.';
+    }
+    return { mode: 'reconcile', ok, confirmations: confirmations.length,
+      invalid_measurement: unsafePrimaryRequest || unsafeReconciliation,
+      success_statuses: successStatuses,
+      initial_request: initialRequest, responses: reconciliations, reason };
   }
 
   try {

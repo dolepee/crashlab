@@ -489,6 +489,49 @@ class RecoveryContractTests(unittest.TestCase):
         self.assertTrue(result['ok'], result)
         self.assertEqual(result['recovery']['confirmations'], 1)
 
+    def reconciliation_secondary_case(self, query=''):
+        case = self.reconciliation_case()
+        case['journey'] = [
+            {'action': 'goto', 'path': '/'},
+            {'action': 'click', 'selector': '#send'},
+            {'action': 'wait_for_fault'},
+            {'action': 'goto', 'path': '/' + ('?' + query if query else '')},
+            {'action': 'click', 'selector': '#send'},
+            {'action': 'wait_for_text', 'text': 'Saved'},
+            {'action': 'goto', 'path': '/receipt?intent_key=intent'},
+            {'action': 'wait_for_timeout', 'ms': 300},
+        ]
+        # A second safe write is a legitimate same-intent operation; keep the
+        # normal two-record control in scope while testing the primary writes.
+        case['control'] = self.case(control_state='/state')['control']
+        return case
+
+    def test_reconciliation_secondary_unsafe_write_invalidates_measurement(self):
+        case = self.reconciliation_secondary_case('unsafeid=1')
+        path = Path(self.temp.name) / 'reconcile-secondary-unsafe.json'
+        path.write_text(json.dumps(case))
+        result = core.run_contract(path)
+        self.assertFalse(result['ok'], result)
+        self.assertEqual(result['status'], 'INVALID')
+        self.assertFalse(result['scenario']['valid'], result)
+        self.assertTrue(result['recovery']['invalid_measurement'], result)
+        self.assertIn('unsafe integer', result['recovery']['reason'])
+        self.assertFalse(core._completed_assertion(result, passed=False), result)
+
+    def test_reconciliation_secondary_supported_writes_still_pass(self):
+        for query, label in (('', 'safe numeric secondary id'),
+                             ('stringid=1', 'string secondary id')):
+            with self.subTest(label):
+                case = self.reconciliation_secondary_case(query)
+                path = Path(self.temp.name) / ('reconcile-secondary-' + (query or 'safe') + '.json')
+                path.write_text(json.dumps(case))
+                result = core.run_contract(path)
+                self.assertTrue(result['ok'], result)
+                self.assertEqual(result['status'], 'PASS')
+                self.assertTrue(result['scenario']['valid'], result)
+                self.assertFalse(result['recovery']['invalid_measurement'], result)
+                self.assertEqual(result['recovery']['confirmations'], 1)
+
     def test_204_recovery_with_json_content_type_passes(self):
         result = self.run_case(mode='204', statuses=(204,), response_id=False)
         self.assertTrue(result['ok'], result)
