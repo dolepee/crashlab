@@ -1,5 +1,5 @@
 import { host, PALETTE_AREA } from '@hermes/plugin-sdk'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 
 function verdict(run) {
@@ -49,6 +49,23 @@ function EvidencePane({ ctx }) {
   const [cases, setCases] = useState([])
   const [selected, setSelected] = useState('')
   const [busy, setBusy] = useState(false)
+  const focusReturn = useRef(null)
+
+  function rememberFocus() {
+    focusReturn.current = document.activeElement
+  }
+
+  function restoreFocus() {
+    const target = focusReturn.current
+    focusReturn.current = null
+    requestAnimationFrame(() => {
+      if (!target || !target.isConnected) return
+      const active = document.activeElement
+      if (!active || active === document.body || active === document.documentElement) {
+        target.focus({ preventScroll: true })
+      }
+    })
+  }
   const [error, setError] = useState(null)
 
   const refresh = () => Promise.all([ctx.rest('/overview'), ctx.rest('/contracts')])
@@ -75,6 +92,7 @@ function EvidencePane({ ctx }) {
 
   const startRun = async () => {
     if (!selected) return
+    rememberFocus()
     setBusy(true)
     setError(null)
     try {
@@ -84,6 +102,7 @@ function EvidencePane({ ctx }) {
       setError(String(err))
     } finally {
       setBusy(false)
+      restoreFocus()
     }
   }
 

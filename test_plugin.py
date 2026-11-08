@@ -66,9 +66,12 @@ class FirstUseTests(unittest.TestCase):
         rows = plugin.core.list_contracts()
         fixed = next(row for row in rows if row['id'] == 'checkout-local-fixed')
         flaskr = next(row for row in rows if row['id'] == 'flaskr-create')
+        booking = next(row for row in rows if row['id'] == 'booking-lost-response')
         self.assertTrue(fixed['auto_start'])
         self.assertFalse(flaskr['auto_start'])
         self.assertIn('Flask tutorial', flaskr['setup_required'])
+        self.assertFalse(booking['auto_start'])
+        self.assertIn('http://127.0.0.1:8785', booking['setup_required'])
         with patch.object(plugin.core, '_start_app') as start:
             with self.assertRaisesRegex(ValueError, 'Case setup required'):
                 plugin.core.run_contract(flaskr['path'])

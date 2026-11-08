@@ -791,8 +791,17 @@ def list_contracts(case_dir: str | Path | None = None) -> list[dict]:
         try:
             contract = load_contract(path)
             setup = contract.get("setup_required") or ""
-            row.update(id=contract["id"], setup_required=setup,
-                       auto_start=bool(contract["app"].get("start")) and not setup)
+            auto_start = bool(contract["app"].get("start")) and not setup
+            if not setup and not auto_start:
+                # A case without app.start still needs the app running somewhere.
+                # Say where, rather than showing an empty setup status.
+                base_url = str(contract["app"].get("base_url") or "").strip()
+                if base_url:
+                    setup = (f"Start the application at {base_url} before running this case, "
+                             "or add an app.start block to the case file.")
+                else:
+                    setup = "Start the application before running this case, or add an app.start block."
+            row.update(id=contract["id"], setup_required=setup, auto_start=auto_start)
         except Exception as exc:
             row["error"] = str(exc)
         rows.append(row)
