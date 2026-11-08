@@ -471,6 +471,9 @@ def post_approval_response(command: str = "", description: str = "", pattern_key
         if request_key not in _REQUESTS:
             return
         _REQUESTS.pop(request_key, None)
+        # The request identifies the invocation the human approved, so a response
+        # that did not repeat the call id is still bound to that call.
+        approved_call = request_key[1]
         if choice == "always":
             _PERMANENT_APPROVALS.add(digest)
             return
@@ -478,7 +481,7 @@ def post_approval_response(command: str = "", description: str = "", pattern_key
         if not scopes:
             scopes = [""]
         if choice == "once":
-            _grant_once(scopes, digest, now, tool_call_id)
+            _grant_once(scopes, digest, now, approved_call)
         else:
             for scope in scopes:
                 _SESSION_APPROVALS[(scope, digest)] = now + LEASE_SECONDS

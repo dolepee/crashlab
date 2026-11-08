@@ -9,7 +9,7 @@
     "crashlab_core.py": "0da661e04bf502229c827c913d40f4631c9772ea294ba1b64216cfff4eef2fed",
     "crashlab_runner.js": "1ea6b8fdf776987478a8a24877f0f104d7dbdcd1afa55816ec52884d4be0ad31",
     "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
-    "approval.py": "f6954dddee0dd257112b7b46e95aabbb2ecb43a306c584a4e6e38a8adf2ba02a",
+    "approval.py": "c0c2e72e2f7dead3b86b4c8f47704e5bc6f79b1afac4649c103b4ff30e1241eb",
     "repair_workflow.py": "ba97bb99863d7caa2aadb7156feaa2faa7211be5faf7dd1977ee11fdceea08b4",
     "crashlab_replay.py": "045a985f2b1ab01a9a0b59120e53aa1324d505c04fb215849c8314cf6747f472",
     "completion_reminder.py": "9a3fcf82751d1eaee6d16744f8e594acb4c3f5d64f13e36a655d31f22f572794",
