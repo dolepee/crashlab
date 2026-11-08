@@ -101,6 +101,68 @@ class BrowserIntegrity(unittest.TestCase):
         self.assertIn('CHROME_PATH',result['error'])
         self.assertIn('missing-chrome',result['error'])
 
+    def test_retry_transport_failure_is_measured_failure_not_error(self):
+        # The retry reaches the server, commits no response, and the browser
+        # sees a reset. The original commit is observed; the failed retry must
+        # remain a measured recovery failure, not a runner exception.
+        case = copy.deepcopy(self.case)
+        case['id'] = 'retry-transport-failure'
+        case['journey'] = [
+            {'action': 'goto', 'path': '/'},
+            {'action': 'click', 'selector': '#buy'},
+            {'action': 'wait_for_selector', 'selector': '#retry'},
+            {'action': 'click', 'selector': '#retry'},
+            {'action': 'wait_for_timeout', 'ms': 1200},
+        ]
+        source = self.source.replace(
+            'if row:\n                    con.commit()\n                    self._send(200, {"id": row[0], "deduplicated": True})\n                    return',
+            'if row:\n                    con.commit()\n                    self.connection.close()\n                    return',
+        )
+        result = self.run_case(source, case)
+        self.assertEqual(result['status'], 'FAIL', result)
+        self.assertFalse(result['ok'], result)
+        self.assertTrue(result['scenario']['valid'], result)
+        self.assertEqual((result['observed'], result['expected']), (1, 1), result)
+        self.assertFalse(result['recovery']['ok'], result)
+        self.assertEqual(result['recovery']['failed_recovery_transports'], 1, result)
+        self.assertTrue(result['control']['ok'], result)
+        self.assertTrue(core._completed_assertion(result, passed=False), result)
+
+    def test_initial_transport_failure_is_not_reproduced(self):
+        case = copy.deepcopy(self.case)
+        case['id'] = 'initial-transport-failure'
+        case['journey'] = [
+            {'action': 'goto', 'path': '/'},
+            {'action': 'click', 'selector': '#buy'},
+            {'action': 'wait_for_timeout', 'ms': 1000},
+        ]
+        source = self.source.replace(
+            'if self.path != "/order":',
+            'if self.path == "/order":\n            self.connection.close()\n            return\n        if self.path != "/order":',
+        )
+        result = self.run_case(source, case)
+        self.assertFalse(result['ok'], result)
+        self.assertNotEqual(result['status'], 'FAIL', result)
+        self.assertFalse(result.get('scenario', {}).get('valid', False), result)
+
+    def test_unrelated_post_retry_selector_is_error(self):
+        case = copy.deepcopy(self.case)
+        case['id'] = 'wrong-post-retry-selector'
+        case['journey'] = [
+            {'action': 'goto', 'path': '/'},
+            {'action': 'click', 'selector': '#buy'},
+            {'action': 'wait_for_selector', 'selector': '#retry'},
+            {'action': 'click', 'selector': '#retry'},
+            {'action': 'wait_for_selector', 'selector': '#not-present', 'timeout': 300},
+        ]
+        source = self.source.replace(
+            'if row:\n                    con.commit()\n                    self._send(200, {"id": row[0], "deduplicated": True})\n                    return',
+            'if row:\n                    con.commit()\n                    self.connection.close()\n                    return',
+        )
+        result = self.run_case(source, case)
+        self.assertEqual(result['status'], 'ERROR', result)
+        self.assertFalse(result['ok'], result)
+
     def test_wrong_payload_rejected(self):
         result = self.run_case(self.source.replace('item = str(body.get("item") or "Unknown item")', 'item = "Wrong item"'))
         self.assertFalse(result['ok'], result)

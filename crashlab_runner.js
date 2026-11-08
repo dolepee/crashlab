@@ -97,9 +97,31 @@ function nowId() {
       }
       if (phase !== 'primary') return route.continue();
       if (interrupted) {
-        const response = await route.fetch({ maxRedirects: 0 });
-        event.status = response.status();
-        await route.fulfill({ response });
+        // The retry is the recovery observation. A transport failure here is
+        // evidence that recovery did not complete, not a runner failure. Keep
+        // the failed request event and let the measured state/control verdict
+        // decide the outcome.
+        try {
+          const response = await route.fetch({ maxRedirects: 0 });
+          event.status = response.status();
+          await route.fulfill({ response });
+        } catch (err) {
+          const message = String(err && err.message ? err.message : err);
+          // Only a positively observed connection failure is a measured
+          // recovery failure. A timeout, closed browser, or other runner
+          // fault must still surface as ERROR rather than be relabelled.
+          if (!/(ECONNRESET|socket hang up|ERR_CONNECTION_RESET|ERR_CONNECTION_CLOSED)/i.test(message)) {
+            throw err;
+          }
+          event.status = null;
+          event.transport_error = message;
+          event.failed_recovery_transport = true;
+          try {
+            await route.abort('failed');
+          } catch (abortErr) {
+            event.transport_abort_error = String(abortErr && abortErr.message ? abortErr.message : abortErr);
+          }
+        }
         return;
       }
       interrupted = true;
@@ -333,9 +355,15 @@ function nowId() {
       const retries = writes.filter(event => event.after_interruption && event !== initialRequest
         && event.status >= 200 && event.status < 400
         && event.method === initialRequest?.method && event.url === initialRequest?.url && sameBody(event));
+      const failedTransports = writes.filter(event => event.after_interruption && event !== initialRequest
+        && event.failed_recovery_transport === true
+        && event.method === initialRequest?.method && event.url === initialRequest?.url && sameBody(event));
       return { mode: 'retry', ok: retries.length > 0, matching_retries: retries.length,
+        failed_recovery_transports: failedTransports.length,
         write_requests: writes.length, initial_request: initialRequest,
-        reason: retries.length ? 'Observed a repeated write with the original request identity and payload.' : 'No matching recovery write occurred after interruption. A local success message is insufficient.' };
+        reason: retries.length ? 'Observed a repeated write with the original request identity and payload.'
+          : failedTransports.length ? 'A matching recovery write was attempted but its transport failed before a response; recovery is not observed.'
+            : 'No matching recovery write occurred after interruption. A local success message is insufficient.' };
     }
     const initialIdentity = initialRequest?.body?.[recoverySpec.initial_field];
     const ids = primary.records.map(row => row[recoverySpec.record_id_field]);
