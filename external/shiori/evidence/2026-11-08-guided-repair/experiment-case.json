@@ -1,0 +1,208 @@
+{
+  "id": "shiori-hermes-repair",
+  "app": {
+    "start": {
+      "cwd": "/workspace/tmp/shiori-hermes-pristine",
+      "command": [
+        "/tmp/shiori-hermes-bin/shiori",
+        "--storage-directory",
+        "{DATA_DIR}/storage",
+        "server",
+        "--address",
+        "127.0.0.1",
+        "--port",
+        "{PORT}"
+      ],
+      "env": {
+        "SHIORI_HTTP_SECRET_KEY": "crashlab-shiori-hermes"
+      },
+      "base_url": "http://127.0.0.1:{PORT}",
+      "health_path": "/",
+      "ready_timeout": 30
+    }
+  },
+  "journey": [
+    {
+      "action": "goto",
+      "path": "/"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "#username"
+    },
+    {
+      "action": "fill",
+      "selector": "#username",
+      "value": "shiori"
+    },
+    {
+      "action": "fill",
+      "selector": "#password",
+      "value": "gopher"
+    },
+    {
+      "action": "click",
+      "selector": "#button-area a.button"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "#main-scene"
+    },
+    {
+      "action": "click",
+      "selector": "a[title='Add new bookmark']"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "input[name='url']"
+    },
+    {
+      "action": "fill",
+      "selector": "input[name='url']",
+      "value": "https://example.com/crashlab-shiori-hermes"
+    },
+    {
+      "action": "fill",
+      "selector": "input[name='title']",
+      "value": "CRASHLAB_SHIORI_HERMES"
+    },
+    {
+      "action": "click",
+      "selector": "a.custom-dialog-button.main"
+    },
+    {
+      "action": "wait_for_fault"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "a.custom-dialog-button.main"
+    },
+    {
+      "action": "click",
+      "selector": "a.custom-dialog-button.main"
+    },
+    {
+      "action": "click",
+      "selector": "a[title='Add new bookmark']"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "input[name='url']"
+    },
+    {
+      "action": "fill",
+      "selector": "input[name='url']",
+      "value": "https://example.com/crashlab-shiori-hermes"
+    },
+    {
+      "action": "fill",
+      "selector": "input[name='title']",
+      "value": "CRASHLAB_SHIORI_HERMES"
+    },
+    {
+      "action": "click",
+      "selector": "a.custom-dialog-button.main"
+    },
+    {
+      "action": "wait_for_timeout",
+      "ms": 1500
+    },
+    {
+      "action": "screenshot",
+      "as": "after-retry"
+    }
+  ],
+  "fault": {
+    "route": "**/api/bookmarks",
+    "method": "POST",
+    "mode": "suppress_after_upstream",
+    "occurrence": 1
+  },
+  "recovery": {
+    "mode": "retry"
+  },
+  "state": {
+    "mode": "sqlite",
+    "db": "{DATA_DIR}/storage/shiori.db",
+    "table": "bookmark",
+    "where": "url = 'https://example.com/crashlab-shiori-hermes'",
+    "expect": 1,
+    "record_fields": {
+      "title": "CRASHLAB_SHIORI_HERMES"
+    }
+  },
+  "evidence": {
+    "screenshot_dir": "{DATA_DIR}/shots"
+  },
+  "control": {
+    "journey": [
+      {
+        "action": "goto",
+        "path": "/"
+      },
+      {
+        "action": "wait_for_selector",
+        "selector": "#main-scene"
+      },
+      {
+        "action": "click",
+        "selector": "a[title='Add new bookmark']"
+      },
+      {
+        "action": "wait_for_selector",
+        "selector": "input[name='url']"
+      },
+      {
+        "action": "fill",
+        "selector": "input[name='url']",
+        "value": "https://example.com/crashlab-shiori-hermes-control-a"
+      },
+      {
+        "action": "fill",
+        "selector": "input[name='title']",
+        "value": "CRASHLAB_SHIORI_HERMES_CONTROL_A"
+      },
+      {
+        "action": "click",
+        "selector": "a.custom-dialog-button.main"
+      },
+      {
+        "action": "wait_for_timeout",
+        "ms": 800
+      },
+      {
+        "action": "click",
+        "selector": "a[title='Add new bookmark']"
+      },
+      {
+        "action": "wait_for_selector",
+        "selector": "input[name='url']"
+      },
+      {
+        "action": "fill",
+        "selector": "input[name='url']",
+        "value": "https://example.com/crashlab-shiori-hermes-control-b"
+      },
+      {
+        "action": "fill",
+        "selector": "input[name='title']",
+        "value": "CRASHLAB_SHIORI_HERMES_CONTROL_B"
+      },
+      {
+        "action": "click",
+        "selector": "a.custom-dialog-button.main"
+      },
+      {
+        "action": "wait_for_timeout",
+        "ms": 800
+      }
+    ],
+    "state": {
+      "mode": "sqlite",
+      "db": "{DATA_DIR}/storage/shiori.db",
+      "table": "bookmark",
+      "where": "url LIKE 'https://example.com/crashlab-shiori-hermes-control-%'",
+      "expect": 2
+    }
+  }
+}

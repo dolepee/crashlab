@@ -1,0 +1,132 @@
+{
+  "scope": "Independent HTTP/SQLite identity acceptance of the exact freshly model-produced patch.",
+  "source_pin": "da56f82faac5bf350fc4175e5ff50726cb10d956",
+  "release": "v1.8.0",
+  "binary_sha256": "0ffc2542ea12b0c188b042de4a8c48a8ac300b1493c27a9d071877497332e65e",
+  "platform": "darwin/arm64 independently built exact model patch; Go1.26.6 CGO0",
+  "first": {
+    "status": 200,
+    "body": {
+      "id": 1,
+      "url": "http://127.0.0.1:61903/crashlab-primary",
+      "title": "CrashLab independent primary",
+      "excerpt": "Disposable local trial",
+      "author": "",
+      "public": 0,
+      "createdAt": "2026-11-08 17:44:39",
+      "modifiedAt": "2026-11-08 17:44:39",
+      "imageURL": "",
+      "hasContent": false,
+      "tags": [],
+      "hasArchive": false,
+      "hasEbook": false,
+      "create_archive": false,
+      "create_ebook": false
+    }
+  },
+  "after_first": [
+    {
+      "id": 1,
+      "url": "http://127.0.0.1:61903/crashlab-primary",
+      "title": "CrashLab independent primary",
+      "excerpt": "Disposable local trial",
+      "public": 0
+    }
+  ],
+  "retry": {
+    "status": 200,
+    "body": {
+      "id": 1,
+      "url": "http://127.0.0.1:61903/crashlab-primary",
+      "title": "CrashLab independent primary",
+      "excerpt": "Disposable local trial",
+      "author": "",
+      "public": 0,
+      "createdAt": "2026-11-08 17:44:39",
+      "modifiedAt": "2026-11-08 17:44:39",
+      "imageURL": "",
+      "hasContent": false,
+      "tags": [],
+      "hasArchive": false,
+      "hasEbook": false,
+      "create_archive": false,
+      "create_ebook": false
+    }
+  },
+  "after_retry": [
+    {
+      "id": 1,
+      "url": "http://127.0.0.1:61903/crashlab-primary",
+      "title": "CrashLab independent primary",
+      "excerpt": "Disposable local trial",
+      "public": 0
+    }
+  ],
+  "controls": [
+    {
+      "status": 200,
+      "body": {
+        "id": 2,
+        "url": "http://127.0.0.1:61903/crashlab-control-a",
+        "title": "CrashLab independent control a",
+        "excerpt": "Disposable local trial",
+        "author": "",
+        "public": 0,
+        "createdAt": "2026-11-08 17:44:39",
+        "modifiedAt": "2026-11-08 17:44:39",
+        "imageURL": "",
+        "hasContent": false,
+        "tags": [],
+        "hasArchive": false,
+        "hasEbook": false,
+        "create_archive": false,
+        "create_ebook": false
+      }
+    },
+    {
+      "status": 200,
+      "body": {
+        "id": 3,
+        "url": "http://127.0.0.1:61903/crashlab-control-b",
+        "title": "CrashLab independent control b",
+        "excerpt": "Disposable local trial",
+        "author": "",
+        "public": 0,
+        "createdAt": "2026-11-08 17:44:39",
+        "modifiedAt": "2026-11-08 17:44:39",
+        "imageURL": "",
+        "hasContent": false,
+        "tags": [],
+        "hasArchive": false,
+        "hasEbook": false,
+        "create_archive": false,
+        "create_ebook": false
+      }
+    }
+  ],
+  "final": [
+    {
+      "id": 1,
+      "url": "http://127.0.0.1:61903/crashlab-primary",
+      "title": "CrashLab independent primary",
+      "excerpt": "Disposable local trial",
+      "public": 0
+    },
+    {
+      "id": 2,
+      "url": "http://127.0.0.1:61903/crashlab-control-a",
+      "title": "CrashLab independent control a",
+      "excerpt": "Disposable local trial",
+      "public": 0
+    },
+    {
+      "id": 3,
+      "url": "http://127.0.0.1:61903/crashlab-control-b",
+      "title": "CrashLab independent control b",
+      "excerpt": "Disposable local trial",
+      "public": 0
+    }
+  ],
+  "authentication": "Generated disposable default local account; token kept in memory and omitted",
+  "limits": "HTTP/SQLite mechanism check, not CrashLab browser fault injection, new model repair, adoption or production safety"
+}

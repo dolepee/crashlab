@@ -1,0 +1,2 @@
+$ go build -tags osusergo,netgo,fts5 -ldflags="-s -w -X main.version=v1.8.0-hermes-repair -X main.date=2026-11-08" -o /tmp/shiori-hermes-bin/shiori .
+exit=0

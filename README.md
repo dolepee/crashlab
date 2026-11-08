@@ -32,7 +32,7 @@ independent run of its application tests passed 279 tests. The full patch retain
 its six new tests and identifies the frontend code supplied in the initial seed.
 See the [actual selected tool events, measurements and patch](external/kist/evidence/2026-11-07-hermes-recovery/summary.json).
 
-To exercise this workflow on the reviewed **0.5.4** evaluator, use the
+To exercise this workflow on the reviewed **0.5.6** evaluator, use the
 [current Kist replay](external/kist/CURRENT_REPLAY.md). Its exported regression
 was independently imported in a separate process, reproduced on a pristine
 checkout and verified after applying the retained repair. This is a measured
@@ -67,6 +67,12 @@ and intended behavior, with Hermes constructing its own case. It reproduced a
 native POST retry duplicate, repaired it, and verified the same experiment.
 The record distinguishes the successful acceptance from a prior failed trial
 that exposed a navigation race, and states the fresh-database limitation.
+
+A second non-tutorial target, [Shiori](external/shiori/README.md), exposes a
+related recovery failure: the bookmark is saved, but its retry panics on URL
+uniqueness. The retained guided model patch and unchanged case distinguish
+successful recovery from merely counting one row. That session used a supplied
+diagnosis and automatic approvals; its CrashLab runs were operator-executed.
 
 ## Use it in Hermes
 

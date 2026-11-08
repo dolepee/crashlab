@@ -1,0 +1,413 @@
+{
+  "contract": "shiori-hermes-repair",
+  "run_id": "shiori-hermes-repair-2026-11-08T17-28-42-344Z",
+  "base_url": "http://127.0.0.1:55001",
+  "ok": true,
+  "primary_ok": true,
+  "expected": 1,
+  "observed": 1,
+  "observations": {},
+  "status": "PASS",
+  "upstream_status": 200,
+  "scenario": {
+    "matched": true,
+    "delivered": true,
+    "upstream_status": 200,
+    "committed_after_fault": 1,
+    "mode": "suppress_after_upstream",
+    "valid": true
+  },
+  "recovery": {
+    "mode": "retry",
+    "ok": true,
+    "matching_retries": 1,
+    "failed_recovery_transports": 0,
+    "write_requests": 2,
+    "initial_request": {
+      "sequence": 2,
+      "elapsed_ms": 648,
+      "phase": "primary",
+      "kind": "write",
+      "method": "POST",
+      "url": "http://127.0.0.1:55001/api/bookmarks",
+      "body": {
+        "url": "https://example.com/crashlab-shiori-hermes",
+        "title": "CRASHLAB_SHIORI_HERMES",
+        "excerpt": "",
+        "public": 0,
+        "tags": [],
+        "create_archive": false,
+        "create_ebook": false
+      },
+      "raw_body": "{\"url\":\"https://example.com/crashlab-shiori-hermes\",\"title\":\"CRASHLAB_SHIORI_HERMES\",\"excerpt\":\"\",\"public\":0,\"tags\":[],\"create_archive\":false,\"create_ebook\":false}",
+      "after_interruption": false,
+      "status": 200
+    },
+    "reason": "Observed a repeated write with the original request identity and payload."
+  },
+  "network": [
+    {
+      "sequence": 2,
+      "elapsed_ms": 648,
+      "phase": "primary",
+      "kind": "write",
+      "method": "POST",
+      "url": "http://127.0.0.1:55001/api/bookmarks",
+      "body": {
+        "url": "https://example.com/crashlab-shiori-hermes",
+        "title": "CRASHLAB_SHIORI_HERMES",
+        "excerpt": "",
+        "public": 0,
+        "tags": [],
+        "create_archive": false,
+        "create_ebook": false
+      },
+      "raw_body": "{\"url\":\"https://example.com/crashlab-shiori-hermes\",\"title\":\"CRASHLAB_SHIORI_HERMES\",\"excerpt\":\"\",\"public\":0,\"tags\":[],\"create_archive\":false,\"create_ebook\":false}",
+      "after_interruption": false,
+      "status": 200
+    },
+    {
+      "sequence": 5,
+      "elapsed_ms": 846,
+      "phase": "primary",
+      "kind": "write",
+      "method": "POST",
+      "url": "http://127.0.0.1:55001/api/bookmarks",
+      "body": {
+        "url": "https://example.com/crashlab-shiori-hermes",
+        "title": "CRASHLAB_SHIORI_HERMES",
+        "excerpt": "",
+        "public": 0,
+        "tags": [],
+        "create_archive": false,
+        "create_ebook": false
+      },
+      "raw_body": "{\"url\":\"https://example.com/crashlab-shiori-hermes\",\"title\":\"CRASHLAB_SHIORI_HERMES\",\"excerpt\":\"\",\"public\":0,\"tags\":[],\"create_archive\":false,\"create_ebook\":false}",
+      "after_interruption": true,
+      "status": 200
+    },
+    {
+      "sequence": 8,
+      "elapsed_ms": 2568,
+      "phase": "control",
+      "kind": "write",
+      "method": "POST",
+      "url": "http://127.0.0.1:55001/api/bookmarks",
+      "body": {
+        "url": "https://example.com/crashlab-shiori-hermes-control-a",
+        "title": "CRASHLAB_SHIORI_HERMES_CONTROL_A",
+        "excerpt": "",
+        "public": 0,
+        "tags": [],
+        "create_archive": false,
+        "create_ebook": false
+      },
+      "raw_body": "{\"url\":\"https://example.com/crashlab-shiori-hermes-control-a\",\"title\":\"CRASHLAB_SHIORI_HERMES_CONTROL_A\",\"excerpt\":\"\",\"public\":0,\"tags\":[],\"create_archive\":false,\"create_ebook\":false}",
+      "after_interruption": true
+    },
+    {
+      "sequence": 9,
+      "elapsed_ms": 3468,
+      "phase": "control",
+      "kind": "write",
+      "method": "POST",
+      "url": "http://127.0.0.1:55001/api/bookmarks",
+      "body": {
+        "url": "https://example.com/crashlab-shiori-hermes-control-b",
+        "title": "CRASHLAB_SHIORI_HERMES_CONTROL_B",
+        "excerpt": "",
+        "public": 0,
+        "tags": [],
+        "create_archive": false,
+        "create_ebook": false
+      },
+      "raw_body": "{\"url\":\"https://example.com/crashlab-shiori-hermes-control-b\",\"title\":\"CRASHLAB_SHIORI_HERMES_CONTROL_B\",\"excerpt\":\"\",\"public\":0,\"tags\":[],\"create_archive\":false,\"create_ebook\":false}",
+      "after_interruption": true
+    }
+  ],
+  "events": [
+    {
+      "sequence": 1,
+      "elapsed_ms": 214,
+      "phase": "primary",
+      "kind": "baseline",
+      "state": {
+        "observed": 0,
+        "expected": 1,
+        "records": [],
+        "records_available": true,
+        "observer": "sqlite",
+        "db": "/tmp/crashlab-app-18e_82gd/storage/shiori.db"
+      }
+    },
+    {
+      "sequence": 2,
+      "elapsed_ms": 648,
+      "phase": "primary",
+      "kind": "write",
+      "method": "POST",
+      "url": "http://127.0.0.1:55001/api/bookmarks",
+      "body": {
+        "url": "https://example.com/crashlab-shiori-hermes",
+        "title": "CRASHLAB_SHIORI_HERMES",
+        "excerpt": "",
+        "public": 0,
+        "tags": [],
+        "create_archive": false,
+        "create_ebook": false
+      },
+      "raw_body": "{\"url\":\"https://example.com/crashlab-shiori-hermes\",\"title\":\"CRASHLAB_SHIORI_HERMES\",\"excerpt\":\"\",\"public\":0,\"tags\":[],\"create_archive\":false,\"create_ebook\":false}",
+      "after_interruption": false,
+      "status": 200
+    },
+    {
+      "sequence": 3,
+      "elapsed_ms": 669,
+      "phase": "primary",
+      "kind": "committed_state",
+      "state": {
+        "observed": 1,
+        "expected": 1,
+        "records": [
+          {
+            "id": 1,
+            "url": "https://example.com/crashlab-shiori-hermes",
+            "title": "CRASHLAB_SHIORI_HERMES",
+            "excerpt": "",
+            "author": "",
+            "public": 0,
+            "created_at": "2026-11-08 17:28:42",
+            "has_content": 0,
+            "modified_at": "2026-11-08 17:28:42"
+          }
+        ],
+        "records_available": true,
+        "observer": "sqlite",
+        "db": "/tmp/crashlab-app-18e_82gd/storage/shiori.db"
+      }
+    },
+    {
+      "sequence": 4,
+      "elapsed_ms": 669,
+      "phase": "primary",
+      "kind": "interruption",
+      "mode": "suppress_after_upstream",
+      "completed": true
+    },
+    {
+      "sequence": 5,
+      "elapsed_ms": 846,
+      "phase": "primary",
+      "kind": "write",
+      "method": "POST",
+      "url": "http://127.0.0.1:55001/api/bookmarks",
+      "body": {
+        "url": "https://example.com/crashlab-shiori-hermes",
+        "title": "CRASHLAB_SHIORI_HERMES",
+        "excerpt": "",
+        "public": 0,
+        "tags": [],
+        "create_archive": false,
+        "create_ebook": false
+      },
+      "raw_body": "{\"url\":\"https://example.com/crashlab-shiori-hermes\",\"title\":\"CRASHLAB_SHIORI_HERMES\",\"excerpt\":\"\",\"public\":0,\"tags\":[],\"create_archive\":false,\"create_ebook\":false}",
+      "after_interruption": true,
+      "status": 200
+    },
+    {
+      "sequence": 6,
+      "elapsed_ms": 2422,
+      "phase": "primary",
+      "kind": "final_state",
+      "state": {
+        "observed": 1,
+        "expected": 1,
+        "records": [
+          {
+            "id": 1,
+            "url": "https://example.com/crashlab-shiori-hermes",
+            "title": "CRASHLAB_SHIORI_HERMES",
+            "excerpt": "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.",
+            "author": "",
+            "public": 0,
+            "created_at": "2026-11-08 17:28:42",
+            "has_content": 0,
+            "modified_at": "2026-11-08 17:28:43"
+          }
+        ],
+        "records_available": true,
+        "observer": "sqlite",
+        "db": "/tmp/crashlab-app-18e_82gd/storage/shiori.db"
+      }
+    },
+    {
+      "sequence": 7,
+      "elapsed_ms": 2440,
+      "phase": "control",
+      "kind": "baseline",
+      "state": {
+        "observed": 0,
+        "expected": 2,
+        "records": [],
+        "records_available": true,
+        "observer": "sqlite",
+        "db": "/tmp/crashlab-app-18e_82gd/storage/shiori.db"
+      }
+    },
+    {
+      "sequence": 8,
+      "elapsed_ms": 2568,
+      "phase": "control",
+      "kind": "write",
+      "method": "POST",
+      "url": "http://127.0.0.1:55001/api/bookmarks",
+      "body": {
+        "url": "https://example.com/crashlab-shiori-hermes-control-a",
+        "title": "CRASHLAB_SHIORI_HERMES_CONTROL_A",
+        "excerpt": "",
+        "public": 0,
+        "tags": [],
+        "create_archive": false,
+        "create_ebook": false
+      },
+      "raw_body": "{\"url\":\"https://example.com/crashlab-shiori-hermes-control-a\",\"title\":\"CRASHLAB_SHIORI_HERMES_CONTROL_A\",\"excerpt\":\"\",\"public\":0,\"tags\":[],\"create_archive\":false,\"create_ebook\":false}",
+      "after_interruption": true
+    },
+    {
+      "sequence": 9,
+      "elapsed_ms": 3468,
+      "phase": "control",
+      "kind": "write",
+      "method": "POST",
+      "url": "http://127.0.0.1:55001/api/bookmarks",
+      "body": {
+        "url": "https://example.com/crashlab-shiori-hermes-control-b",
+        "title": "CRASHLAB_SHIORI_HERMES_CONTROL_B",
+        "excerpt": "",
+        "public": 0,
+        "tags": [],
+        "create_archive": false,
+        "create_ebook": false
+      },
+      "raw_body": "{\"url\":\"https://example.com/crashlab-shiori-hermes-control-b\",\"title\":\"CRASHLAB_SHIORI_HERMES_CONTROL_B\",\"excerpt\":\"\",\"public\":0,\"tags\":[],\"create_archive\":false,\"create_ebook\":false}",
+      "after_interruption": true
+    },
+    {
+      "sequence": 10,
+      "elapsed_ms": 4299,
+      "phase": "control",
+      "kind": "final_state",
+      "state": {
+        "observed": 2,
+        "expected": 2,
+        "records": [
+          {
+            "id": 2,
+            "url": "https://example.com/crashlab-shiori-hermes-control-a",
+            "title": "CRASHLAB_SHIORI_HERMES_CONTROL_A",
+            "excerpt": "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.",
+            "author": "",
+            "public": 0,
+            "created_at": "2026-11-08 17:28:44",
+            "has_content": 0,
+            "modified_at": "2026-11-08 17:28:44"
+          },
+          {
+            "id": 3,
+            "url": "https://example.com/crashlab-shiori-hermes-control-b",
+            "title": "CRASHLAB_SHIORI_HERMES_CONTROL_B",
+            "excerpt": "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.",
+            "author": "",
+            "public": 0,
+            "created_at": "2026-11-08 17:28:45",
+            "has_content": 0,
+            "modified_at": "2026-11-08 17:28:45"
+          }
+        ],
+        "records_available": true,
+        "observer": "sqlite",
+        "db": "/tmp/crashlab-app-18e_82gd/storage/shiori.db"
+      }
+    }
+  ],
+  "baseline": {
+    "observed": 0,
+    "expected": 1,
+    "records": [],
+    "records_available": true,
+    "observer": "sqlite",
+    "db": "/tmp/crashlab-app-18e_82gd/storage/shiori.db"
+  },
+  "state_after_interruption": {
+    "observed": 1,
+    "expected": 1,
+    "records": [
+      {
+        "id": 1,
+        "url": "https://example.com/crashlab-shiori-hermes",
+        "title": "CRASHLAB_SHIORI_HERMES",
+        "excerpt": "",
+        "author": "",
+        "public": 0,
+        "created_at": "2026-11-08 17:28:42",
+        "has_content": 0,
+        "modified_at": "2026-11-08 17:28:42"
+      }
+    ],
+    "records_available": true,
+    "observer": "sqlite",
+    "db": "/tmp/crashlab-app-18e_82gd/storage/shiori.db"
+  },
+  "screenshots": [
+    "/tmp/crashlab-app-18e_82gd/shots/shiori-hermes-repair-2026-11-08T17-28-42-344Z-after-retry.png"
+  ],
+  "records": [
+    {
+      "id": 1,
+      "url": "https://example.com/crashlab-shiori-hermes",
+      "title": "CRASHLAB_SHIORI_HERMES",
+      "excerpt": "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.",
+      "author": "",
+      "public": 0,
+      "created_at": "2026-11-08 17:28:42",
+      "has_content": 0,
+      "modified_at": "2026-11-08 17:28:43"
+    }
+  ],
+  "control": {
+    "observed": 2,
+    "expected": 2,
+    "records": [
+      {
+        "id": 2,
+        "url": "https://example.com/crashlab-shiori-hermes-control-a",
+        "title": "CRASHLAB_SHIORI_HERMES_CONTROL_A",
+        "excerpt": "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.",
+        "author": "",
+        "public": 0,
+        "created_at": "2026-11-08 17:28:44",
+        "has_content": 0,
+        "modified_at": "2026-11-08 17:28:44"
+      },
+      {
+        "id": 3,
+        "url": "https://example.com/crashlab-shiori-hermes-control-b",
+        "title": "CRASHLAB_SHIORI_HERMES_CONTROL_B",
+        "excerpt": "This domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.",
+        "author": "",
+        "public": 0,
+        "created_at": "2026-11-08 17:28:45",
+        "has_content": 0,
+        "modified_at": "2026-11-08 17:28:45"
+      }
+    ],
+    "records_available": true,
+    "observer": "sqlite",
+    "db": "/tmp/crashlab-app-18e_82gd/storage/shiori.db",
+    "ok": true
+  },
+  "returncode": 0,
+  "app_lifecycle": [],
+  "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+  "evidence_path": "/workspace/tmp/crashlab-exp-hermes-data/runs/shiori-hermes-repair-2026-11-08T17-28-42-344Z.json"
+}

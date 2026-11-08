@@ -88,9 +88,9 @@ patch and evidence above are explicitly named to keep those releases distinct.
 
 ## Recovery campaign and fresh-session regression
 
-For the reviewed 0.5.4 evaluator, follow the
+For the reviewed 0.5.6 evaluator, follow the
 [current replay instructions](CURRENT_REPLAY.md) and use
-[`recovery-regression-v054.json`](recovery-regression-v054.json). Its separate
+[`recovery-regression-v056.json`](recovery-regression-v056.json). Its separate
 process import, pristine baseline and retained-patch verification were measured
 with that evaluator. The older bundle below remains historical and may be
 rejected by newer evaluators, as intended.
