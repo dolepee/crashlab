@@ -81,7 +81,7 @@ class CampaignPluginTests(unittest.TestCase):
         if name == "crashlab_campaign_run":
             try: approval.grant_for_tests(name, args)
             except (OSError, ValueError, KeyError, TypeError): pass
-        return json.loads(plugin._handler(name)(args))
+        return json.loads(plugin._handler(name)(args, session_id='test-session'))
 
     def test_read_only_validation_does_not_reset_or_create_evidence(self):
         self.configure(self.target())

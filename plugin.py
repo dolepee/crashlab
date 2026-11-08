@@ -67,15 +67,17 @@ TOOL_SCHEMAS.append(completion_reminder.schema())
 
 
 def _handler(name: str):
-    def invoke(kwargs):
+    def invoke(kwargs, context):
+        session_id = str(context.get("session_id") or "")
+        task_id = str(context.get("task_id") or "")
         if name in {"crashlab_run", "crashlab_compare"}:
-            approval.require_approval(name, kwargs)
+            approval.require_approval(name, kwargs, session_id=session_id, task_id=task_id)
         if name == "crashlab_experiment_watch":
             return completion_reminder.watch(**kwargs)
         if name in {schema["name"] for schema in repair_workflow.schemas()}:
-            return repair_workflow.invoke(name, kwargs)
+            return repair_workflow.invoke(name, kwargs, approval_context=context)
         if name.startswith("crashlab_campaign_"):
-            return campaign_plugin.invoke(name, kwargs)
+            return campaign_plugin.invoke(name, kwargs, approval_context=context)
         if name == "crashlab_validate":
             contract = core.load_contract(kwargs["contract_path"])
             return {"ok": True, "contract": contract}
@@ -86,8 +88,12 @@ def _handler(name: str):
         if name == "crashlab_list":
             return {"contracts": core.list_contracts()}
         raise ValueError(f"unknown CrashLab tool: {name}")
-    def call(args):
-        return json.dumps(invoke(args))
+    def call(args, **context):
+        try:
+            result = invoke(args, context)
+        except approval.ApprovalRequired as exc:
+            result = {"ok": False, "error": str(exc), "needs_approval": True}
+        return json.dumps(result)
     return call
 
 

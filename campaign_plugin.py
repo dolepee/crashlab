@@ -208,7 +208,7 @@ def prepare(args, require_target=False):
     return campaign_id, target_name, hashes, manifest, contracts
 
 
-def invoke(name, args):
+def invoke(name, args, approval_context=None):
     """Hermes JSON-compatible outcomes; never leak an exception as a finding."""
     try:
         if name == "crashlab_campaign_list":
@@ -224,7 +224,10 @@ def invoke(name, args):
             raise CampaignError("INVALID_ARGUMENT", "Unknown campaign tool")
         campaign_id, target_name, hashes, manifest, contracts = prepare(args, name == "crashlab_campaign_run")
         if name == "crashlab_campaign_run":
-            approval.require_approval(name, args)
+            context = approval_context or {}
+            approval.require_approval(name, args,
+                                      session_id=str(context.get('session_id') or ''),
+                                      task_id=str(context.get('task_id') or ''))
         if name == "crashlab_campaign_validate":
             return {"ok": True, "valid": True, "executed": False, "campaign": campaign_id,
                     "target_set": target_name, "cases": len(contracts),

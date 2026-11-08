@@ -13,12 +13,13 @@ or path, or reusing an approval for another plan produces a different digest and
 is denied.
 
 Direct callers (the dashboard backend, a slash command, or an imported function)
-never receive the post-approval hook, so they fail closed.  They must execute
-through the Hermes tool path, where the human gate is available.
+never receive the post-approval hook, so they fail closed unless a human has
+used an explicit operator path. The standalone CLI prompts at a terminal and the
+Desktop dashboard issues a plan-bound, single-use ticket after an operator
+confirmation; neither path silently grants execution.
 """
 from __future__ import annotations
 
-import contextvars
 import hashlib
 import json
 import os
@@ -47,11 +48,9 @@ _READ_ONLY_TOOLS = {
     "crashlab_experiment_import",
 }
 
-_PENDING: contextvars.ContextVar[dict[str, str] | None] = contextvars.ContextVar(
-    "crashlab_approval_pending", default=None
-)
 _LOCK = threading.RLock()
-_LEASES: dict[tuple[str, str], float] = {}
+_REQUESTS: dict[str, float] = {}
+_ONCE_APPROVALS: dict[tuple[str, str], float] = {}
 _SESSION_APPROVALS: dict[tuple[str, str], float] = {}
 _PERMANENT_APPROVALS: set[str] = set()
 LEASE_SECONDS = 300
@@ -176,31 +175,33 @@ def _digest_from_pattern(pattern_key: str) -> str | None:
     return digest if len(digest) == 64 and all(c in "0123456789abcdef" for c in digest) else None
 
 
-def _call_key(tool_call_id: str, digest: str) -> tuple[str, str]:
-    return (tool_call_id or "", digest)
-
-
-def _session_key(session_id: str, session_key: str) -> str:
-    return session_id or session_key or ""
+def _scopes(*, session_id: str = "", task_id: str = "", session_key: str = "") -> list[str]:
+    values = []
+    for value in (session_id, task_id, session_key):
+        if isinstance(value, str) and value and value not in values:
+            values.append(value)
+    return values
 
 
 def _purge(now: float) -> None:
-    for key, expiry in list(_LEASES.items()):
+    for key, expiry in list(_ONCE_APPROVALS.items()):
         if expiry <= now:
-            _LEASES.pop(key, None)
+            _ONCE_APPROVALS.pop(key, None)
     for key, expiry in list(_SESSION_APPROVALS.items()):
         if expiry <= now:
             _SESSION_APPROVALS.pop(key, None)
+    for digest, seen in list(_REQUESTS.items()):
+        if now - seen > LEASE_SECONDS:
+            _REQUESTS.pop(digest, None)
 
 
-def _has_approval(digest: str, *, session_id: str = "", session_key: str = "") -> bool:
+def _has_approval(digest: str, *, scopes: list[str]) -> bool:
     now = time.time()
     with _LOCK:
         _purge(now)
         if digest in _PERMANENT_APPROVALS:
             return True
-        scope = _session_key(session_id, session_key)
-        return bool(scope and (scope, digest) in _SESSION_APPROVALS)
+        return any((scope, digest) in _SESSION_APPROVALS for scope in scopes)
 
 
 def pre_tool_call(tool_name: str, args: dict[str, Any] | None, *,
@@ -213,11 +214,11 @@ def pre_tool_call(tool_name: str, args: dict[str, Any] | None, *,
     except (OSError, ValueError, TypeError, KeyError) as exc:
         return {"action": "block",
                 "message": f"CrashLab cannot approve this execution plan: {exc}"}
-    _PENDING.set({"digest": digest, "tool": tool_name,
-                  "tool_call_id": tool_call_id or task_id or "",
-                  "session_id": session_id or ""})
-    if _has_approval(digest, session_id=session_id):
+    scopes = _scopes(session_id=session_id, task_id=task_id)
+    if _has_approval(digest, scopes=scopes):
         return None
+    with _LOCK:
+        _REQUESTS[digest] = time.time()
     return {
         "action": "approve",
         "message": f"CrashLab will execute {tool_name} for this exact frozen plan.",
@@ -231,49 +232,64 @@ def post_approval_response(command: str = "", description: str = "", pattern_key
                            session_id: str = "", **_: Any) -> None:
     """Record a real host decision; only a human allow choice creates a lease."""
     digest = _digest_from_pattern(pattern_key)
-    if digest is None:
-        return
-    if choice not in {"once", "session", "always"}:
+    if digest is None or choice not in {"once", "session", "always"}:
         return
     now = time.time()
     with _LOCK:
         _purge(now)
-        if choice == "once":
-            _LEASES[_call_key(tool_call_id, digest)] = now + LEASE_SECONDS
-        elif choice == "always":
+        if digest not in _REQUESTS:
+            return
+        if choice == "always":
             _PERMANENT_APPROVALS.add(digest)
-        else:
-            scope = _session_key(session_id, session_key)
-            if scope:
-                _SESSION_APPROVALS[(scope, digest)] = now + LEASE_SECONDS
+            return
+        scopes = _scopes(session_id=session_id, session_key=session_key)
+        if not scopes:
+            scopes = [""]
+        target = _ONCE_APPROVALS if choice == "once" else _SESSION_APPROVALS
+        for scope in scopes:
+            target[(scope, digest)] = now + LEASE_SECONDS
 
 
-def require_approval(tool_name: str, args: dict[str, Any] | None) -> None:
+def require_approval(tool_name: str, args: dict[str, Any] | None, *,
+                     session_id: str = "", task_id: str = "", session_key: str = "") -> None:
     """Fail closed unless this exact plan has a live human-approval lease."""
     if tool_name not in EXECUTION_TOOLS:
         return
     digest = plan_digest(tool_name, args)
-    pending = _PENDING.get() or {}
-    session_id = pending.get("session_id", "")
-    if _has_approval(digest, session_id=session_id):
+    scopes = _scopes(session_id=session_id, task_id=task_id, session_key=session_key)
+    if not scopes:
+        scopes = [""]
+    if _has_approval(digest, scopes=scopes):
         return
-    call_id = pending.get("tool_call_id", "")
+    now = time.time()
     with _LOCK:
-        _purge(time.time())
-        expiry = _LEASES.pop(_call_key(call_id, digest), None)
-    if expiry is not None and expiry > time.time():
-        return
+        _purge(now)
+        for scope in scopes:
+            expiry = _ONCE_APPROVALS.pop((scope, digest), None)
+            if expiry is not None and expiry > now:
+                return
     raise ApprovalRequired(
         "CrashLab execution requires a human approval for this exact case, command, "
-        "path and target. Run it through the Hermes crashlab tool.")
+        "path and target. Run it through the Hermes crashlab tool or the explicit "
+        "CrashLab operator approval flow.")
 
 
 def reset_for_tests() -> None:
     with _LOCK:
-        _LEASES.clear()
+        _REQUESTS.clear()
+        _ONCE_APPROVALS.clear()
         _SESSION_APPROVALS.clear()
         _PERMANENT_APPROVALS.clear()
-    _PENDING.set(None)
+
+
+def grant_for_operator(tool_name: str, args: dict[str, Any], *, session_id: str = "operator") -> str:
+    """Create a short-lived grant after an explicit local operator confirmation."""
+    digest = plan_digest(tool_name, args)
+    now = time.time()
+    with _LOCK:
+        _REQUESTS[digest] = now
+        _ONCE_APPROVALS[(session_id, digest)] = now + LEASE_SECONDS
+    return digest
 
 
 def grant_for_tests(tool_name: str, args: dict[str, Any], *, scope: str = "session") -> str:
@@ -281,11 +297,11 @@ def grant_for_tests(tool_name: str, args: dict[str, Any], *, scope: str = "sessi
     digest = plan_digest(tool_name, args)
     now = time.time()
     with _LOCK:
+        _REQUESTS[digest] = now
         if scope == "always":
             _PERMANENT_APPROVALS.add(digest)
         elif scope == "session":
             _SESSION_APPROVALS[("test-session", digest)] = now + LEASE_SECONDS
         else:
-            _LEASES[_call_key("", digest)] = now + LEASE_SECONDS
-    _PENDING.set({"digest": digest, "tool": tool_name, "tool_call_id": "", "session_id": "test-session"})
+            _ONCE_APPROVALS[("test-session", digest)] = now + LEASE_SECONDS
     return digest

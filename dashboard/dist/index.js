@@ -9,8 +9,8 @@
 
   async function api(path, options) {
     const response = await SDK.authedFetch('/api/plugins/crashlab' + path, {
-      headers: { 'Content-Type': 'application/json' },
-      ...options
+      ...options,
+      headers: { 'Content-Type': 'application/json', ...(options && options.headers) }
     })
     const body = await response.json().catch(() => ({ ok: false, error: 'invalid response' }))
     if (!response.ok) throw new Error(body.detail || body.error || 'request failed')
@@ -189,14 +189,25 @@
       setBusy(true)
       setExperimentError(null)
       setActiveExperiment({ id: row.experiment_id, action })
+      let approvalToken = null
       if (action === 'run') {
+        if (!window.confirm('Approve running this frozen case in the local app?\n\n' + (row.intent || row.experiment_id))) {
+          setBusy(false); setActiveExperiment(null); return
+        }
+        try {
+          approvalToken = (await api('/approval', { method: 'POST', body: JSON.stringify({ kind: 'experiment', experiment_id: row.experiment_id }) })).token
+        } catch (err) {
+          setBusy(false); setActiveExperiment(null); setExperimentError({ id: row.experiment_id, message: String(err.message || err) }); return
+        }
         runningExperiment.current = row.experiment_id
         setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, status: 'RUNNING' } : item))
         setReportData(current => current?.experiment_id === row.experiment_id ? { ...current, current_status: 'RUNNING' } : current)
       }
       try {
         const result = await api('/experiments/' + row.experiment_id + '/' + action, {
-          method: 'POST', body: JSON.stringify(action === 'watch' ? { enabled: !row.watching } : {})
+          method: 'POST',
+          headers: approvalToken ? { 'X-CrashLab-Approval': approvalToken } : {},
+          body: JSON.stringify(action === 'watch' ? { enabled: !row.watching } : {})
         })
         runningExperiment.current = null
         if (action === 'watch') setExperiments(rows => rows.map(item => item.experiment_id === row.experiment_id ? { ...item, watching: !!result.watching } : item))
@@ -241,10 +252,13 @@
 
     async function startRun() {
       if (!selected) return
+      const selectedCase = cases.find(row => row.path === selected)
+      if (!window.confirm('Approve running this saved case in the local app?\n\n' + (selectedCase ? selectedCase.id : selected))) return
       setBusy(true)
       setError('')
       try {
-        await api('/run', { method: 'POST', body: JSON.stringify({ contract_path: selected }) })
+        const token = (await api('/approval', { method: 'POST', body: JSON.stringify({ kind: 'run', contract_path: selected }) })).token
+        await api('/run', { method: 'POST', headers: { 'X-CrashLab-Approval': token }, body: JSON.stringify({ contract_path: selected }) })
         await load()
       } catch (err) {
         setError(String(err.message || err))

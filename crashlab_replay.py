@@ -4,6 +4,19 @@ import json
 import sys
 from pathlib import Path
 import repair_workflow as workflow
+import approval
+
+def _operator_approval(experiment):
+    """Run requires a real terminal confirmation; piped/non-interactive use fails closed."""
+    if not sys.stdin.isatty():
+        raise PermissionError('CrashLab run requires an interactive terminal approval')
+    plan = approval.execution_plan('crashlab_experiment_run', {'experiment_id': experiment})
+    print(json.dumps({'tool': 'crashlab_experiment_run', 'plan': plan}, indent=2), file=sys.stderr)
+    answer = input('Approve this exact frozen execution plan? [y/N] ')
+    if answer.strip().lower() not in ('y', 'yes'):
+        raise PermissionError('CrashLab execution was not approved')
+    approval.grant_for_operator('crashlab_experiment_run', {'experiment_id': experiment}, session_id='cli-operator')
+
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -17,7 +30,9 @@ def main():
         if args.action=='import':
             bindings=json.loads(args.bindings.expanduser().read_text())
             result=workflow.import_experiment(args.bundle,bindings['project_path'],bindings['app_python'])
-        elif args.action=='run':result=workflow.run(args.experiment)
+        elif args.action=='run':
+            _operator_approval(args.experiment)
+            result=workflow.run(args.experiment, approval_context={'session_id':'cli-operator'})
         elif args.action=='report':result=workflow.report(args.experiment,args.run_index)
         else:result=workflow.export_experiment(args.experiment)
         print(json.dumps(result,indent=2))

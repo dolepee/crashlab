@@ -5,11 +5,14 @@ import asyncio
 import json
 import os
 import re
+import secrets
 import sys
 import subprocess
+import threading
+import time
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -24,6 +27,57 @@ RUN_ID = re.compile(r"^[A-Za-z0-9._-]{1,120}$")
 
 class RunRequest(BaseModel):
     contract_path: str
+
+
+class ApprovalRequest(BaseModel):
+    kind: str
+    contract_path: str | None = None
+    experiment_id: str | None = None
+
+
+_TICKETS: dict[str, tuple[str, dict, str, float]] = {}
+_TICKET_LOCK = threading.Lock()
+_TICKET_SECONDS = 120
+
+
+def _resolve_case(raw: str) -> Path:
+    allowed = {path.resolve() for path in _case_paths()}
+    path = Path(raw).expanduser().resolve()
+    if path not in allowed:
+        raise HTTPException(status_code=400, detail="contract must be in the case directory")
+    return path
+
+
+def _plan_for(kind: str, contract_path: str | None, experiment_id: str | None):
+    if kind == "run":
+        path = _resolve_case(contract_path or "")
+        args = {"contract_path": str(path)}
+        return "crashlab_run", args, approval.plan_digest("crashlab_run", args)
+    if kind == "experiment":
+        if not isinstance(experiment_id, str):
+            raise HTTPException(status_code=400, detail="experiment_id is required")
+        args = {"experiment_id": experiment_id}
+        try:
+            digest = approval.plan_digest("crashlab_experiment_run", args)
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return "crashlab_experiment_run", args, digest
+    raise HTTPException(status_code=400, detail="unknown approval kind")
+
+
+def _consume_ticket(token: str | None, tool: str, args: dict) -> None:
+    if not token:
+        raise HTTPException(status_code=403, detail="explicit operator approval is required")
+    now = time.time()
+    with _TICKET_LOCK:
+        entry = _TICKETS.pop(token, None)
+    if entry is None:
+        raise HTTPException(status_code=403, detail="approval is missing, used or expired")
+    saved_tool, saved_args, digest, expiry = entry
+    if expiry <= now or saved_tool != tool or saved_args != args:
+        raise HTTPException(status_code=403, detail="approval does not match this exact execution plan")
+    if approval.plan_digest(tool, args) != digest:
+        raise HTTPException(status_code=403, detail="execution plan changed after approval")
 
 
 def _read(path: Path) -> dict:
@@ -93,22 +147,36 @@ async def contracts() -> dict:
     return {"contracts": list_contracts()}
 
 
+@router.post("/approval")
+async def create_approval(request: ApprovalRequest) -> dict:
+    """Issue a short-lived, single-use ticket after an explicit operator action.
+
+    The ticket is bound to the exact execution plan and is consumed by one run.
+    It does not replace the Hermes tool approval; it restores the human-facing
+    dashboard/CLI workflow without an unconditional bypass.
+    """
+    tool, args, digest = _plan_for(request.kind, request.contract_path, request.experiment_id)
+    token = secrets.token_urlsafe(32)
+    with _TICKET_LOCK:
+        _TICKETS[token] = (tool, args, digest, time.time() + _TICKET_SECONDS)
+    return {"token": token, "expires_in": _TICKET_SECONDS, "tool": tool, "plan_digest": digest}
+
+
 @router.post("/run")
-async def run(request: RunRequest) -> dict:
-    """Start one saved case through the same core path as the agent tool."""
+async def run(request: RunRequest, x_crashlab_approval: str | None = Header(default=None)) -> dict:
+    """Start one saved case after an explicit, plan-bound operator approval."""
     from crashlab_core import run_and_persist
 
-    allowed = {path.resolve() for path in _case_paths()}
-    path = Path(request.contract_path).expanduser().resolve()
-    if path not in allowed:
-        raise HTTPException(status_code=400, detail="contract must be in the case directory")
+    path = _resolve_case(request.contract_path)
+    args = {"contract_path": str(path)}
+    _consume_ticket(x_crashlab_approval, "crashlab_run", args)
+    token = x_crashlab_approval or ""
     try:
-        approval.require_approval("crashlab_run", {"contract_path": str(path)})
+        approval.grant_for_operator("crashlab_run", args, session_id="dashboard:" + token)
+        approval.require_approval("crashlab_run", args, session_id="dashboard:" + token)
         return await asyncio.to_thread(run_and_persist, str(path))
-    except Exception as exc:
-        if isinstance(exc, approval.ApprovalRequired):
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        raise
+    except approval.ApprovalRequired as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 class WatchRequest(BaseModel):
@@ -144,17 +212,24 @@ async def experiments() -> dict:
 
 
 @router.post('/experiments/{experiment_id}/run')
-async def experiment_run(experiment_id: str) -> dict:
+async def experiment_run(experiment_id: str, x_crashlab_approval: str | None = Header(default=None)) -> dict:
     import repair_workflow as workflow
+    args = {"experiment_id": experiment_id}
     try:
-        approval.require_approval("crashlab_experiment_run", {"experiment_id": experiment_id})
-        return await asyncio.to_thread(workflow.run, experiment_id)
-    except Exception as exc:
-        if isinstance(exc, approval.ApprovalRequired):
-            raise HTTPException(status_code=403, detail=str(exc)) from exc
-        if isinstance(exc, (OSError, ValueError, KeyError, subprocess.SubprocessError)):
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
-        raise
+        approval.plan_digest("crashlab_experiment_run", args)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    _consume_ticket(x_crashlab_approval, "crashlab_experiment_run", args)
+    token = x_crashlab_approval or ""
+    try:
+        approval.grant_for_operator("crashlab_experiment_run", args, session_id="dashboard:" + token)
+        approval.require_approval("crashlab_experiment_run", args, session_id="dashboard:" + token)
+        return await asyncio.to_thread(workflow.run, experiment_id,
+                                       approval_context={"session_id": "dashboard:" + token})
+    except approval.ApprovalRequired as exc:
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post('/experiments/{experiment_id}/watch')

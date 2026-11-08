@@ -433,9 +433,9 @@ def schemas():
             ('crashlab_experiment_status','Check whether experiment evidence is current for the app source. Edits make old evidence STALE; rerun before claiming verification.')]]]
 
 
-def invoke(name, args):
+def invoke(name, args, approval_context=None):
     if name == 'crashlab_prepare': return prepare(**args)
-    if name == 'crashlab_experiment_run': return run(**args)
+    if name == 'crashlab_experiment_run': return run(**args, approval_context=approval_context)
     if name == 'crashlab_experiment_status': return status(**args)
     if name == 'crashlab_experiment_report': return report(**args)
     if name == 'crashlab_experiment_export': return export_experiment(**args)
@@ -443,8 +443,12 @@ def invoke(name, args):
     raise ValueError(name)
 
 
-def run(experiment_id):
-    approval.require_approval('crashlab_experiment_run', {'experiment_id': experiment_id})
+def run(experiment_id, *, approval_context=None):
+    context = approval_context or {}
+    approval.require_approval(
+        'crashlab_experiment_run', {'experiment_id': experiment_id},
+        session_id=str(context.get('session_id') or ''),
+        task_id=str(context.get('task_id') or ''))
     # One test process owns an experiment; avoid overlapping app executions and lost history.
     with (directory(experiment_id) / '.run.lock').open('a') as lock:
         try:

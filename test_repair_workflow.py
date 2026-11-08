@@ -19,7 +19,7 @@ class WorkflowTests(unittest.TestCase):
         self.case['app']['start']['cwd']=str(self.project)
     def run_case(self, eid):
         approval.grant_for_tests('crashlab_experiment_run', {'experiment_id': eid})
-        return workflow.run(eid)
+        return workflow.run(eid, approval_context={'session_id': 'test-session'})
     def prepare(self):
         return workflow.prepare(str(self.project),'Retry saves one order',self.case)['experiment_id']
     def result(self, passed):
