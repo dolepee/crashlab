@@ -143,9 +143,12 @@ async function send(retry=false) {
   const params = new URLSearchParams(location.search);
   const key = retry && params.has('change') ? 'changed' : 'stable';
   const intent = params.has('control') ? 'control-' + crypto.randomUUID() : params.has('numeric') ? 1 : 'intent';
+  const payload = {intent_key:intent, item:'widget', mode:params.get('mode') || ''};
+  if (params.has('unsafeid')) payload.id = 9007199254740993;
+  if (params.has('stringid')) payload.id = '9007199254740993';
   const raw = params.has('raw')
     ? '{"intent_key":"intent","item":"widget","id":9007199254740993}'
-    : JSON.stringify({intent_key:intent,item:'widget',mode:params.get('mode') || ''});
+    : JSON.stringify(payload);
   try {
     const response = await fetch('/create' + location.search, {
       method: 'POST',
@@ -174,8 +177,6 @@ document.getElementById('send').onclick = () => send(false);
 class RecoveryContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        if not os.environ.get('CHROME_PATH'):
-            raise unittest.SkipTest('CHROME_PATH is required')
         cls.temp = tempfile.TemporaryDirectory()
         cls.db = Path(cls.temp.name) / 'orders.db'
         Handler.db = str(cls.db)
@@ -196,7 +197,8 @@ class RecoveryContractTests(unittest.TestCase):
         cls.temp.cleanup()
 
     def case(self, *, mode='', statuses=(201,), headers=None, response_id=True,
-             unsafe_state=False, control_state=None, raw=False, change=False,
+             unsafe_state=False, control_state=None, control_unsafe=False, control_string=False,
+             raw=False, change=False,
              uuid=False, zero=False, after_retry_goto=False, after_retry_post=False,
              formjson=False):
         query = []
@@ -239,9 +241,14 @@ class RecoveryContractTests(unittest.TestCase):
         if headers is not None:
             case['recovery']['identity_headers'] = headers
         if control_state:
+            control_path = '/?control=1'
+            if control_unsafe:
+                control_path += '&unsafeid=1'
+            elif control_string:
+                control_path += '&stringid=1'
             case['control'] = {
                 'journey': [
-                    {'action': 'goto', 'path': '/?control=1'},
+                    {'action': 'goto', 'path': control_path},
                     {'action': 'click', 'selector': '#send'},
                     {'action': 'wait_for_text', 'text': 'Saved'},
                     {'action': 'reload'},
@@ -294,6 +301,28 @@ class RecoveryContractTests(unittest.TestCase):
         path.write_text(json.dumps(case))
         result = core.run_contract(path)
         self.assertFalse(result['ok'], result)
+
+    def test_inherited_request_field_mapping_is_rejected_with_sqlite_state(self):
+        case = self.case()
+        case['state'] = {
+            'mode': 'sqlite', 'db': str(self.db), 'table': 'orders',
+            'where': "item='widget'", 'expect': 1,
+            'record_fields': {'item': 'widget'},
+            'request_fields': {'constructor': 'constructor'},
+        }
+        path = Path(self.temp.name) / 'inherited-sqlite.json'
+        path.write_text(json.dumps(case))
+        result = core.run_contract(path)
+        self.assertFalse(result['ok'], result)
+
+    def test_inherited_reconciliation_initial_field_is_rejected(self):
+        case = self.reconciliation_case()
+        case['recovery']['initial_field'] = 'constructor'
+        path = Path(self.temp.name) / 'reconcile-initial-constructor.json'
+        path.write_text(json.dumps(case))
+        result = core.run_contract(path)
+        self.assertFalse(result['ok'], result)
+        self.assertEqual(result['recovery']['confirmations'], 0)
 
     def test_unrelated_navigation_cannot_rescue_retry(self):
         for mode, failed in (('503', 0), ('reset', 1)):
@@ -359,6 +388,37 @@ class RecoveryContractTests(unittest.TestCase):
         result = self.run_case(control_state='/state?unsafe=1')
         self.assertFalse(result['ok'], result)
         self.assertEqual(result['status'], 'ERROR')
+
+    def test_control_request_unsafe_number_invalidates_measurement(self):
+        # Primary request and retry are safe and pass their paired reply/record
+        # identity; only the two control writes carry an unsafe numeric value.
+        # Count/content control assertions must not turn that into PASS.
+        result = self.run_case(control_state='/state', control_unsafe=True)
+        self.assertFalse(result['ok'], result)
+        self.assertEqual(result['status'], 'INVALID')
+        self.assertFalse(result['scenario']['valid'], result)
+        self.assertIn('unsupported numeric data', result['scenario']['invalid_reason'])
+        control = result['control']
+        self.assertTrue(control['ok'], 'the control count/content assertions still pass')
+        self.assertTrue(control['invalid_measurement'], control)
+        unsafe_writes = [event for event in result['network']
+                         if event['phase'] == 'control' and event['kind'] == 'write'
+                         and event.get('body_error')]
+        self.assertEqual(len(unsafe_writes), 2, unsafe_writes)
+        self.assertIn('unsafe integer', unsafe_writes[0]['body_error'])
+        self.assertFalse(core._completed_assertion(result, passed=False), result)
+
+    def test_control_safe_and_string_identifiers_still_pass(self):
+        for kwargs, label in (({}, 'safe numeric control ids'),
+                              ({'control_string': True}, 'string control ids')):
+            with self.subTest(label):
+                result = self.run_case(control_state='/state', **kwargs)
+                self.assertTrue(result['ok'], result)
+                self.assertEqual(result['status'], 'PASS')
+                self.assertTrue(result['scenario']['valid'], result)
+                control = result['control']
+                self.assertFalse(control['invalid_measurement'], control)
+                self.assertTrue(control['ok'], control)
 
     def test_unsafe_request_body_is_rejected(self):
         result = self.run_case(raw=True)

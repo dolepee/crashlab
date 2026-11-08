@@ -749,7 +749,10 @@ if (require.main === module) {
                   && Number.isFinite(faultState?.observed) && faultState.observed >= 1 && faultContentsValid),
           }
         : { matched: true, valid: true };
-    if (recovery.invalid_measurement === true) scenario.valid = false;
+    if (recovery.invalid_measurement === true) {
+      scenario.valid = false;
+      scenario.invalid_reason = recovery.reason;
+    }
     let control = null;
     if (contract.control) {
       await reset();
@@ -759,9 +762,25 @@ if (require.main === module) {
       recordEvent('baseline', { state: controlBaseline });
       if (contract.fault && controlBaseline.observed !== 0) throw new Error('INVALID: control requires an empty scoped baseline');
       await run(contract.control.journey);
+      await page.waitForTimeout(50);
+      await Promise.allSettled(pendingResponses);
       const checked = await readState(contract.control.state);
       recordEvent('final_state', { state: checked });
-      control = { ...checked, ok: matches(checked, contract.control.state) };
+      // A control that carries unsupported numeric data has not measured a
+      // legitimate-use boundary, whatever its count/content assertions say.
+      // Every control write is captured by the fault-route handler, so the
+      // parsing error is available after the journey has finished.
+      const controlWrites = network.filter(event => event.phase === 'control' && event.kind === 'write');
+      const controlUnsafeRequest = controlWrites.some(event => Boolean(event.body_error));
+      control = { ...checked, ok: matches(checked, contract.control.state),
+        write_requests: controlWrites.length,
+        unsafe_request: controlUnsafeRequest,
+        invalid_measurement: controlUnsafeRequest };
+      if (controlUnsafeRequest) {
+        control.reason = 'A control request contained unsupported numeric data; CrashLab rejects it before it can be rounded.';
+        scenario.valid = false;
+        scenario.invalid_reason = control.reason;
+      }
     }
     const result = {
       contract: contract.id,
