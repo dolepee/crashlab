@@ -176,6 +176,9 @@ def register(ctx):
         ctx.register_hook("pre_verify", completion_reminder.pre_verify)
         ctx.register_hook("pre_tool_call", approval.pre_tool_call)
         ctx.register_hook("post_approval_response", approval.post_approval_response)
+    register_middleware = getattr(ctx, "register_middleware", None)
+    if register_middleware is not None:
+        register_middleware("tool_execution", approval.tool_execution_middleware)
     from pathlib import Path
     if hasattr(ctx, "register_skill"):
         ctx.register_skill("crashlab", Path(__file__).parent / "skills" / "crashlab" / "SKILL.md", description="Reproduce and verify a local app repair with frozen assertions and current source evidence.")

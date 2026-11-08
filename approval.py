@@ -20,6 +20,7 @@ confirmation; neither path silently grants execution.
 """
 from __future__ import annotations
 
+import contextvars
 import copy
 import hashlib
 import json
@@ -276,27 +277,42 @@ def _retire_snapshot(store: dict, tool_name: str, args: dict[str, Any], *,
         store.pop(key, None)
 
 
+# The host's public tool-execution middleware seam supplies the trusted call id
+# around the real dispatch. Keep that identity in this plugin, not in a private
+# Hermes module: the catalog only permits public plugin surfaces.
+_TOOL_CALL_ID: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "crashlab_tool_call_id", default="")
+
+
+def tool_execution_middleware(*, args: dict[str, Any], next_call, tool_call_id: str = "", **_kwargs: Any):
+    """Bind the host-supplied call id around the downstream tool dispatch.
+
+    ``tool_call_id`` arrives from Hermes' trusted ids, never from model arguments.
+    The token is reset even when the tool raises, and an absent id deliberately
+    clears the value so a nested call cannot inherit an unrelated identity.
+    """
+    token = _TOOL_CALL_ID.set(str(tool_call_id or ""))
+    try:
+        return next_call(args)
+    finally:
+        _TOOL_CALL_ID.reset(token)
+
+
 def host_call_id(context: dict[str, Any] | None = None) -> str:
     """The originating tool call id the host exposes to a handler.
 
     Hermes passes ``task_id`` and ``session_id`` to a tool handler but not the
-    call id; for the duration of the dispatch it binds that identity in its
-    approval-observability context, which the host's own modules read. Missing
-    identity stays empty so callers fall back to the unambiguous-single-grant
-    rule instead of guessing between concurrent calls.
+    call id; the public tool-execution middleware binds it for the duration of
+    the real dispatch. Missing identity stays empty so callers fall back to the
+    unambiguous-single-grant rule instead of guessing between concurrent calls.
     """
     values: list[Any] = []
     if isinstance(context, dict):
         values.append(context.get("tool_call_id"))
     try:
-        from tools.approval_context import _approval_tool_call_id  # type: ignore
+        values.append(_TOOL_CALL_ID.get())
     except Exception:
-        _approval_tool_call_id = None
-    if _approval_tool_call_id is not None:
-        try:
-            values.append(_approval_tool_call_id.get())
-        except Exception:
-            pass
+        pass
     for value in values:
         if isinstance(value, str) and value:
             return value
