@@ -138,7 +138,7 @@ def _slash(raw_args: str) -> str:
     if not args or args[0] in ("status", "latest"):
         run = core.latest_run()
         if not run:
-            return "CrashLab: no saved run yet. Use /crashlab run <case.json>."
+            return "CrashLab: no saved run yet. Start a new approved run with the crashlab_run tool."
         state = _verdict(run)
         return (f"CrashLab · last measured {state} · {run.get('contract', '?')}\n"
                 f"{run.get('observed', '?')} observed / {run.get('expected', '?')} expected\n"
@@ -167,7 +167,7 @@ def _slash(raw_args: str) -> str:
     if args[0] in ("help", "?"):
         return ("/crashlab — latest result\n"
                 "/crashlab runs — recent runs\n"
-                "/crashlab run <case.json> — request the approval-gated run (the tool shows the plan)")
+                "/crashlab run <case.json> — consume an existing approval grant; otherwise directs to crashlab_run")
     return "Unknown CrashLab command. Try /crashlab help."
 
 
@@ -188,5 +188,5 @@ def register(ctx):
     register_command = getattr(ctx, "register_command", None)
     if register_command is not None:
         register_command("crashlab", _slash,
-                         description="Show saved evidence; request a case run through the approval tool.",
-                         args_hint="[status|runs|run <case.json> (approval required)]")
+                         description="Show saved evidence; slash commands do not acquire execution approval.",
+                         args_hint="[status|runs|run <case.json> (existing grant only)]")

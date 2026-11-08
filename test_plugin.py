@@ -55,6 +55,18 @@ class FirstUseTests(unittest.TestCase):
         self.assertIn('Usage:', plugin._slash('run "unclosed'))
         self.assertIn('Usage:', plugin._slash('run /my project/case.json'))
 
+    def test_slash_help_does_not_advertise_approval_acquisition(self):
+        text = plugin._slash('help')
+        self.assertIn('existing approval grant', text)
+        self.assertIn('crashlab_run', text)
+        self.assertNotIn('request the approval-gated run', text)
+
+    def test_slash_empty_status_directs_to_the_approval_tool(self):
+        with patch.object(plugin.core, 'latest_run', return_value=None):
+            text = plugin._slash('status')
+        self.assertIn('crashlab_run', text)
+        self.assertNotIn('/crashlab run <case.json>', text)
+
     def test_slash_preserves_error_and_invalid_statuses(self):
         with patch.object(plugin.core, 'latest_run', return_value={'ok': False, 'error': 'setup failed'}):
             self.assertIn('ERROR', plugin._slash('status'))

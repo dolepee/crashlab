@@ -53,8 +53,10 @@ function assertSafeJsonNumbers(text, where) {
         }
       } else {
         const value = Number(literal);
-        if (Number.isFinite(value) && Number.isInteger(value)
-            && Math.abs(value) > Number.MAX_SAFE_INTEGER) {
+        if (!Number.isFinite(value)) {
+          throw new Error(`${where}: non-finite number ${literal}; use a finite number or decimal string`);
+        }
+        if (Number.isInteger(value) && Math.abs(value) > Number.MAX_SAFE_INTEGER) {
           throw new Error(`${where}: unsafe integer ${literal}; use a decimal string`);
         }
       }
@@ -75,14 +77,23 @@ function sha256(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
 }
 
-function canonicalIdentity(value) {
-  if (typeof value === 'number') return Number.isSafeInteger(value) ? String(value) : null;
-  if (typeof value !== 'string') return null;
-  const text = value.trim();
-  if (!/^-?\d+$/.test(text)) return null;
-  const sign = text.startsWith('-') ? '-' : '';
-  const digits = text.replace(/^-/, '').replace(/^0+(?=\d)/, '');
-  return sign + digits;
+function identityKey(value) {
+  if (typeof value === 'string') return value.length ? `string:${value}` : null;
+  if (typeof value === 'number') return Number.isSafeInteger(value) ? `number:${String(value)}` : null;
+  return null;
+}
+
+function identityValue(value) {
+  if (typeof value === 'string' || typeof value === 'number') return value;
+  return null;
+}
+
+function own(object, key) {
+  return Boolean(object) && Object.prototype.hasOwnProperty.call(object, key);
+}
+
+function pathValue(value, dotted) {
+  return String(dotted).split('.').reduce((current, key) => own(current, key) ? current[key] : undefined, value);
 }
 
 // Only a leading transport cause or a structured error code can prove a
@@ -111,6 +122,7 @@ function recoveryTransportCause(err) {
   return null;
 }
 
+if (require.main === module) {
 (async () => {
   const contractPath = process.argv[2];
   if (!contractPath) throw new Error('contract path required');
@@ -157,6 +169,7 @@ function recoveryTransportCause(err) {
   const reconciliations = [];
   const responseEvents = [];
   const pendingResponses = [];
+  const retryAttempts = [];
 
   function identityHeaderEvidence(request) {
     const names = recoverySpec.identity_headers || [];
@@ -183,14 +196,42 @@ function recoveryTransportCause(err) {
     });
   }
 
+  function sameRequest(left, right) {
+    if (!left || !right) return false;
+    if (left === right) return true;
+    try {
+      return left.method() === right.method()
+        && left.url() === right.url()
+        && left.resourceType() === right.resourceType()
+        && left.frame() === right.frame();
+    } catch { return false; }
+  }
+
+  function retryAttemptFor(request) {
+    for (const attempt of retryAttempts) {
+      let current = request;
+      for (let depth = 0; current && depth < 20; depth += 1) {
+        if (sameRequest(current, attempt.request)) return attempt;
+        current = current.redirectedFrom();
+      }
+    }
+    return null;
+  }
+
   function requestEvidence(request) {
     const raw = request.postData();
     let body = null;
     let bodyError = null;
     if (raw) {
       const type = String(request.headers()['content-type'] || '');
-      if (/json/i.test(type) || /^\s*[\[{]/.test(raw)) {
+      const looksJson = /^\s*[\[{]/.test(raw);
+      if (/json/i.test(type) || looksJson) {
+        // A JSON-looking body must not fall back to form parsing after a
+        // syntax or unsafe-integer failure; that would hide the rejected value.
         try { body = parseJson(raw, 'request body'); }
+        catch (err) { bodyError = String(err); }
+      } else if (/application\/x-www-form-urlencoded/i.test(type)) {
+        try { body = Object.fromEntries(new URLSearchParams(raw)); }
         catch (err) { bodyError = String(err); }
       }
     }
@@ -217,17 +258,16 @@ function recoveryTransportCause(err) {
     const request = response.request();
     const resourceType = request.resourceType();
     if (!['document', 'xhr', 'fetch'].includes(resourceType)) return;
+    const attempt = retryAttemptFor(request);
+    if (!attempt) return;
     const redirectedFrom = request.redirectedFrom();
-    const chain = request.url() === initialRequest.url
-      || resourceType === 'document'
-      || Boolean(redirectedFrom && redirectedFrom.url() === initialRequest.url);
-    if (!chain) return;
     const event = recordEvent('response', {
       status: response.status(),
       url: response.url(),
       method: request.method(),
       resource_type: resourceType,
       redirected_from: redirectedFrom ? redirectedFrom.url() : null,
+      retry_write_sequence: attempt.event.sequence,
       retry_chain: true,
       terminal: response.status() < 300 || response.status() >= 400,
     });
@@ -276,6 +316,7 @@ function recoveryTransportCause(err) {
         // evidence that recovery did not complete, not a runner failure. Keep
         // the failed request event and let the measured state/control verdict
         // decide the outcome.
+        retryAttempts.push({ request: route.request(), event });
         try {
           const response = await route.fetch({ maxRedirects: 0, timeout: retryFetchTimeoutMs });
           event.status = response.status();
@@ -510,14 +551,14 @@ function recoveryTransportCause(err) {
     if (state.observed !== state.expected) return false;
     const fields = spec.record_fields || {};
     if (Object.keys(fields).length && state.records.length !== state.observed) return false;
-    if (!state.records.every(row => Object.entries(fields).every(([key, value]) => row[key] === value))) return false;
+    if (!state.records.every(row => Object.entries(fields).every(([key, value]) => own(row, key) && row[key] === value))) return false;
     if (spec.request_fields) {
       if (!requests.length || requests.some(body => !body || typeof body !== 'object')) return false;
       const mapping = Object.entries(spec.request_fields);
-      const expected = requests.map(body => mapping.map(([, key]) => body[key]));
+      const expected = requests.map(body => mapping.map(([, key]) => own(body, key) ? body[key] : undefined));
       if (expected.some(values => values.some(value => value === undefined || value === null || value === ''))) return false;
       const signatures = new Set(expected.map(values => JSON.stringify(values)));
-      const actual = state.records.map(row => JSON.stringify(mapping.map(([column]) => row[column])));
+      const actual = state.records.map(row => JSON.stringify(mapping.map(([column]) => own(row, column) ? row[column] : undefined)));
       if (!allowDuplicates && (actual.length !== signatures.size || new Set(actual).size !== actual.length)) return false;
       if ([...signatures].some(signature => !actual.includes(signature))) return false;
       if (actual.some(signature => !signatures.has(signature))) return false;
@@ -551,7 +592,9 @@ function recoveryTransportCause(err) {
         && event.failed_recovery_transport === true
         && event.method === initialRequest?.method && event.url === initialRequest?.url && sameBody(event)
         && identityHeadersMatch(initialRequest?.identity_headers, event.identity_headers));
-      const terminal = responseEvents.filter(event => event.retry_chain && event.terminal).at(-1) || null;
+      const matchingSequences = new Set(matchingWrites.map(event => event.sequence));
+      const terminal = responseEvents.filter(event => event.retry_chain && event.terminal
+        && matchingSequences.has(event.retry_write_sequence)).at(-1) || null;
       const terminalOK = Boolean(terminal && successStatuses.includes(terminal.status));
       const unsafeRequest = Boolean(initialRequest?.body_error) || writes.some(event => event.body_error);
       const unsafeResponse = responseEvents.some(event => event.json_error);
@@ -561,17 +604,18 @@ function recoveryTransportCause(err) {
         reason: 'No response identity predicate configured; terminal status and declared journey/state assertions are the boundary.',
       };
       if (recoverySpec.response_id_path && recoverySpec.record_id_field) {
-        const ids = primary.records.map(row => canonicalIdentity(row[recoverySpec.record_id_field]));
-        const rawReplyId = recoverySpec.response_id_path.split('.').reduce((value, key) => value?.[key], terminal?.json);
-        const replyId = canonicalIdentity(rawReplyId);
+        const ids = primary.records.map(row => own(row, recoverySpec.record_id_field)
+          ? identityValue(row[recoverySpec.record_id_field]) : null);
+        const rawReplyId = pathValue(terminal?.json, recoverySpec.response_id_path);
+        const replyId = identityKey(rawReplyId);
         const ok = Boolean(terminal?.json && replyId !== null && ids.length === 1
-          && ids[0] !== null && ids[0] === replyId);
+          && identityKey(ids[0]) !== null && identityKey(ids[0]) === replyId);
         responseIdentity = {
           configured: true,
           ok,
           response_id_path: recoverySpec.response_id_path,
           record_id_field: recoverySpec.record_id_field,
-          response_id: rawReplyId === undefined || rawReplyId === null ? null : String(rawReplyId),
+          response_id: rawReplyId === undefined || rawReplyId === null ? null : rawReplyId,
           record_ids: ids,
           reason: ok
             ? 'The terminal JSON reply ID matched the single observed record ID.'
@@ -620,17 +664,18 @@ function recoveryTransportCause(err) {
         initial_request: initialRequest,
         reason };
     }
-    const initialIdentityValue = initialRequest?.body?.[recoverySpec.initial_field];
-    const initialIdentity = typeof initialIdentityValue === 'string' || typeof initialIdentityValue === 'number'
-      ? String(initialIdentityValue) : null;
-    const ids = primary.records.map(row => canonicalIdentity(row[recoverySpec.record_id_field]));
+    const initialIdentityValue = own(initialRequest?.body, recoverySpec.initial_field)
+      ? initialRequest.body[recoverySpec.initial_field] : null;
+    const initialIdentity = identityValue(initialIdentityValue);
+    const ids = primary.records.map(row => own(row, recoverySpec.record_id_field)
+      ? identityValue(row[recoverySpec.record_id_field]) : null);
     const confirmations = reconciliations.filter(event => {
-      const identityValue = new URL(event.url).searchParams.get(recoverySpec.query_parameter);
-      const identity = identityValue === null ? null : String(identityValue);
-      const id = canonicalIdentity(recoverySpec.response_id_path.split('.').reduce((v, key) => v?.[key], event.response));
+      const identityText = new URL(event.url).searchParams.get(recoverySpec.query_parameter);
+      const identity = identityText === null ? null : identityText;
+      const id = identityKey(pathValue(event.response, recoverySpec.response_id_path));
       return initialIdentity !== null && identity !== null && identity === initialIdentity
         && successStatuses.includes(event.status)
-        && id !== null && ids.length === 1 && ids[0] !== null && ids[0] === id;
+        && id !== null && ids.length === 1 && identityKey(ids[0]) !== null && identityKey(ids[0]) === id;
     });
     return { mode: 'reconcile', ok: confirmations.length > 0, confirmations: confirmations.length,
       success_statuses: successStatuses,
@@ -719,3 +764,6 @@ function recoveryTransportCause(err) {
   console.log(JSON.stringify({ ok: false, status: 'ERROR', error: 'Browser runner startup failed: ' + String(err) + '. Check Node dependencies, local Chrome/Chromium and CHROME_PATH.' }, null, 2));
   process.exit(3);
 });
+}
+
+module.exports = { parseJson, assertSafeJsonNumbers };

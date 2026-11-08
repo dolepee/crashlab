@@ -281,12 +281,10 @@ class BrowserIntegrity(unittest.TestCase):
                 case['fault']['route']='**/create'
                 case['recovery'].pop('response_id_path', None)
                 case['recovery'].pop('record_id_field', None)
-                case['state'].pop('request_fields', None)
                 case['journey']=[{'action':'goto','path':'/'},{'action':'fill','selector':'#item','value':'primary'},{'action':'click','selector':'#submit'},{'action':'wait_for_fault'},{'action':'reload'},{'action':'wait_for_url','pattern':'**/done'}]
                 case['state'].update(where="item='primary'",record_fields={'item':'primary'})
                 create=[{'action':'goto','path':'/'},{'action':'fill','selector':'#item','value':'control'},{'action':'click','selector':'#submit'},{'action':'wait_for_url','pattern':'**/done'}]
                 case['control']['journey']=create+copy.deepcopy(create)
-                case['control']['state'].pop('request_fields', None)
                 case['control']['state'].update(where="item='control'",record_fields={'item':'control'})
                 result=self.run_case(case=case)
                 self.assertEqual(result.get('observed'),observed,result)

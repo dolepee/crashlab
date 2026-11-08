@@ -2,6 +2,7 @@
 import json
 import os
 import sqlite3
+import subprocess
 import tempfile
 import threading
 import unittest
@@ -16,6 +17,7 @@ BROWSER = os.environ.get('CRASHLAB_BROWSER_TESTS') == '1'
 
 class Handler(BaseHTTPRequestHandler):
     db = None
+    seen_reset = None
 
     def log_message(self, *args):
         pass
@@ -42,8 +44,9 @@ class Handler(BaseHTTPRequestHandler):
             if query.get('unsafe'):
                 self._json(200, b'{"orders":[{"id":9007199254740993,"intent_key":"intent","item":"widget"}]}')
                 return
+            table = 'orders_uuid' if query.get('uuid') else 'orders_zero' if query.get('zero') else 'orders'
             with sqlite3.connect(self.db) as con:
-                rows = con.execute('SELECT id,intent_key,item FROM orders ORDER BY id').fetchall()
+                rows = con.execute(f'SELECT id,intent_key,item FROM {table} ORDER BY id').fetchall()
             self._json(200, {'orders': [dict(zip(('id', 'intent_key', 'item'), row)) for row in rows]})
         elif parsed.path == '/done':
             query = parse_qs(parsed.query)
@@ -79,27 +82,46 @@ class Handler(BaseHTTPRequestHandler):
         intent = str(body.get('intent_key') or 'intent')
         item = str(body.get('item') or 'widget')
         mode = parse_qs(parsed.query).get('mode', [body.get('mode') or ''])[0]
+        query = parse_qs(parsed.query)
+        table = 'orders_uuid' if query.get('uuid') else 'orders_zero' if query.get('zero') else 'orders'
         with sqlite3.connect(self.db) as con:
-            con.execute('CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, intent_key TEXT UNIQUE, item TEXT)')
-            con.execute('INSERT OR IGNORE INTO orders(intent_key,item) VALUES (?,?)', (intent, item))
-            row = con.execute('SELECT id FROM orders WHERE intent_key=?', (intent,)).fetchone()
-            record_id = row[0] if row else 1
+            if table == 'orders':
+                con.execute('INSERT OR IGNORE INTO orders(intent_key,item) VALUES (?,?)', (intent, item))
+                row = con.execute('SELECT id FROM orders WHERE intent_key=?', (intent,)).fetchone()
+                record_id = row[0] if row else 1
+            elif table == 'orders_uuid':
+                record_id = '123e4567-e89b-12d3-a456-426614174000'
+                con.execute('INSERT OR IGNORE INTO orders_uuid(id,intent_key,item) VALUES (?,?,?)', (record_id, intent, item))
+            else:
+                record_id = '0001'
+                con.execute('INSERT OR IGNORE INTO orders_zero(id,intent_key,item) VALUES (?,?,?)', (record_id, intent, item))
+        reply_id = '1' if table == 'orders_zero' else record_id
+        if mode == 'reset':
+            marker = (intent, 'reset')
+            if marker not in self.seen_reset:
+                self.seen_reset.add(marker)
+                self._json(201, {'id': reply_id})
+            else:
+                self.connection.close()
+            return
         if mode == '202':
             self._json(202, {'error': 'pending'})
         elif mode == '200':
-            self._json(200, {'id': record_id})
+            self._json(200, {'id': reply_id})
         elif mode.startswith('302'):
             self.send_response(302)
             self.send_header('Location', '/done?id=%s' % record_id if 'bad' not in parsed.query else '/failed')
             self.end_headers()
         elif mode == '399':
             self._json(399, {'error': 'not terminal'})
+        elif mode == '503':
+            self._json(503, {'error': 'unavailable'})
         elif mode == 'wrongid':
             self._json(201, {'id': record_id + 1})
         elif mode == 'unsafe':
             self._json(201, b'{"id":9007199254740993}')
         else:
-            self._json(201, {'id': record_id})
+            self._json(201, {'id': reply_id})
 
 
 HTML = '''<!doctype html><html><body>
@@ -142,8 +164,11 @@ class RecoveryContractTests(unittest.TestCase):
         cls.temp = tempfile.TemporaryDirectory()
         cls.db = Path(cls.temp.name) / 'orders.db'
         Handler.db = str(cls.db)
+        Handler.seen_reset = set()
         with sqlite3.connect(cls.db) as con:
             con.execute('CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, intent_key TEXT UNIQUE, item TEXT)')
+            con.execute('CREATE TABLE IF NOT EXISTS orders_uuid (id TEXT PRIMARY KEY, intent_key TEXT UNIQUE, item TEXT)')
+            con.execute('CREATE TABLE IF NOT EXISTS orders_zero (id TEXT PRIMARY KEY, intent_key TEXT UNIQUE, item TEXT)')
         cls.server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
@@ -156,7 +181,8 @@ class RecoveryContractTests(unittest.TestCase):
         cls.temp.cleanup()
 
     def case(self, *, mode='', statuses=(201,), headers=None, response_id=True,
-             unsafe_state=False, control_state=None, raw=False, change=False):
+             unsafe_state=False, control_state=None, raw=False, change=False,
+             uuid=False, zero=False, after_retry_goto=False):
         query = []
         if mode:
             query.append('mode=' + mode)
@@ -166,7 +192,11 @@ class RecoveryContractTests(unittest.TestCase):
             query.append('raw=1')
         if change:
             query.append('change=1')
-        state_url = '/state?unsafe=1' if unsafe_state else '/state'
+        if uuid:
+            query.append('uuid=1')
+        if zero:
+            query.append('zero=1')
+        state_url = '/state?unsafe=1' if unsafe_state else '/state?uuid=1' if uuid else '/state?zero=1' if zero else '/state'
         path = '/' + ('?' + '&'.join(query) if query else '')
         case = {
             'id': 'contract-' + mode + ('-unsafe' if unsafe_state else '') + ('-change' if change else ''),
@@ -178,7 +208,7 @@ class RecoveryContractTests(unittest.TestCase):
                 {'action': 'wait_for_selector', 'selector': '#retry'},
                 {'action': 'click', 'selector': '#retry'},
                 {'action': 'wait_for_timeout', 'ms': 800},
-            ],
+            ] + ([{'action': 'goto', 'path': '/'}, {'action': 'wait_for_timeout', 'ms': 100}] if after_retry_goto else []),
             'fault': {'route': '**/create*', 'mode': 'suppress_after_upstream', 'occurrence': 1, 'method': 'POST'},
             'state': {'mode': 'http', 'url': state_url, 'path': 'orders', 'expect': 1,
                       'record_fields': {'item': 'widget'}},
@@ -226,6 +256,35 @@ class RecoveryContractTests(unittest.TestCase):
         self.assertTrue(result['ok'], result)
         self.assertEqual(result['recovery']['terminal_response']['status'], 200)
         self.assertTrue(result['recovery']['response_identity']['ok'], result)
+
+    def test_uuid_string_identity_passes(self):
+        result = self.run_case(uuid=True)
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(result['recovery']['response_identity']['response_id'],
+                         '123e4567-e89b-12d3-a456-426614174000')
+
+    def test_zero_padded_string_identity_does_not_coerce(self):
+        result = self.run_case(zero=True)
+        self.assertFalse(result['ok'], result)
+        self.assertFalse(result['recovery']['response_identity']['ok'], result)
+
+    def test_inherited_request_field_mapping_is_rejected(self):
+        case = self.case()
+        case['state']['request_fields'] = {'constructor': 'constructor'}
+        path = Path(self.temp.name) / 'inherited.json'
+        path.write_text(json.dumps(case))
+        result = core.run_contract(path)
+        self.assertFalse(result['ok'], result)
+
+    def test_unrelated_navigation_cannot_rescue_retry(self):
+        for mode, failed in (('503', 0), ('reset', 1)):
+            with self.subTest(mode=mode):
+                result = self.run_case(mode=mode, after_retry_goto=True)
+                self.assertFalse(result['ok'], result)
+                self.assertFalse(result['recovery']['ok'], result)
+                if failed:
+                    self.assertEqual(result['recovery']['matching_retries'], 0)
+                    self.assertEqual(result['recovery']['failed_recovery_transports'], failed)
 
     def test_wrong_json_reply_identity_fails(self):
         result = self.run_case(mode='wrongid')
@@ -387,6 +446,17 @@ class SafeIntegerValidationTests(unittest.TestCase):
                 value['recovery'].update(update)
                 with self.assertRaises(ValueError):
                     core.validate_contract(value)
+
+    def test_overflowing_exponent_is_not_accepted_as_infinity(self):
+        script = (
+            "const {parseJson}=require('./crashlab_runner.js');"
+            "try { parseJson('{\"id\":1e400}','probe'); console.log('ACCEPTED'); }"
+            "catch (e) { console.log(e.message); }"
+        )
+        result = subprocess.run(['node', '-e', script], cwd=Path(__file__).parent,
+                                capture_output=True, text=True, check=True)
+        self.assertIn('non-finite number 1e400', result.stdout)
+        self.assertNotIn('ACCEPTED', result.stdout)
 
     def test_selected_identity_headers_are_configurable(self):
         value = self.case()

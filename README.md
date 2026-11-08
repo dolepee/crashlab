@@ -282,9 +282,11 @@ The Desktop half is opt-in and appears in **Capabilities → Plugins**. It is
 scans the bundled `contracts/` plus `CRASHLAB_CASE_DIR` (default `cases/`), and
 shows saved results. It never starts an execution. Run a case through the
 `crashlab_run` tool or the dashboard, where the approval gate can show the exact
-case, command and path. Historical measured evidence is available from
-`/crashlab` and `/crashlab runs`. `/crashlab run <case.json>` requests the same
-approval-gated run; if no approval is available it directs you to the tool.
+case, command and path. Status, history and historical measured evidence are
+available from `/crashlab` and `/crashlab runs`. `/crashlab run <case.json>` only
+consumes an approval grant that already exists; it cannot acquire one.
+Use the `crashlab_run` tool or the dashboard for a new approved execution — the
+slash path directs you there when no grant exists.
 Quote paths containing spaces: `/crashlab run "/my project/case.json"`.
 `crashlab_list` includes self-starting cases and setup requirements. A template
 marked `setup_required` reports its instructions before launching anything;

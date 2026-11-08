@@ -89,7 +89,7 @@ function EvidencePane({ ctx }) {
     items.push(jsx('div', {
       key: 'empty',
       className: 'text-xs text-(--ui-text-tertiary)',
-      children: 'No saved result yet. Run a case through the approval tool or dashboard; this pane only inspects saved evidence.'
+      children: 'No saved result yet. Start a new approved run with the crashlab_run tool or dashboard; this pane only inspects saved evidence.'
     }))
   }
   if (latest) {
