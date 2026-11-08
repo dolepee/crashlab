@@ -658,8 +658,8 @@ def _completed_assertion(run: dict, *, passed: bool) -> bool:
 
 
 def compare(contract_path: str | Path, buggy_url: str, fixed_url: str,
-            timeout: int = 120) -> dict:
-    frozen = load_contract(contract_path)
+            timeout: int = 120, *, frozen_contract: dict | None = None) -> dict:
+    frozen = copy.deepcopy(frozen_contract) if frozen_contract is not None else load_contract(contract_path)
     digest = hashlib.sha256(json.dumps(frozen, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     evaluator_files = (Path(__file__), RUNNER, ROOT / "crashlab_probe.py")
     evaluator = {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in evaluator_files}
@@ -681,10 +681,11 @@ def compare(contract_path: str | Path, buggy_url: str, fixed_url: str,
     return _persist(result)
 
 
-def run_and_persist(contract_path: str | Path, base_url: str | None = None) -> dict:
+def run_and_persist(contract_path: str | Path, base_url: str | None = None,
+                    *, frozen_contract: dict | None = None) -> dict:
     """Keep setup errors visible as the latest result across host surfaces."""
     try:
-        result = run_contract(contract_path, base_url=base_url)
+        result = run_contract(contract_path, base_url=base_url, frozen_contract=frozen_contract)
     except Exception as exc:
         result = {"ok": False, "status": "ERROR", "contract": Path(contract_path).stem,
                   "error": f"{type(exc).__name__}: {exc}"}

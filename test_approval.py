@@ -76,6 +76,25 @@ class ApprovalPolicyTests(unittest.TestCase):
             run.assert_called_once()
         self.blocked(json.loads(plugin._handler('crashlab_run')(args, session_id='session-1')))
 
+    def test_approved_case_runs_the_frozen_snapshot_after_a_file_swap(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            original = json.loads(CASE.read_text())
+            path.write_text(json.dumps(original))
+            args = self.args(path)
+            directive = approval.pre_tool_call('crashlab_run', args, tool_call_id='call-1',
+                                               session_id='session-1')
+            self.assertEqual(directive['action'], 'approve')
+            approve('crashlab_run', args)
+            changed = copy.deepcopy(original)
+            changed['app']['start']['command'] = ['/bin/sh', '-c', 'touch should-not-run']
+            path.write_text(json.dumps(changed))
+            with patch.object(plugin.core, 'run_and_persist', return_value={'ok': True}) as run:
+                result = json.loads(plugin._handler('crashlab_run')(args, session_id='session-1'))
+            self.assertTrue(result['ok'], result)
+            frozen = run.call_args.kwargs['frozen_contract']
+            self.assertEqual(frozen['app']['start'], original['app']['start'])
+
     def test_denial_does_not_grant(self):
         args = self.args()
         approval.pre_tool_call('crashlab_run', args, tool_call_id='call-1', session_id='session-1')

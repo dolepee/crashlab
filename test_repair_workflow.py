@@ -43,7 +43,7 @@ class WorkflowTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'changed'):workflow.status(eid)
     def test_edit_during_run_cannot_verify(self):
         eid=self.prepare()
-        def execute(*args):
+        def execute(*args, **kwargs):
             (self.project/'app.py').write_text('changed during test');return self.result(False)
         with patch.object(workflow.core,'run_and_persist',side_effect=execute):
             self.assertEqual(self.run_case(eid)['status'],'STALE')

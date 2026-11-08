@@ -158,10 +158,10 @@ def status(experiment_id):
             'scope': 'Tracked and nonignored untracked project files. Ignored files, dependencies and runtime environment are outside this freshness check. Same-user hashes are not a security boundary.'}
 
 
-def _run(experiment_id):
+def _run(experiment_id, *, frozen_case=None):
     folder, value, case = load(experiment_id)
     before = fingerprint(value['project_path'])
-    result = core.run_and_persist(folder / 'case.json')
+    result = core.run_and_persist(folder / 'case.json', frozen_contract=frozen_case)
     after = fingerprint(value['project_path'])
     # Recheck identity after execution, before accepting evidence.
     load(experiment_id)
@@ -445,8 +445,8 @@ def invoke(name, args, approval_context=None):
 
 def run(experiment_id, *, approval_context=None):
     context = approval_context or {}
-    approval.require_approval(
-        'crashlab_experiment_run', {'experiment_id': experiment_id},
+    approved = approval.prepare_approved_experiment(
+        experiment_id,
         session_id=str(context.get('session_id') or ''),
         task_id=str(context.get('task_id') or ''))
     # One test process owns an experiment; avoid overlapping app executions and lost history.
@@ -455,4 +455,4 @@ def run(experiment_id, *, approval_context=None):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise ValueError('Experiment is already running; check status before retrying')
-        return _run(experiment_id)
+        return _run(experiment_id, frozen_case=approved['contract'])

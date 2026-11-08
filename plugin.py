@@ -71,7 +71,8 @@ def _handler(name: str):
         session_id = str(context.get("session_id") or "")
         task_id = str(context.get("task_id") or "")
         if name in {"crashlab_run", "crashlab_compare"}:
-            approval.require_approval(name, kwargs, session_id=session_id, task_id=task_id)
+            approved = approval.prepare_approved_case(
+                name, kwargs, session_id=session_id, task_id=task_id)
         if name == "crashlab_experiment_watch":
             return completion_reminder.watch(**kwargs)
         if name in {schema["name"] for schema in repair_workflow.schemas()}:
@@ -82,9 +83,12 @@ def _handler(name: str):
             contract = core.load_contract(kwargs["contract_path"])
             return {"ok": True, "contract": contract}
         if name == "crashlab_run":
-            return core.run_and_persist(kwargs["contract_path"], base_url=kwargs.get("base_url"))
+            return core.run_and_persist(
+                approved["path"], base_url=kwargs.get("base_url"),
+                frozen_contract=approved["contract"])
         if name == "crashlab_compare":
-            return core.compare(kwargs["contract_path"], kwargs["buggy_url"], kwargs["fixed_url"])
+            return core.compare(kwargs["contract_path"], kwargs["buggy_url"], kwargs["fixed_url"],
+                                frozen_contract=approved["contract"])
         if name == "crashlab_list":
             return {"contracts": core.list_contracts()}
         raise ValueError(f"unknown CrashLab tool: {name}")

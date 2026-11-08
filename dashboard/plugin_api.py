@@ -173,8 +173,10 @@ async def run(request: RunRequest, x_crashlab_approval: str | None = Header(defa
     token = x_crashlab_approval or ""
     try:
         approval.grant_for_operator("crashlab_run", args, session_id="dashboard:" + token)
-        approval.require_approval("crashlab_run", args, session_id="dashboard:" + token)
-        return await asyncio.to_thread(run_and_persist, str(path))
+        approved = approval.prepare_approved_case(
+            "crashlab_run", args, session_id="dashboard:" + token)
+        return await asyncio.to_thread(run_and_persist, str(path),
+                                       frozen_contract=approved["contract"])
     except approval.ApprovalRequired as exc:
         raise HTTPException(status_code=403, detail=str(exc)) from exc
 
@@ -223,7 +225,6 @@ async def experiment_run(experiment_id: str, x_crashlab_approval: str | None = H
     token = x_crashlab_approval or ""
     try:
         approval.grant_for_operator("crashlab_experiment_run", args, session_id="dashboard:" + token)
-        approval.require_approval("crashlab_experiment_run", args, session_id="dashboard:" + token)
         return await asyncio.to_thread(workflow.run, experiment_id,
                                        approval_context={"session_id": "dashboard:" + token})
     except approval.ApprovalRequired as exc:
