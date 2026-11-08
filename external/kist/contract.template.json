@@ -207,5 +207,13 @@
         "status": "active"
       }
     }
+  },
+  "recovery": {
+    "mode": "retry",
+    "success_statuses": [
+      201
+    ],
+    "response_id_path": "id",
+    "record_id_field": "id"
   }
 }

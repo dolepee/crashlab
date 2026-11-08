@@ -15,11 +15,27 @@ class CaseSchemaTests(unittest.TestCase):
         self.schema=workflow.contract_schema()
         jsonschema.Draft202012Validator.check_schema(self.schema)
     def test_reconciliation_requires_observable_arguments(self):
-        case=copy.deepcopy(self.case);case['recovery']={'mode':'reconcile'}
+        case=copy.deepcopy(self.case);case['recovery']={'mode':'reconcile','success_statuses':[200]}
         with self.assertRaises(jsonschema.ValidationError):jsonschema.validate(case,self.schema)
         with self.assertRaises(ValueError):workflow.core.validate_contract(case)
         case['recovery'].update(route='**/receipt?*',initial_field='intent_key',query_parameter='intent_key',response_id_path='order.id',record_id_field='id')
         jsonschema.validate(case,self.schema);workflow.core.validate_contract(case)
+    def test_recovery_requires_terminal_statuses_and_supports_selected_headers(self):
+        case=copy.deepcopy(self.case)
+        case['recovery']={'mode':'retry','success_statuses':[200],
+                          'identity_headers':['Idempotency-Key'],
+                          'response_id_path':'id','record_id_field':'id'}
+        jsonschema.validate(case,self.schema);workflow.core.validate_contract(case)
+        case['recovery']['success_statuses']=[202]
+        with self.assertRaises(jsonschema.ValidationError):jsonschema.validate(case,self.schema)
+        case['recovery']['success_statuses']=[200]
+        case['recovery']['response_id_path']='id'
+        case['recovery'].pop('record_id_field')
+        with self.assertRaises(jsonschema.ValidationError):jsonschema.validate(case,self.schema)
+        case['recovery'].pop('response_id_path')
+        case['recovery']['identity_headers']=['Idempotency-Key','idempotency-key']
+        with self.assertRaises(ValueError):workflow.core.validate_contract(case)
+
     def test_recovery_campaign_schema_matches_runtime_boundaries(self):
         case=copy.deepcopy(self.case)
         case['journey'].insert(2,{'action':'wait_for_fault'})

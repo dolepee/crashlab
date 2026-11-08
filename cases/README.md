@@ -1,7 +1,7 @@
 # Cases
 
 A case is the frozen contract CrashLab runs. `cases/` is scanned by the
-Desktop pane and by `crashlab_list`/the pane's `Run case` button.
+Desktop pane (view-only) and by `crashlab_list`; run through `crashlab_run` or the dashboard.
 
 The checkout cases are a transfer check for the local-app path:
 

@@ -167,7 +167,7 @@ def _slash(raw_args: str) -> str:
     if args[0] in ("help", "?"):
         return ("/crashlab — latest result\n"
                 "/crashlab runs — recent runs\n"
-                "/crashlab run <case.json> — run a saved case")
+                "/crashlab run <case.json> — request the approval-gated run (the tool shows the plan)")
     return "Unknown CrashLab command. Try /crashlab help."
 
 
@@ -188,5 +188,5 @@ def register(ctx):
     register_command = getattr(ctx, "register_command", None)
     if register_command is not None:
         register_command("crashlab", _slash,
-                         description="Show or run a saved CrashLab case.",
-                         args_hint="[status|runs|run <case.json>]")
+                         description="Show saved evidence; request a case run through the approval tool.",
+                         args_hint="[status|runs|run <case.json> (approval required)]")

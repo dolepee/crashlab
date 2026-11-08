@@ -154,6 +154,7 @@ class ContractValidationTests(unittest.TestCase):
 
     def test_fault_method_is_optional_but_typed(self):
         value = self.base(); value["fault"] = {"route": "**/x", "method": "POST", "mode": "suppress_after_upstream"}
+        value["recovery"] = {"mode": "retry", "success_statuses": [200]}
         core.validate_contract(value)
         value["fault"]["method"] = "TRACE"
         with self.assertRaises(ValueError): core.validate_contract(value)
