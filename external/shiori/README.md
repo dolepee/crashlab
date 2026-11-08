@@ -73,3 +73,11 @@ Chrome, the uncached application tests and a direct HTTP/SQLite identity check.
 The [independent Mac receipts](evidence/2026-11-08-guided-repair/independent-mac/)
 are separate from the supplied Linux records. This is not an upstream
 Shiori release, unrelated-user trial, payment operation or production safety claim.
+
+The independent Mac records include the [official asset/checksum and extracted binary receipt](evidence/2026-11-08-guided-repair/independent-mac/official-release-asset.json).
+The original sparse build output is preserved. Follow-up rebuild receipts for
+[pristine source](evidence/2026-11-08-guided-repair/independent-mac/pristine-rebuild.json)
+and the [exact model patch](evidence/2026-11-08-guided-repair/independent-mac/model-repaired-rebuild.json)
+record the command, compiler, environment, actual exit status and binary build
+information. Both rebuilt binaries byte-match those used in the original Chrome
+measurements; these are new rebuild records, not reconstructed old logs.

@@ -47,8 +47,10 @@
       "scenario_valid": true,
       "control": "PASS2/2",
       "binary_sha256": "da8cafb0583673d39f859ad6dc447a1b6b45f618afa07fd1f05a885dabd092da",
-      "receipt": "independent-mac/source-baseline.json"
-    }
+      "receipt": "independent-mac/source-baseline.json",
+      "followup_rebuild": "independent-mac/pristine-rebuild.json"
+    },
+    "official_release_provenance": "independent-mac/official-release-asset.json"
   },
   "independent_mac_repaired_replay": {
     "method": "Exact supplied model patch byte-matches git diff on independently pinned pristine source; locally compiled with Go1.26.6 CGO0 osusergo,netgo,fts5; native Chrome current0.5.6 engine, same behavior with onlylaunchpathsrebound",
@@ -60,7 +62,8 @@
     "http_identity": "first/retry200, equaloriginalID/URL/title, primary1row, distinctcontrolIDs/final3rows",
     "app_tests": "Uncached go test -count=1 -tags osusergo,netgo,fts5 ./internal/webserver PASS",
     "binary_sha256": "0ffc2542ea12b0c188b042de4a8c48a8ac300b1493c27a9d071877497332e65e",
-    "evidence": "independent-mac/"
+    "evidence": "independent-mac/",
+    "followup_rebuild": "independent-mac/model-repaired-rebuild.json"
   },
   "limits": [
     "Supplied diagnosis, not autonomous bug discovery",
@@ -68,5 +71,6 @@
     "Ordinary frozen Go experiment; portable Go export/import unsupported",
     "Fresh disposable database, configured assertions only; not upstream release, adoption or production safety",
     "Earlier operator-applied patch packet is separate and superseded for model-authorship claims"
-  ]
+  ],
+  "provenance_followup": "Original sparse build output and browser receipts are preserved. Follow-up cached rebuilds record exact command, compiler, exit0 and go version-m; both rebuilt binaries byte-match those used in the original Mac browser tests. Official release asset/checksum/binary provenance is a companion receipt."
 }
