@@ -77,14 +77,26 @@ function sha256(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
 }
 
-function identityKey(value) {
-  if (typeof value === 'string') return value.length ? `string:${value}` : null;
-  if (typeof value === 'number') return Number.isSafeInteger(value) ? `number:${String(value)}` : null;
+function scalarIdentity(value) {
+  if (typeof value === 'string' && value.length) return {key: `string:${value}`, value};
+  if (typeof value === 'number' && Number.isSafeInteger(value)) return {key: `number:${String(value)}`, value};
   return null;
 }
 
+function identityKey(value) {
+  return scalarIdentity(value)?.key || null;
+}
+
 function identityValue(value) {
-  if (typeof value === 'string' || typeof value === 'number') return value;
+  return scalarIdentity(value)?.value ?? null;
+}
+
+// URL query strings are always text. A safe integer initial intent was sent as
+// a JSON number and is naturally rendered as its exact decimal string on the
+// readback URL; do not use this helper for reply/record identity.
+function queryIdentityKey(value) {
+  if (typeof value === 'number' && Number.isSafeInteger(value)) return `string:${String(value)}`;
+  if (typeof value === 'string' && value.length) return `string:${value}`;
   return null;
 }
 
@@ -94,6 +106,15 @@ function own(object, key) {
 
 function pathValue(value, dotted) {
   return String(dotted).split('.').reduce((current, key) => own(current, key) ? current[key] : undefined, value);
+}
+
+function recordIdentity(row, field) {
+  if (!own(row, field)) return null;
+  return identityValue(row[field]);
+}
+
+function responseIdentityValue(response, path) {
+  return identityValue(pathValue(response, path));
 }
 
 // Only a leading transport cause or a structured error code can prove a
@@ -197,14 +218,11 @@ if (require.main === module) {
   }
 
   function sameRequest(left, right) {
-    if (!left || !right) return false;
-    if (left === right) return true;
-    try {
-      return left.method() === right.method()
-        && left.url() === right.url()
-        && left.resourceType() === right.resourceType()
-        && left.frame() === right.frame();
-    } catch { return false; }
+    // Playwright returns the same Request object for the routed retry and its
+    // terminal response/redirect chain. URL, method and frame are not identity:
+    // an unrelated POST to the same endpoint must not be able to satisfy the
+    // recovery proof.
+    return Boolean(left) && left === right;
   }
 
   function retryAttemptFor(request) {
@@ -273,6 +291,14 @@ if (require.main === module) {
     });
     responseEvents.push(event);
     if (response.status() >= 300 && response.status() < 400) return;
+    if (response.status() === 204) {
+      // 204 means no content. Record the empty body without asking Playwright
+      // for a body it does not expose.
+      event.body_sha256 = sha256('');
+      event.body_length = 0;
+      event.json = null;
+      return;
+    }
     pendingResponses.push(response.text().then((text) => {
       event.body_sha256 = sha256(text);
       event.body_length = text.length;
@@ -566,6 +592,10 @@ if (require.main === module) {
     return true;
   }
 
+  function historiesInvalid(events) {
+    return events.some(event => event.response_error);
+  }
+
   function recoveryEvidence(primary) {
     if (!contract.fault) return { mode: 'none', ok: true };
     const writes = network.filter(event => event.phase === 'primary' && event.kind === 'write');
@@ -604,9 +634,8 @@ if (require.main === module) {
         reason: 'No response identity predicate configured; terminal status and declared journey/state assertions are the boundary.',
       };
       if (recoverySpec.response_id_path && recoverySpec.record_id_field) {
-        const ids = primary.records.map(row => own(row, recoverySpec.record_id_field)
-          ? identityValue(row[recoverySpec.record_id_field]) : null);
-        const rawReplyId = pathValue(terminal?.json, recoverySpec.response_id_path);
+        const ids = primary.records.map(row => recordIdentity(row, recoverySpec.record_id_field));
+        const rawReplyId = responseIdentityValue(terminal?.json, recoverySpec.response_id_path);
         const replyId = identityKey(rawReplyId);
         const ok = Boolean(terminal?.json && replyId !== null && ids.length === 1
           && identityKey(ids[0]) !== null && identityKey(ids[0]) === replyId);
@@ -644,6 +673,7 @@ if (require.main === module) {
       }
       return { mode: 'retry', ok: !unsafeRequest && !unsafeResponse
           && matchingWrites.length > 0 && terminalOK && responseIdentity.ok,
+        invalid_measurement: unsafeRequest || unsafeResponse,
         matching_retries: retries.length,
         failed_recovery_transports: failedTransports.length,
         success_statuses: successStatuses,
@@ -666,18 +696,18 @@ if (require.main === module) {
     }
     const initialIdentityValue = own(initialRequest?.body, recoverySpec.initial_field)
       ? initialRequest.body[recoverySpec.initial_field] : null;
-    const initialIdentity = identityValue(initialIdentityValue);
-    const ids = primary.records.map(row => own(row, recoverySpec.record_id_field)
-      ? identityValue(row[recoverySpec.record_id_field]) : null);
+    const initialIdentity = queryIdentityKey(initialIdentityValue);
+    const ids = primary.records.map(row => recordIdentity(row, recoverySpec.record_id_field));
     const confirmations = reconciliations.filter(event => {
       const identityText = new URL(event.url).searchParams.get(recoverySpec.query_parameter);
-      const identity = identityText === null ? null : identityText;
-      const id = identityKey(pathValue(event.response, recoverySpec.response_id_path));
+      const identity = queryIdentityKey(identityText);
+      const id = identityKey(responseIdentityValue(event.response, recoverySpec.response_id_path));
       return initialIdentity !== null && identity !== null && identity === initialIdentity
         && successStatuses.includes(event.status)
         && id !== null && ids.length === 1 && identityKey(ids[0]) !== null && identityKey(ids[0]) === id;
     });
     return { mode: 'reconcile', ok: confirmations.length > 0, confirmations: confirmations.length,
+      invalid_measurement: Boolean(initialRequest?.body_error) || historiesInvalid(reconciliations),
       success_statuses: successStatuses,
       initial_request: initialRequest, responses: reconciliations,
       reason: confirmations.length
@@ -714,6 +744,7 @@ if (require.main === module) {
                   && Number.isFinite(faultState?.observed) && faultState.observed >= 1 && faultContentsValid),
           }
         : { matched: true, valid: true };
+    if (recovery.invalid_measurement === true) scenario.valid = false;
     let control = null;
     if (contract.control) {
       await reset();

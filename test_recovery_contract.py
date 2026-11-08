@@ -67,6 +67,7 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == '/reset':
             with sqlite3.connect(self.db) as con:
                 con.execute('DELETE FROM orders')
+            self.seen_reset.clear()
             self._json(200, {'ok': True})
             return
         if parsed.path != '/create':
@@ -98,11 +99,15 @@ class Handler(BaseHTTPRequestHandler):
         reply_id = '1' if table == 'orders_zero' else record_id
         if mode == 'reset':
             marker = (intent, 'reset')
+            closed = (intent, 'reset-closed')
             if marker not in self.seen_reset:
                 self.seen_reset.add(marker)
                 self._json(201, {'id': reply_id})
-            else:
+            elif closed not in self.seen_reset:
+                self.seen_reset.add(closed)
                 self.connection.close()
+            else:
+                self._json(201, {'id': reply_id})
             return
         if mode == '202':
             self._json(202, {'error': 'pending'})
@@ -116,6 +121,10 @@ class Handler(BaseHTTPRequestHandler):
             self._json(399, {'error': 'not terminal'})
         elif mode == '503':
             self._json(503, {'error': 'unavailable'})
+        elif mode == '204':
+            self.send_response(204)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
         elif mode == 'wrongid':
             self._json(201, {'id': record_id + 1})
         elif mode == 'unsafe':
@@ -132,16 +141,21 @@ let sent = false;
 async function send(retry=false) {
   const params = new URLSearchParams(location.search);
   const key = retry && params.has('change') ? 'changed' : 'stable';
-  const intent = params.has('control') ? 'control-' + crypto.randomUUID() : 'intent';
+  const intent = params.has('control') ? 'control-' + crypto.randomUUID() : params.has('numeric') ? 1 : 'intent';
   const raw = params.has('raw')
     ? '{"intent_key":"intent","item":"widget","id":9007199254740993}'
     : JSON.stringify({intent_key:intent,item:'widget',mode:params.get('mode') || ''});
   try {
     const response = await fetch('/create' + location.search, {
       method: 'POST',
-      headers: {'content-type':'application/json','Idempotency-Key':key},
+      headers: {'content-type': params.has('formjson') ? 'application/x-www-form-urlencoded' : 'application/json', 'Idempotency-Key':key},
       body: raw,
     });
+    if (response.status === 204) {
+      document.getElementById('status').textContent = 'Saved';
+      document.getElementById('retry').style.display = 'none';
+      return;
+    }
     const value = await response.json();
     if (!response.ok || value.id === undefined) throw new Error('not complete');
     document.getElementById('status').textContent = 'Saved';
@@ -182,7 +196,8 @@ class RecoveryContractTests(unittest.TestCase):
 
     def case(self, *, mode='', statuses=(201,), headers=None, response_id=True,
              unsafe_state=False, control_state=None, raw=False, change=False,
-             uuid=False, zero=False, after_retry_goto=False):
+             uuid=False, zero=False, after_retry_goto=False, after_retry_post=False,
+             formjson=False):
         query = []
         if mode:
             query.append('mode=' + mode)
@@ -190,6 +205,8 @@ class RecoveryContractTests(unittest.TestCase):
             query.append('unsafe=1')
         if raw:
             query.append('raw=1')
+        if formjson:
+            query.append('formjson=1')
         if change:
             query.append('change=1')
         if uuid:
@@ -208,7 +225,8 @@ class RecoveryContractTests(unittest.TestCase):
                 {'action': 'wait_for_selector', 'selector': '#retry'},
                 {'action': 'click', 'selector': '#retry'},
                 {'action': 'wait_for_timeout', 'ms': 800},
-            ] + ([{'action': 'goto', 'path': '/'}, {'action': 'wait_for_timeout', 'ms': 100}] if after_retry_goto else []),
+            ] + ([{'action': 'goto', 'path': '/'}, {'action': 'wait_for_timeout', 'ms': 100}] if after_retry_goto else [])
+              + ([{'action': 'goto', 'path': '/'}, {'action': 'click', 'selector': '#send'}, {'action': 'wait_for_text', 'text': 'Saved'}] if after_retry_post else []),
             'fault': {'route': '**/create*', 'mode': 'suppress_after_upstream', 'occurrence': 1, 'method': 'POST'},
             'state': {'mode': 'http', 'url': state_url, 'path': 'orders', 'expect': 1,
                       'record_fields': {'item': 'widget'}},
@@ -345,6 +363,36 @@ class RecoveryContractTests(unittest.TestCase):
         result = self.run_case(raw=True)
         self.assertFalse(result['ok'], result)
         self.assertIn('unsafe integer', result['recovery']['reason'])
+        write = next(event for event in result['network'] if event['kind'] == 'write')
+        self.assertIsNone(write['body'], 'an unsafe JSON body must not fall back to form parsing')
+        self.assertIn('unsafe integer', write['body_error'])
+        self.assertFalse(core._completed_assertion(result, passed=False), result)
+
+    def test_unsafe_json_body_does_not_fall_back_to_form_parsing(self):
+        result = self.run_case(raw=True, formjson=True)
+        self.assertFalse(result['ok'], result)
+        write = next(event for event in result['network'] if event['kind'] == 'write')
+        self.assertIsNone(write['body'], 'form-looking content type must not rescue unsafe JSON')
+        self.assertIn('unsafe integer', write['body_error'])
+
+    def reconciliation_case(self, response_id_path='order.id', record_id_field='id'):
+        return {
+            'id': 'reconcile-test',
+            'app': {'base_url': self.base, 'reset_url': '/reset'},
+            'journey': [
+                {'action': 'goto', 'path': '/'},
+                {'action': 'click', 'selector': '#send'},
+                {'action': 'wait_for_fault'},
+                {'action': 'goto', 'path': '/receipt?intent_key=intent'},
+                {'action': 'wait_for_timeout', 'ms': 300},
+            ],
+            'fault': {'route': '**/create*', 'mode': 'suppress_after_upstream', 'occurrence': 1, 'method': 'POST'},
+            'state': {'mode': 'http', 'url': '/state', 'path': 'orders', 'expect': 1,
+                      'record_fields': {'item': 'widget'}},
+            'recovery': {'mode': 'reconcile', 'route': '**/receipt?*', 'initial_field': 'intent_key',
+                         'query_parameter': 'intent_key', 'response_id_path': response_id_path,
+                         'record_id_field': record_id_field, 'success_statuses': [200]},
+        }
 
     def test_reconciliation_uses_configured_success_status(self):
         case = {
@@ -369,6 +417,53 @@ class RecoveryContractTests(unittest.TestCase):
         result = core.run_contract(path)
         self.assertTrue(result['ok'], result)
         self.assertEqual(result['recovery']['confirmations'], 1)
+
+    def test_numeric_reconciliation_intent_survives_query_encoding(self):
+        case = self.reconciliation_case()
+        case['journey'][0]['path'] = '/?numeric=1'
+        case['journey'][3]['path'] = '/receipt?intent_key=1'
+        path = Path(self.temp.name) / 'reconcile-numeric.json'
+        path.write_text(json.dumps(case))
+        result = core.run_contract(path)
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(result['recovery']['confirmations'], 1)
+
+    def test_204_recovery_with_json_content_type_passes(self):
+        result = self.run_case(mode='204', statuses=(204,), response_id=False)
+        self.assertTrue(result['ok'], result)
+        self.assertEqual(result['recovery']['terminal_response']['status'], 204)
+        self.assertIsNone(result['recovery']['terminal_response']['json'])
+        self.assertEqual(result['recovery']['terminal_response']['body_sha256'],
+                         'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+
+    def test_unrelated_post_cannot_rescue_retry(self):
+        for mode in ('503', 'reset'):
+            with self.subTest(mode=mode):
+                result = self.run_case(mode=mode, after_retry_post=True)
+                self.assertFalse(result['ok'], result)
+                self.assertFalse(result['recovery']['ok'], result)
+
+    def test_reconciliation_inherited_identity_fields_are_rejected(self):
+        for field in ('constructor', '__proto__'):
+            with self.subTest(field=field):
+                case = self.reconciliation_case(field, field)
+                path = Path(self.temp.name) / f'reconcile-{field}.json'
+                path.write_text(json.dumps(case))
+                result = core.run_contract(path)
+                self.assertFalse(result['ok'], result)
+                self.assertEqual(result['recovery']['confirmations'], 0, result)
+
+    def test_retry_inherited_identity_fields_are_rejected(self):
+        for field in ('constructor', '__proto__'):
+            with self.subTest(field=field):
+                case = self.case()
+                case['recovery']['response_id_path'] = field
+                case['recovery']['record_id_field'] = field
+                path = Path(self.temp.name) / f'retry-{field}.json'
+                path.write_text(json.dumps(case))
+                result = core.run_contract(path)
+                self.assertFalse(result['ok'], result)
+                self.assertFalse(result['recovery']['response_identity']['ok'], result)
 
     def test_unsafe_reconciliation_response_is_rejected(self):
         case = {
