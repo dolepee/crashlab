@@ -489,3 +489,48 @@ class ArtifactSafetyTests(unittest.TestCase):
             contract['evidence']['screenshot_dir'] = str(inside)
             core._contained_evidence_dir(contract, root, data, True)
             self.assertEqual(contract['evidence']['screenshot_dir'], str(inside.resolve()))
+            alias = data / 'alias'
+            alias.symlink_to(root / 'outside', target_is_directory=True)
+            contract['evidence']['screenshot_dir'] = str(alias)
+            with self.assertRaisesRegex(ValueError, 'stay inside'):
+                core._contained_evidence_dir(contract, root, data, True)
+
+    def test_long_case_id_and_generated_artifact_fit_the_filename_budget(self):
+        case = self.base_case()
+        case['id'] = 'a' * 128
+        core.validate_contract(case)
+        generated = f"{case['id']}-2026-11-09T16-09-12-168Z"
+        self.assertGreater(len(generated), 128)
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {'CRASHLAB_DATA_DIR': temporary}):
+                core.persist_run({'run_id': generated, 'contract': case['id'], 'ok': True})
+                self.assertTrue((Path(temporary) / 'runs' / (generated + '.json')).exists())
+        self.assertLessEqual(len(f"{generated}-{'x' * 32}.png"), 240)
+
+    def test_run_and_artifact_budgets_are_explicit(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {'CRASHLAB_DATA_DIR': temporary}):
+                core.persist_run({'run_id': 'r' * 220, 'contract': 'x', 'ok': True})
+                self.assertTrue((Path(temporary) / 'runs' / ('r' * 220 + '.json')).exists())
+        with self.assertRaisesRegex(ValueError, 'run_id'):
+            core.persist_run({'run_id': 'r' * 221, 'contract': 'x', 'ok': True})
+
+    def test_campaign_ids_stay_bounded_after_boundary_suffixes(self):
+        base = 'a' * 128
+        names = ('before_delivery', 'after_commit', 'restart_after_commit')
+        ids = [core._campaign_case_id(base, name) for name in names]
+        self.assertEqual(len(ids), len(set(ids)))
+        for value in ids:
+            self.assertLessEqual(len(value), 128)
+            core._safe_id(value, 'campaign case id')
+        self.assertEqual(core._campaign_case_id('short', 'after_commit'), 'short-after_commit')
+
+    def test_screenshot_slug_is_bounded_and_cannot_escape(self):
+        case = self.base_case()
+        case['journey'].append({'action': 'screenshot', 'as': 'ok_shot'})
+        core.validate_contract(case)
+        for value in ('../escape', 'a' * 33, 'bad/name'):
+            with self.subTest(value=value):
+                case['journey'][-1]['as'] = value
+                with self.assertRaisesRegex(ValueError, 'screenshot slug'):
+                    core.validate_contract(case)

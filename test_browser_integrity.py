@@ -101,6 +101,17 @@ class BrowserIntegrity(unittest.TestCase):
             self.run_case(case=case)
         self.assertFalse((self.root / 'outside').exists())
 
+    def test_long_case_id_keeps_generated_run_and_screenshots_within_budget(self):
+        case = copy.deepcopy(self.case)
+        case['id'] = 'a' * 128
+        result = self.run_case(case=case)
+        self.assertTrue(result['ok'], result)
+        self.assertGreater(len(result['run_id']), 128)
+        screenshots = result.get('screenshots') or []
+        self.assertTrue(screenshots, result)
+        for path in screenshots:
+            self.assertLessEqual(len(Path(path).name), 240)
+
     def test_browser_launch_error_is_actionable(self):
         with patch.dict(os.environ,CHROME_PATH=str(self.root/'missing-chrome')):
             result=self.run_case()

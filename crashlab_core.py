@@ -24,6 +24,9 @@ ROOT = Path(__file__).resolve().parent
 RUNNER = ROOT / "crashlab_runner.js"
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,219}\Z")
+SAFE_ARTIFACT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,239}\Z")
+SAFE_SCREENSHOT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}\Z")
 
 
 def _safe_id(value: Any, field: str = "id") -> str:
@@ -33,14 +36,35 @@ def _safe_id(value: Any, field: str = "id") -> str:
     return value
 
 
+def _safe_run_id(value: Any) -> str:
+    if not isinstance(value, str) or not SAFE_RUN_ID.fullmatch(value):
+        raise ValueError("run_id must be a safe identifier within the generated run budget")
+    return value
+
+
 def _artifact_path(directory: Path, name: str) -> Path:
     """Resolve a persisted artifact name and keep it directly inside directory."""
-    _safe_id(name, "artifact name")
+    if not isinstance(name, str) or not SAFE_ARTIFACT.fullmatch(name):
+        raise ValueError("artifact name must fit the bounded filename budget")
     root = directory.resolve()
     path = (root / name).resolve()
     if path.parent != root:
         raise ValueError("artifact path escapes its configured directory")
     return path
+
+
+def _campaign_case_id(base: str, boundary: str) -> str:
+    """Derive a campaign case ID without exceeding the case-ID budget."""
+    _safe_id(base, "contract.id")
+    _safe_id(boundary, "recovery_campaign boundary")
+    suffix = "-" + boundary
+    if len(base) + len(suffix) <= 128:
+        return base + suffix
+    if len(suffix) > 96:
+        raise ValueError("recovery_campaign boundary name is too long for a case ID")
+    digest = hashlib.sha256(base.encode("utf-8")).hexdigest()[:8]
+    prefix = base[:128 - len(suffix) - 9]
+    return f"{prefix}-{digest}{suffix}"
 
 
 def _data_dir() -> Path:
@@ -88,7 +112,7 @@ def explain_comparison(result: dict) -> str:
 def persist_run(result: dict) -> dict:
     """Save one completed run outside the plugin directory for the Desktop pane."""
     run_id = result.get("run_id") or f"run-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}"
-    run_id = _safe_id(run_id, "run_id")
+    run_id = _safe_run_id(run_id)
     result["run_id"] = run_id
     data = _data_dir()
     runs = data / "runs"
@@ -106,7 +130,7 @@ def persist_run(result: dict) -> dict:
 def _persist(result: dict) -> dict:
     """Save a completed comparison outside the plugin directory and expose its id."""
     run_id = result.get("run_id") or f"compare-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}"
-    run_id = _safe_id(run_id, "run_id")
+    run_id = _safe_run_id(run_id)
     result["run_id"] = run_id
     data = _data_dir()
     runs = data / "runs"
@@ -248,6 +272,9 @@ def _validate_journey(journey: list, where: str) -> None:
             ms = step.get("ms")
             if type(ms) is not int or not 0 <= ms <= 60000:
                 raise ValueError(f"{name}.ms must be an integer from 0 to 60000")
+        if action == "screenshot" and "as" in step:
+            if not isinstance(step["as"], str) or not SAFE_SCREENSHOT.fullmatch(step["as"]):
+                raise ValueError(f"{name}.as must be a bounded screenshot slug")
         if action == "goto" and step.get("path") is not None and not isinstance(step["path"], str):
             raise ValueError(f"{name}.path must be a string")
 
@@ -863,7 +890,7 @@ def run_recovery_campaign(contract_path, frozen, *, base_url=None, timeout=120):
     for name in frozen['recovery_campaign']:
         case = copy.deepcopy(frozen)
         case.pop('recovery_campaign')
-        case['id'] = frozen['id'] + '-' + name
+        case['id'] = _campaign_case_id(frozen['id'], name)
         case['fault']['mode'] = 'prevent_before_delivery' if name == 'before_delivery' else 'suppress_after_upstream'
         if name == 'restart_after_commit':
             boundary = next(i for i, step in enumerate(case['journey']) if step['action']=='wait_for_fault')

@@ -158,6 +158,12 @@ if (require.main === module) {
   const evidenceDir = path.resolve(contract.evidence?.screenshot_dir || 'evidence');
   fs.mkdirSync(evidenceDir, { recursive: true });
   const runId = `${contract.id}-${nowId()}`;
+  const safeScreenshotName = value => {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(String(value))) {
+      throw new Error('screenshot.as must be a bounded screenshot slug');
+    }
+    return String(value);
+  };
   const configuredRetryTimeout = Number(process.env.CRASHLAB_RETRY_FETCH_TIMEOUT_MS || 30000);
   const retryFetchTimeoutMs = Number.isFinite(configuredRetryTimeout) && configuredRetryTimeout > 0
     ? configuredRetryTimeout : 30000;
@@ -576,7 +582,7 @@ if (require.main === module) {
       } else if (step.action === 'text') {
         observations[step.as || 'text'] = await page.textContent(step.selector);
       } else if (step.action === 'screenshot') {
-        const file = path.join(evidenceDir, `${runId}-${step.as || 'shot'}.png`);
+        const file = path.join(evidenceDir, `${runId}-${safeScreenshotName(step.as || 'shot')}.png`);
         await page.screenshot({ path: file, fullPage: true });
         screenshots.push(file);
       } else {
