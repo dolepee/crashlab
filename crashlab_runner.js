@@ -587,7 +587,9 @@ if (require.main === module) {
         if (path.dirname(file) !== evidenceDir) {
           throw new Error('screenshot path escapes the evidence directory');
         }
-        await page.screenshot({ path: file, fullPage: true });
+        const buffer = await page.screenshot({ fullPage: true });
+        // O_EXCL fails closed if a file or symlink already occupies the leaf.
+        fs.writeFileSync(file, buffer, { flag: 'wx' });
         screenshots.push(file);
       } else {
         throw new Error(`unknown action: ${step.action}`);

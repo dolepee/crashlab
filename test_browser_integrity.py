@@ -145,6 +145,85 @@ class BrowserIntegrity(unittest.TestCase):
         for path in screenshots:
             self.assertLessEqual(len(Path(path).name), 240)
 
+    def _serve_screenshot_page(self):
+        import http.server
+        import socketserver
+        import threading
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                if self.path == '/state':
+                    body = b'{"orders": []}'
+                    self.send_header('content-type', 'application/json')
+                else:
+                    body = b'<html><body>shot</body></html>'
+                    self.send_header('content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(body)
+            def log_message(self, *args):
+                pass
+
+        server = socketserver.TCPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.addCleanup(thread.join, 2)
+        return f'http://127.0.0.1:{server.server_address[1]}'
+
+    def _screenshot_case(self, base_url, case_id='leaf-symlink'):
+        return {
+            'id': case_id,
+            'app': {'base_url': base_url},
+            'journey': [
+                {'action': 'goto', 'path': '/'},
+                {'action': 'screenshot', 'as': 'shot'},
+            ],
+            'state': {'mode': 'http', 'url': '/state', 'path': 'orders', 'expect': 0},
+            'evidence': {'screenshot_dir': str(self.root / 'shots')},
+        }
+
+    def test_existing_screenshot_leaf_symlink_fails_closed(self):
+        base_url = self._serve_screenshot_page()
+        shots = self.root / 'shots'
+        shots.mkdir()
+        outside = self.root / 'outside.png'
+        outside.write_bytes(b'outside')
+        fixed = '2026-11-09T17-00-00-000Z'
+        link = shots / f'leaf-symlink-{fixed}-shot.png'
+        link.symlink_to(outside)
+        preload = self.root / 'fixed-date.js'
+        preload.write_text(
+            "Date.prototype.toISOString = function(){ return '2026-11-09T17:00:00.000Z'; };\n",
+            encoding='utf-8',
+        )
+        case = self._screenshot_case(base_url)
+        with patch.dict(os.environ, {'NODE_OPTIONS': f'--require {preload}'}):
+            result = self.run_case(case=case)
+        self.assertEqual(result['status'], 'ERROR', result)
+        self.assertIn('EEXIST', result.get('error', ''), result)
+        self.assertEqual(outside.read_bytes(), b'outside')
+
+    def test_normal_screenshot_capture_still_succeeds(self):
+        base_url = self._serve_screenshot_page()
+        case = self._screenshot_case(base_url, 'normal-shot')
+        result = self.run_case(case=case)
+        self.assertTrue(result.get('screenshots'), result)
+        self.assertTrue(Path(result['screenshots'][0]).is_file(), result)
+
+    def test_requested_directory_symlink_resolves_inside_root(self):
+        base_url = self._serve_screenshot_page()
+        shots = self.root / 'shots'
+        shots.mkdir()
+        alias = self.root / 'shots-alias'
+        alias.symlink_to(shots, target_is_directory=True)
+        case = self._screenshot_case(base_url, 'alias-shot')
+        case['evidence']['screenshot_dir'] = str(alias)
+        result = self.run_case(case=case)
+        self.assertTrue(result.get('screenshots'), result)
+        self.assertEqual(Path(result['screenshots'][0]).parent, shots.resolve())
+
     def test_screenshot_slug_cannot_traverse_from_the_evidence_directory(self):
         for value in ('../../../../escape-run', '../../../escape-shots', 'bad/name'):
             with self.subTest(value=value):
