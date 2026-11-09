@@ -66,6 +66,7 @@ it shows the exact frozen plan and requires a human approval, and piped or other
 non-interactive use fails closed. It is not an unattended CI runner or a bypass.
 
 For a recovery campaign, the supported boundaries are `before_delivery`,
-`after_commit` and `restart_after_commit`. The restart boundary retains the
-scenario's database and process data while restarting the owned app; it is not a
-fresh-database restart. Use record-level observations for restart preservation.
+`after_commit` and `restart_after_commit`. The restart boundary stops and
+restarts the owned app while retaining that scenario's database and records. It
+does not preserve process memory and is not a fresh-database restart. Use
+record-level observations for restart preservation.
