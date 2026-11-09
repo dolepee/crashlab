@@ -13,7 +13,37 @@ operations. The comparison freezes the contract and checks evaluator identity
 across the before/after runs. Results cover the configured assertions, not every
 possible application failure.
 
-## A retry fix that survived restart
+## Current installed workflow: app path to reusable repair
+
+On the **0.5.7** evaluator, a normal interactive Hermes session received only a
+pristine Kist checkout, intended behavior and runtime bindings. It inspected the
+app, constructed the case, reproduced duplicate goals after acknowledgement loss
+and restart, wrote a durable repair and reran the same frozen experiment. The
+record includes actual Allow-once approvals and an initial control-wait correction
+made while application source remained pristine.
+
+| Same frozen operation | Original app | Model repair | Deliberate-use control |
+| --- | --- | --- | --- |
+| Acknowledgement lost after commit | **2/1 saved, FAIL** | **1/1 saved, PASS** | 2/2 in each run |
+| Server restarted with database retained | **2/1 saved, FAIL** | **1/1 saved, PASS** | 2/2 in each run |
+| Request stopped before delivery | 1/1; selected header check FAIL | 1/1, PASS | 2/2 in each run |
+
+The before-delivery baseline already saved one goal. Its failure is the case's
+configured Idempotency-Key requirement, absent from the original app; it is not
+another duplicate or a missing real retry. The repair passes all three boundaries
+and 274 application tests with no skips in a separate full test environment.
+
+A separate Mac/operator imported the exported regression with new local bindings.
+It started PREPARED, reproduced the pristine failure and earned VERIFIED after
+applying the retained model patch. Re-export preserved the behavior and launch
+hashes. That is a measured handoff, not a second model repair or unrelated-user
+adoption. The native session's own fresh-checkout reuse occurred inside the same
+Hermes conversation.
+
+[Inspect the actual case, tool events, patch and measurements](external/kist/evidence/2026-11-09-native/README.md),
+or [replay the current regression](external/kist/CURRENT_REPLAY.md).
+
+## Earlier memory-only repair comparison
 
 A fresh Hermes session constructed its own recovery case on public Kist Finance
 with a deliberately injected memory-only fix. That negative control was supplied
@@ -32,11 +62,10 @@ independent run of its application tests passed 279 tests. The full patch retain
 its six new tests and identifies the frontend code supplied in the initial seed.
 See the [actual selected tool events, measurements and patch](external/kist/evidence/2026-11-07-hermes-recovery/summary.json).
 
-To exercise this workflow on the reviewed **0.5.6** evaluator, use the
-[current Kist replay](external/kist/CURRENT_REPLAY.md). Its exported regression
-was independently imported in a separate process, reproduced on a pristine
-checkout and verified after applying the retained repair. This is a measured
-operator replay; the earlier model session has its own recorded verifier pin.
+The [historical 0.5.6 replay](external/kist/REPLAY_V056.md) preserves this earlier
+operator replay and its recorded evaluator. The current 0.5.7 case, repair and
+separate-machine handoff are linked above; their evidence is not attributed to
+the earlier session or patch.
 
 The [operator-controlled boundary comparison](external/kist/evidence/2026-11-07-recovery/summary.json)
 also includes unmodified upstream Kist and the older retained repair. A separate
@@ -207,7 +236,7 @@ python crashlab_replay.py report --experiment NEW_EXPERIMENT_ID
 
 `run` shows the exact frozen execution plan and requires an interactive terminal
 approval. Piped or non-interactive invocations fail closed; approve the same plan
-through the Hermes `crashlab_experiment_run` tool instead. The Desktop dashboard
+through the Hermes `crashlab_experiment_run` tool instead. The web dashboard
 freezes the plan first (case file, launch command, working directory and
 target), shows that plan in its confirmation, and executes the same snapshot
 through a short-lived, single-use ticket; declining drops the ticket. These are

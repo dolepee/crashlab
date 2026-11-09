@@ -1,0 +1,111 @@
+{
+  "at": "2026-11-09T07:13:38.145617+00:00",
+  "operator": "Codex, separate Mac/operator replay; not unrelated-human adoption or freshmodelrepair",
+  "engine": "529c22f9c77f6b65b5432c24e9f0aa3b8731cfa4",
+  "method": "Documented installed crashlab_replay.py import/run/export; actualPTYcapturedplan approval y forbothruns; no mockedcallback/no --yolo",
+  "import_initial_status": "PREPARED",
+  "experiment_id": "f9a3f2d4439b47ab8d7cf7cf253e6eb1",
+  "case_sha256": "52f0190f9501ef743fe5bfb3696942189d597ea9a7f9e655622f84ec5e5d691c",
+  "behavior_sha256": "a4468f6e76728d2ba6f2433e5eefe856ca25c088b50ae6c9db92265c6985376c",
+  "launch_sha256": "23eec9d813d66fd43d1ee16fd6e216db5067d231e2535fe0deb3fcb3f64a7f04",
+  "reexport_behavior_and_launch_unchanged": true,
+  "patch_sha256": "f86a44ad078529136c45ca11ea1fea7958900130bfeabb77ee9626337da1dfa3",
+  "runs": [
+    {
+      "workflow": "REPRODUCED",
+      "source": "5a1c4a2896bcbb11f7f41429f3f78927ab4843e28fc9301b7537476d9cb2ebaa",
+      "case": "52f0190f9501ef743fe5bfb3696942189d597ea9a7f9e655622f84ec5e5d691c",
+      "run_id": "run-1794208115827-60b3d765",
+      "boundaries": [
+        {
+          "name": "before_delivery",
+          "status": "FAIL",
+          "observed": 1,
+          "expected": 1,
+          "control": {
+            "ok": true,
+            "observed": 2,
+            "expected": 2
+          }
+        },
+        {
+          "name": "after_commit",
+          "status": "FAIL",
+          "observed": 2,
+          "expected": 1,
+          "control": {
+            "ok": true,
+            "observed": 2,
+            "expected": 2
+          }
+        },
+        {
+          "name": "restart_after_commit",
+          "status": "FAIL",
+          "observed": 2,
+          "expected": 1,
+          "control": {
+            "ok": true,
+            "observed": 2,
+            "expected": 2
+          }
+        }
+      ]
+    },
+    {
+      "workflow": "VERIFIED",
+      "source": "d01191f03244d64aa10d7ef692134c9195e3b064bf9e20b54e69f6d8a423b230",
+      "case": "52f0190f9501ef743fe5bfb3696942189d597ea9a7f9e655622f84ec5e5d691c",
+      "run_id": "run-1794208201348-38dc5afb",
+      "boundaries": [
+        {
+          "name": "before_delivery",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "control": {
+            "ok": true,
+            "observed": 2,
+            "expected": 2
+          }
+        },
+        {
+          "name": "after_commit",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "control": {
+            "ok": true,
+            "observed": 2,
+            "expected": 2
+          }
+        },
+        {
+          "name": "restart_after_commit",
+          "status": "PASS",
+          "observed": 1,
+          "expected": 1,
+          "control": {
+            "ok": true,
+            "observed": 2,
+            "expected": 2
+          }
+        }
+      ]
+    }
+  ],
+  "evidence_scope": "Model repair originates fromSaintnative529session. This independently replaysitsfrozenregressiononnewMacbindings andappliestheretainedactualpatch. Before-deliverybaseline1/1failsconfiguredheaderrequirement, notduplicatecount.",
+  "app_unit_tests": {
+    "tests": 274,
+    "skips": 0,
+    "seconds": 176.36,
+    "result": "PASS"
+  },
+  "source_pr_merge": "944c5de75518987b9a78d04b03d90979a7ddb4c9",
+  "scope_notes": [
+    "This is a separate Mac/operator retained-patch replay, not a second model repair or unrelated-human adoption.",
+    "Saintnative529trace used apppath/intention only, constructedcase/modelrepair; export/import inside sameHermessession.",
+    "Before-deliverybaseline1/1fails configuredheaderrequirement; after-commit/restart genuinelyduplicate2/1.",
+    "Actualpatchhashhas ...bfeabb..., correcting SUMMARY/chattypo ...bfeebb...; allfourpatchcopies andsourcefingerprints match."
+  ]
+}
