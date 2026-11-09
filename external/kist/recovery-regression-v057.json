@@ -1,0 +1,199 @@
+{
+  "format": "crashlab-regression.v1",
+  "intent": "On the local Kist app, adding one savings goal must survive a lost acknowledgement and a server restart: if the POST /api/goals response is lost after the server committed the goal, retrying the same user intent must recover that same goal instead of creating a second row. Two deliberate, separately-confirmed identical goals must still be allowed (they are distinct user intents and must produce two rows).",
+  "behavior": {
+    "control": {
+      "journey": [
+        {
+          "action": "goto",
+          "path": "/#goals"
+        },
+        {
+          "action": "wait_for_selector",
+          "selector": "#gName"
+        },
+        {
+          "action": "fill",
+          "selector": "#gName",
+          "value": "CRASHLAB-B3"
+        },
+        {
+          "action": "fill",
+          "selector": "#gTarget",
+          "value": "5000"
+        },
+        {
+          "action": "click",
+          "selector": "#gAdd"
+        },
+        {
+          "action": "wait_for_count",
+          "min": 1,
+          "selector": "#gList h3",
+          "text": "CRASHLAB-B3"
+        },
+        {
+          "action": "wait_for_selector",
+          "selector": "#gName"
+        },
+        {
+          "action": "fill",
+          "selector": "#gName",
+          "value": "CRASHLAB-B3"
+        },
+        {
+          "action": "fill",
+          "selector": "#gTarget",
+          "value": "5000"
+        },
+        {
+          "action": "click",
+          "selector": "#gAdd"
+        },
+        {
+          "action": "wait_for_count",
+          "min": 2,
+          "selector": "#gList h3",
+          "text": "CRASHLAB-B3"
+        }
+      ],
+      "state": {
+        "db": "{DATA_DIR}/.finance/finance.db",
+        "expect": 2,
+        "mode": "sqlite",
+        "record_fields": {
+          "currency": "PLN",
+          "name": "CRASHLAB-B3",
+          "target_amount": 5000
+        },
+        "table": "goals",
+        "where": "name = 'CRASHLAB-B3'"
+      }
+    },
+    "fault": {
+      "method": "POST",
+      "mode": "suppress_after_upstream",
+      "occurrence": 1,
+      "route": "**/api/goals"
+    },
+    "id": "kist-goal-lost-ack-v2",
+    "journey": [
+      {
+        "action": "goto",
+        "path": "/#goals"
+      },
+      {
+        "action": "wait_for_selector",
+        "selector": "#gName"
+      },
+      {
+        "action": "fill",
+        "selector": "#gName",
+        "value": "CRASHLAB-A7"
+      },
+      {
+        "action": "fill",
+        "selector": "#gTarget",
+        "value": "24000"
+      },
+      {
+        "action": "fill",
+        "selector": "#gMonthly",
+        "value": "400"
+      },
+      {
+        "action": "click",
+        "selector": "#gAdd"
+      },
+      {
+        "action": "wait_for_fault"
+      },
+      {
+        "action": "click",
+        "selector": "#gAdd"
+      },
+      {
+        "action": "wait_for_text",
+        "text": "CRASHLAB-A7"
+      },
+      {
+        "action": "wait_for_selector",
+        "selector": "#gList"
+      }
+    ],
+    "recovery": {
+      "identity_headers": [
+        "Idempotency-Key"
+      ],
+      "mode": "retry",
+      "record_id_field": "id",
+      "response_id_path": "id",
+      "success_statuses": [
+        200,
+        201
+      ]
+    },
+    "recovery_campaign": [
+      "before_delivery",
+      "after_commit",
+      "restart_after_commit"
+    ],
+    "state": {
+      "db": "{DATA_DIR}/.finance/finance.db",
+      "expect": 1,
+      "mode": "sqlite",
+      "record_fields": {
+        "currency": "PLN",
+        "name": "CRASHLAB-A7",
+        "target_amount": 24000
+      },
+      "table": "goals",
+      "where": "name = 'CRASHLAB-A7'"
+    },
+    "evidence": {
+      "screenshot_dir": "{DATA_DIR}/shots"
+    }
+  },
+  "launch": {
+    "start": {
+      "base_url": "http://127.0.0.1:{PORT}",
+      "command": [
+        "{PYTHON}",
+        "server/app.py"
+      ],
+      "cwd": "{PROJECT}",
+      "env": {
+        "FINANCE_PROJECT_DIR": "{DATA_DIR}",
+        "KIST_NO_OPEN": "1",
+        "KIST_NO_SCHEDULED_TASKS": "1",
+        "PORT": "{PORT}"
+      },
+      "health_path": "/",
+      "python": "{APP_PYTHON}",
+      "ready_timeout": 45,
+      "setup": [
+        {
+          "json": {
+            "wizard_completed": true
+          },
+          "method": "POST",
+          "path": "/api/app-config"
+        }
+      ]
+    }
+  },
+  "behavior_sha256": "a4468f6e76728d2ba6f2433e5eefe856ca25c088b50ae6c9db92265c6985376c",
+  "launch_sha256": "23eec9d813d66fd43d1ee16fd6e216db5067d231e2535fe0deb3fcb3f64a7f04",
+  "evaluator_sha256": {
+    "crashlab_core.py": "d45e4c7449f082e4364ef714f5978f39db0c02e2e647316a9edf47e6f91cdb50",
+    "crashlab_runner.js": "d2613bb1dc612ca0cdf338ab9bdd3cc546f8ec94356b8687f17c3ea470473f98",
+    "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
+    "repair_workflow.py": "3f91a4ee3fac1d8fb7d29afe5dc2c51e794d482376486faf2744a8d1b05f241f"
+  },
+  "binding_fields": [
+    "project_path",
+    "app_python"
+  ],
+  "notes": "Behavior and launch template are frozen independently. Bind paths to a disposable checkout; dependencies and runtime remain your responsibility. This bundle contains declared setup/environment values and may contain application data. It does not transfer verified status or include a source repair.",
+  "source_pin": "529c22f9c77f6b65b5432c24e9f0aa3b8731cfa4"
+}

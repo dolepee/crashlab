@@ -1,0 +1,254 @@
+{
+  "scope": "One installed native Hermes model repair of pristine Kist, plus retained-patch reuse and a separate Mac/operator replay. No unrelated-user adoption or speed/cost claim.",
+  "engine": {
+    "crashlab_source_pin": "529c22f9c77f6b65b5432c24e9f0aa3b8731cfa4",
+    "installed_plugin_commit": "529c22f9c77f6b65b5432c24e9f0aa3b8731cfa4",
+    "evaluator_sha256": {
+      "crashlab_core.py": "d45e4c7449f082e4364ef714f5978f39db0c02e2e647316a9edf47e6f91cdb50",
+      "crashlab_runner.js": "d2613bb1dc612ca0cdf338ab9bdd3cc546f8ec94356b8687f17c3ea470473f98",
+      "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
+      "repair_workflow.py": "3f91a4ee3fac1d8fb7d29afe5dc2c51e794d482376486faf2744a8d1b05f241f"
+    }
+  },
+  "operator": "Saint",
+  "app_upstream": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+  "session": {
+    "id": "local-decb8cfde056766133732b9eda0c2c85696d369792be6b9fb0e7b999e06b91cb",
+    "elapsed_s": 500.4,
+    "allow_once_approvals": 21,
+    "message_count": 164,
+    "tool_call_count": 89
+  },
+  "experiment": {
+    "id": "3f4b87aa1f714475b603f6e156f8e0fb",
+    "intent": "On the local Kist app, adding one savings goal must survive a lost acknowledgement and a server restart: if the POST /api/goals response is lost after the server committed the goal, retrying the same user intent must recover that same goal instead of creating a second row. Two deliberate, separately-confirmed identical goals must still be allowed (they are distinct user intents and must produce two rows).",
+    "contract_sha256": "51771858c168a80c4d2d6d81641a73820b104893e62536daadcf6cf8738a6968",
+    "case_sha256": "51771858c168a80c4d2d6d81641a73820b104893e62536daadcf6cf8738a6968",
+    "runs": [
+      {
+        "index": 0,
+        "run_id": "run-1794186411191-e216e1a2",
+        "workflow_status": "REPRODUCED",
+        "status": "FAIL",
+        "ok": false,
+        "project_sha256": "5a1c4a2896bcbb11f7f41429f3f78927ab4843e28fc9301b7537476d9cb2ebaa",
+        "case_sha256": "51771858c168a80c4d2d6d81641a73820b104893e62536daadcf6cf8738a6968",
+        "boundaries": [
+          {
+            "name": "before_delivery",
+            "status": "FAIL",
+            "ok": false,
+            "observed": 1,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": false,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-before_delivery-2026-11-09T01-06-45-967Z"
+          },
+          {
+            "name": "after_commit",
+            "status": "FAIL",
+            "ok": false,
+            "observed": 2,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": false,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-after_commit-2026-11-09T01-06-47-657Z"
+          },
+          {
+            "name": "restart_after_commit",
+            "status": "FAIL",
+            "ok": false,
+            "observed": 2,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": false,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-restart_after_commit-2026-11-09T01-06-49-381Z"
+          }
+        ]
+      },
+      {
+        "index": 1,
+        "run_id": "run-1794186508435-943a7a38",
+        "workflow_status": "VERIFIED",
+        "status": "PASS",
+        "ok": true,
+        "project_sha256": "d01191f03244d64aa10d7ef692134c9195e3b064bf9e20b54e69f6d8a423b230",
+        "case_sha256": "51771858c168a80c4d2d6d81641a73820b104893e62536daadcf6cf8738a6968",
+        "boundaries": [
+          {
+            "name": "before_delivery",
+            "status": "PASS",
+            "ok": true,
+            "observed": 1,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": true,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-before_delivery-2026-11-09T01-08-23-215Z"
+          },
+          {
+            "name": "after_commit",
+            "status": "PASS",
+            "ok": true,
+            "observed": 1,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": true,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-after_commit-2026-11-09T01-08-24-954Z"
+          },
+          {
+            "name": "restart_after_commit",
+            "status": "PASS",
+            "ok": true,
+            "observed": 1,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": true,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-restart_after_commit-2026-11-09T01-08-26-724Z"
+          }
+        ]
+      }
+    ]
+  },
+  "same_session_fresh_checkout_reuse": {
+    "export_path": "case/regression.json",
+    "behavior_sha256": "a4468f6e76728d2ba6f2433e5eefe856ca25c088b50ae6c9db92265c6985376c",
+    "imported_experiment_id": "d0a0a17b395c4690ad91a28e099db95f",
+    "imported_contract_sha256": "42c54acc4ff9cd2424ad0c3708da55607354062a98a1727fbc6e566ee1677690",
+    "target_project": "/workspace/tmp/kist-reuse-pristine",
+    "target_head": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+    "runs": [
+      {
+        "index": 0,
+        "run_id": "run-1794186538902-a9ec0de8",
+        "workflow_status": "REPRODUCED",
+        "status": "FAIL",
+        "ok": false,
+        "project_sha256": "5a1c4a2896bcbb11f7f41429f3f78927ab4843e28fc9301b7537476d9cb2ebaa",
+        "case_sha256": "42c54acc4ff9cd2424ad0c3708da55607354062a98a1727fbc6e566ee1677690",
+        "boundaries": [
+          {
+            "name": "before_delivery",
+            "status": "FAIL",
+            "ok": false,
+            "observed": 1,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": false,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-before_delivery-2026-11-09T01-08-53-730Z"
+          },
+          {
+            "name": "after_commit",
+            "status": "FAIL",
+            "ok": false,
+            "observed": 2,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": false,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-after_commit-2026-11-09T01-08-55-373Z"
+          },
+          {
+            "name": "restart_after_commit",
+            "status": "FAIL",
+            "ok": false,
+            "observed": 2,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": false,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-restart_after_commit-2026-11-09T01-08-57-161Z"
+          }
+        ]
+      },
+      {
+        "index": 1,
+        "run_id": "run-1794186549710-459ae336",
+        "workflow_status": "VERIFIED",
+        "status": "PASS",
+        "ok": true,
+        "project_sha256": "d01191f03244d64aa10d7ef692134c9195e3b064bf9e20b54e69f6d8a423b230",
+        "case_sha256": "42c54acc4ff9cd2424ad0c3708da55607354062a98a1727fbc6e566ee1677690",
+        "boundaries": [
+          {
+            "name": "before_delivery",
+            "status": "PASS",
+            "ok": true,
+            "observed": 1,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": true,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-before_delivery-2026-11-09T01-09-04-403Z"
+          },
+          {
+            "name": "after_commit",
+            "status": "PASS",
+            "ok": true,
+            "observed": 1,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": true,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-after_commit-2026-11-09T01-09-06-119Z"
+          },
+          {
+            "name": "restart_after_commit",
+            "status": "PASS",
+            "ok": true,
+            "observed": 1,
+            "expected": 1,
+            "scenario_valid": true,
+            "recovery_ok": true,
+            "control_ok": true,
+            "run_id": "kist-goal-lost-ack-v2-restart_after_commit-2026-11-09T01-09-07-872Z"
+          }
+        ]
+      }
+    ],
+    "retained_patch": true,
+    "label": "Fresh exported case on pristine checkout (run 0) and after applying the same retained model-repair.patch (run 1)."
+  },
+  "superseded_case": {
+    "experiment_id": "a9133e012133437c9824b13149a83dd3",
+    "reason": "First control journey hit an application re-render race (control 4/6); source remained pristine; discarded before the final baseline."
+  },
+  "patch": {
+    "file": "model-repair.patch",
+    "sha256": "f86a44ad078529136c45ca11ea1fea7958900130bfeabb77ee9626337da1dfa3",
+    "files": 7,
+    "stat": "+124/-22"
+  },
+  "independent_app_tests": {
+    "tests": 274,
+    "skips": 0,
+    "result": "PASS",
+    "seconds": 176.36,
+    "environment": "Upstream runtime and development requirements installed, including Hypothesis.",
+    "log": "independent-app-tests.txt"
+  },
+  "portable_bundle": {
+    "file": "../../recovery-regression-v057.json",
+    "sha256": "4a4a3e2008c2585c2c5c5cc1d5dae879261428a65c2609768efb2f34b11606de",
+    "behavior_sha256": "a4468f6e76728d2ba6f2433e5eefe856ca25c088b50ae6c9db92265c6985376c"
+  },
+  "raw_trace_identities": {
+    "session_export_sha256": "7f9a7214387af54d7320378fd0b4b23b1c6df050ee3e565f340ae8974fa54539",
+    "full_pty_sha256": "6cb40d428d0721ea0aa479d0fe5cfd19b84c81bb8d1fe11c13623eb83a691f2a"
+  },
+  "qualifications": [
+    "The first case hit a control re-render race (4/6); the agent re-prepared it while application source remained pristine, before the reported baseline.",
+    "Before-delivery baseline saved1/1 but failed the configured Idempotency-Key recovery requirement because the original app did not send that header. Two write requests occurred. This is not duplicate state or a missing real retry.",
+    "After-commit and restart baseline each saved2/1. All repaired boundaries saved1/1 and each control saved2/2.",
+    "Export/import into a clean checkout occurred inside the same Hermes session. The separate Mac/operator replay is recorded independently; neither is an unrelated-human trial.",
+    "Restart retains the same scenario database and port; a fresh database is not a retained-state restart.",
+    "A passing result covers this frozen operation and configured fields, not whole-application or production safety. Legacy keyless callers and browser-state-loss recovery are outside this demonstrated repair.",
+    "Selected events are normalized excerpts. Embedded recorded case/source digests refer to original bytes, not the normalized JSONL."
+  ]
+}

@@ -1,50 +1,53 @@
-# Replay Kist recovery with CrashLab 0.5.6
+# Replay Kist recovery with CrashLab 0.5.7
 
-Use this example to reproduce an interrupted savings-goal create, inspect the
-saved records, apply a retained repair and rerun the same regression. It uses a
-public application and disposable local data. Savings goals are records, not
-payments or money movement.
+Reproduce an interrupted savings-goal create, inspect the saved records, apply a
+retained model repair and rerun the same regression. The
+[current installed-session record](evidence/2026-11-09-native/README.md) includes
+a genuine model-constructed case and repair, followed by a separate Mac/operator
+replay. Savings goals are records, not payments or money movement.
 
-The exported [regression](recovery-regression-v056.json) belongs to reviewed
-CrashLab `1d8acf8ea7a5d90904c26a0f9887f83abb3af6cc` (0.5.6). The
-[measured results](evidence/2026-11-08-v056-replay/summary.json) include a fresh
-official Mac installation and a separate-process replay on Hermes 0.23 with
-native Chrome. The operator applied an earlier model-produced repair; this
-replay is not a new model repair or an unrelated developer's trial. These Mac records do not independently establish Linux execution. See the
-[Linux installation note](../../docs/LINUX_INSTALL.md) for the separately supplied
-official-installer observation.
+The [portable regression](recovery-regression-v057.json) records evaluator
+`529c22f9c77f6b65b5432c24e9f0aa3b8731cfa4` (0.5.7). Import requires identical
+evaluator hashes. Older 0.5.6 and 0.5.4 bundles remain historical; do not rewrite
+their hashes to use them with this evaluator. The
+[0.5.6 instructions](REPLAY_V056.md) are preserved separately.
 
 ## Prepare the disposable application
 
 Clone [Kist Finance](https://github.com/grzella/kist-finance) into a new local
-directory and check out `7a196af9550378d24d196e666ac0a0f6dd37cb48`. Create an
-application virtual environment and install that checkout's `requirements.txt`.
-Leave the application source unmodified for the initial run.
+Git checkout at `7a196af9550378d24d196e666ac0a0f6dd37cb48`. Create an application
+virtual environment and install its `requirements.txt`. Keep source pristine
+for the baseline. To run the full application tests as well, install its
+`requirements-dev.txt`, including Hypothesis.
 
-Install the exact CrashLab evaluator with Hermes 0.23 or newer:
+Install the recorded evaluator using Hermes v0.23:
 
 ```bash
-hermes plugins install dolepee/crashlab --ref 1d8acf8ea7a5d90904c26a0f9887f83abb3af6cc --enable
+hermes plugins install dolepee/crashlab --ref 529c22f9c77f6b65b5432c24e9f0aa3b8731cfa4 --enable
 ```
 
-If replacing an existing installation from the same source, Hermes requires its
-documented `--force` reinstall option. Review the replacement before doing so.
-Complete the documented Node sidecar setup (`npm ci` in the installed plugin
-directory) and have Chrome/Chromium available. Set `CHROME_PATH` to its executable
-if automatic discovery cannot find it. Dependencies are installed locally;
-the regression bundle does not package them. Follow the root README's doctor
-and validation steps before running the application.
+For an intentional replacement of an existing same-source installation, add
+Hermes' documented `--force` option. Complete Node sidecar installation when
+asked, or run `npm ci` in the installed plugin directory. Have Chrome/Chromium
+available; set `CHROME_PATH` if automatic discovery cannot locate it. Follow the
+root README's installed validation and doctor checks. The bundle does not
+package application or browser dependencies.
 
-## Import the current regression
+## Import the frozen regression
 
-Download the raw linked `recovery-regression-v056.json` into a separate local
-file. The original pinned 0.5.6 installation predates this documentation package
-and does not contain that new filename. The bundle's SHA-256 is
-`77cadd748cf35a01d2b028b5deb06898a01138a7ea040ab7b034a1e26a2ac84e`;
-verify you saved JSON, rather than an HTML page.
+Save the raw linked [regression JSON](recovery-regression-v057.json) and
+[model repair](evidence/2026-11-09-native/model-repair.patch) as separate local
+files. These evidence files were added after the recorded code pin, so that
+pinned installation does not contain their new filenames. Verify the downloads
+are JSON/patch data, not GitHub HTML pages:
 
-In a bindings JSON file, supply the disposable Git root and the absolute
-executable for its application environment:
+| File | SHA-256 |
+| --- | --- |
+| Regression JSON | `4a4a3e2008c2585c2c5c5cc1d5dae879261428a65c2609768efb2f34b11606de` |
+| Model repair | `f86a44ad078529136c45ca11ea1fea7958900130bfeabb77ee9626337da1dfa3` |
+
+Create a bindings JSON file containing only your local project root and absolute
+executable application interpreter:
 
 ```json
 {
@@ -53,73 +56,56 @@ executable for its application environment:
 }
 ```
 
-From the installed plugin directory, choose a new evidence directory and import:
+From the installed plugin directory, choose a new evidence directory outside the
+editable application and import:
 
 ```bash
 export CRASHLAB_DATA_DIR=/absolute/path/to/new-crashlab-evidence
-python crashlab_replay.py import --bundle /absolute/path/to/recovery-regression-v056.json --bindings /absolute/path/to/bindings.json
+python crashlab_replay.py import --bundle /absolute/path/to/recovery-regression-v057.json --bindings /absolute/path/to/bindings.json
 ```
 
-Save the returned experiment ID. Import creates a **PREPARED** experiment; it
-does not transfer a prior VERIFIED verdict. The behavior and launch-template
-hashes remain unchanged when local paths are bound.
-
-If the evaluator differs, import refuses it. Install the recorded pin or
-explicitly prepare a new experiment; do not rewrite the recorded hashes. The
-older `recovery-regression.json` and `recovery-regression-v054.json` are retained
-for their historical evaluators and should not replace this 0.5.6 bundle. The
-[0.5.4 replay instructions](REPLAY_V054.md) remain available.
+Import starts **PREPARED**. No prior VERIFIED status transfers. Paths bind the
+launch; the declared journeys, assertions and behavior hash stay unchanged.
 
 ## Reproduce, repair and rerun
 
-The CLI requires a human approval in an interactive terminal for the displayed
-execution plan. An unattended or piped invocation fails closed. The same
-import/run/report tools are available through Hermes with its native approval
-path.
+The CLI displays the captured execution plan and requires a real interactive
+terminal approval. Piped/unattended runs fail closed. The same experiment tools
+are available through Hermes' normal approval path.
 
 ```bash
 python crashlab_replay.py run --experiment NEW_EXPERIMENT_ID
 python crashlab_replay.py report --experiment NEW_EXPERIMENT_ID
 ```
 
-A valid pristine baseline is **REPRODUCED**: before-delivery recovery saves one
-goal, acknowledgement loss and restart recovery each save two instead of one,
-and each legitimate-use control saves two. A measured failing baseline returns
-exit code 1. An ERROR, missing fault or failed startup is not a reproduced bug.
+On pristine source the measured result is **REPRODUCED**, returning exit code 1.
+After-commit and restart each save two goals instead of one; each control saves
+two. Before delivery saves one goal but fails this case's explicitly selected
+Idempotency-Key requirement because the original app sends no such header.
+Do not interpret that first boundary as duplicate state or a missing real retry.
+An ERROR or missing valid fault is not a reproduced application defect.
 
-After inspecting that baseline, apply the retained patch to the same disposable
-application. Replace the paths below with your checkout and installed plugin:
+Apply the downloaded retained patch to the same disposable checkout, then rerun
+the same experiment ID:
 
 ```bash
-git -C /absolute/path/to/disposable-kist apply /absolute/path/to/crashlab/external/kist/evidence/2026-11-07-hermes-recovery/repair-from-upstream.patch
+git -C /absolute/path/to/disposable-kist apply /absolute/path/to/model-repair.patch
 python crashlab_replay.py run --experiment NEW_EXPERIMENT_ID
 python crashlab_replay.py report --experiment NEW_EXPERIMENT_ID
 ```
 
-The measured repaired result is **VERIFIED**: each of the three boundaries
-saves one goal, and each two-intent control saves two. Keep the same experiment
-ID and assertions. Inspect the recorded requests, saved record identities,
-restart lifecycle and current source status in the report. Each boundary starts
-with separate disposable data; the restart within its boundary preserves that
-boundary's database.
+The measured repair is **VERIFIED**: each boundary saves one goal and each
+legitimate-use control saves two, with a matching terminal reply/record identity.
+The restart retains its database and records; it does not create a fresh database
+or repeat setup. Inspect current source status before relying on the result.
 
-For a fresh repair instead of this operator replay, give Hermes the pristine
-application and intended behavior, let it inspect and edit the application, and
-keep the frozen experiment unchanged. That becomes new model-repair evidence
-only if those actions actually occur and are retained.
+For a new model repair, give Hermes the pristine app path and intended behavior
+and let it inspect, prepare and edit the app itself. Applying this retained patch
+is a replay, not a new model repair. The [native acceptance](evidence/2026-11-09-native/README.md)
+records the actual model journey separately from reuse.
 
-## What these records establish
-
-The receipts record real installed Hermes dispatch with execution middleware
-enabled, native Chrome and direct SQLite observations. Automated operator tests
-returned the native approval decision `once`; they are not recordings of a
-person answering every prompt. Private audit-root paths in the recorded JSON
-are replaced with `$AUDIT_WORKSPACE`. Embedded case/source digests refer to the
-original executed bytes, not the normalized receipt text. Use the unchanged
-export bundle for import, rather than treating a receipt as executable input.
-
-This is a bounded recovery check. It does not establish production safety,
-arbitrary defect discovery, application adoption or a speed/cost advantage.
-Legacy tokenless callers remain outside retry protection. Dependencies and
-ignored configuration are outside source freshness coverage. The application
-and configured local commands are trusted, disposable operator inputs.
+The [receipts](evidence/2026-11-09-native/summary.json) cover this configured
+operation, not all application behavior. Legacy keyless callers and recovery
+after client-state loss are outside the demonstrated repair. This is not a
+production-safety, adoption or speed/cost claim. Use trusted disposable apps and
+keep runtime/dependency responsibilities separate from frozen expectations.
