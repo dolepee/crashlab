@@ -94,6 +94,13 @@ class BrowserIntegrity(unittest.TestCase):
         self.assertTrue(result['ok'],result)
         self.assertTrue(result['recovery']['ok'],result)
 
+    def test_evidence_directory_outside_the_run_root_is_rejected(self):
+        case = copy.deepcopy(self.case)
+        case['evidence']['screenshot_dir'] = str(self.root / 'outside')
+        with self.assertRaisesRegex(ValueError, 'stay inside'):
+            self.run_case(case=case)
+        self.assertFalse((self.root / 'outside').exists())
+
     def test_browser_launch_error_is_actionable(self):
         with patch.dict(os.environ,CHROME_PATH=str(self.root/'missing-chrome')):
             result=self.run_case()
@@ -291,6 +298,89 @@ class BrowserIntegrity(unittest.TestCase):
                 self.assertIs(result['ok'],ok,result)
                 self.assertTrue(result['scenario']['valid'],result)
                 self.assertTrue(result['control']['ok'],result)
+
+    FORM_APP = r'''import json, os
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs
+ORDERS = []
+HTML = """<!doctype html><html><body>
+<button id="send">Send</button><div id="status">ready</div>
+<script>
+async function send(body) {
+  const status = document.getElementById('status');
+  try {
+    const r = await fetch('/create', {method:'POST', headers:{'content-type':'application/x-www-form-urlencoded'}, body});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    status.textContent = 'saved';
+  } catch (e) {
+    status.innerHTML = '<button id="retry">retry</button>';
+    document.getElementById('retry').onclick = () => send('BODY_RETRY');
+  }
+}
+document.getElementById('send').onclick = () => send('BODY_INITIAL');
+</script></body></html>"""
+class H(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/':
+            raw = HTML.encode(); self.send_response(200)
+            self.send_header('Content-Type', 'text/html'); self.send_header('Content-Length', str(len(raw)))
+            self.end_headers(); self.wfile.write(raw)
+        elif self.path == '/state':
+            raw = json.dumps({'orders': ORDERS}).encode(); self.send_response(200)
+            self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(raw)))
+            self.end_headers(); self.wfile.write(raw)
+        else: self.send_response(404); self.end_headers()
+    def do_POST(self):
+        if self.path != '/create': self.send_response(404); self.end_headers(); return
+        fields = parse_qs(self.rfile.read(int(self.headers.get('Content-Length', '0'))).decode())
+        ORDERS.append({'id': 1, 'item': (fields.get('item') or [''])[0]})
+        raw = b'{"ok":true}'; self.send_response(200)
+        self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(raw)))
+        self.end_headers(); self.wfile.write(raw)
+    def log_message(self, *args): pass
+ThreadingHTTPServer(('127.0.0.1', int(os.environ['PORT'])), H).serve_forever()
+'''
+
+    def form_case(self, initial, retry, expected):
+        return {
+            'id': 'repeated-form',
+            'app': {'base_url': 'http://127.0.0.1:{PORT}', 'start': {
+                'command': ['{PYTHON}', 'app.py'], 'python': '{PYTHON}', 'cwd': str(self.root),
+                'base_url': 'http://127.0.0.1:{PORT}', 'health_path': '/', 'ready_timeout': 10,
+            }},
+            'journey': [
+                {'action': 'goto', 'path': '/'},
+                {'action': 'click', 'selector': '#send'},
+                {'action': 'wait_for_fault'},
+                {'action': 'click', 'selector': '#retry'},
+                {'action': 'wait_for_text', 'text': 'saved'},
+            ],
+            'fault': {'route': '**/create', 'method': 'POST', 'mode': 'prevent_before_delivery', 'occurrence': 1},
+            'recovery': {'mode': 'retry', 'success_statuses': [200]},
+            'state': {'mode': 'http', 'url': '/state', 'path': 'orders', 'expect': 1,
+                      'record_fields': {'item': expected}},
+        }
+
+    def test_repeated_form_fields_are_compared_as_a_multiset(self):
+        source = self.FORM_APP.replace('BODY_INITIAL', 'intent_key=stable&item=one&item=two')
+        changed = source.replace('BODY_RETRY', 'intent_key=stable&item=three&item=two')
+        result = self.run_case(changed, self.form_case('', '', 'three'))
+        self.assertFalse(result['ok'], result)
+        self.assertFalse(result['recovery']['ok'], result)
+        self.assertEqual(result['observed'], 1, result)
+
+        unchanged = source.replace('BODY_RETRY', 'intent_key=stable&item=one&item=two')
+        result = self.run_case(unchanged, self.form_case('', '', 'one'))
+        self.assertTrue(result['ok'], result)
+        self.assertTrue(result['recovery']['ok'], result)
+
+    def test_repeated_form_mapping_is_rejected_when_ambiguous(self):
+        source = self.FORM_APP.replace('BODY_INITIAL', 'intent_key=stable&item=one&item=two')
+        source = source.replace('BODY_RETRY', 'intent_key=stable&item=one&item=two')
+        case = self.form_case('', '', 'one')
+        case['state']['request_fields'] = {'item': 'item'}
+        result = self.run_case(source, case)
+        self.assertFalse(result['ok'], result)
 
 if __name__ == '__main__':
     unittest.main()

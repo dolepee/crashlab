@@ -150,6 +150,9 @@ if (require.main === module) {
   const baseArgIndex = process.argv.indexOf('--base-url');
   const baseOverride = baseArgIndex >= 0 ? process.argv[baseArgIndex + 1] : null;
   const contract = parseJson(fs.readFileSync(contractPath, 'utf8'), 'contract');
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(String(contract.id))) {
+    throw new Error('contract.id must be a safe identifier: letters, digits, dot, dash or underscore');
+  }
   if (baseOverride) contract.app.base_url = baseOverride;
   const base = contract.app.base_url.replace(/\/$/, '');
   const evidenceDir = path.resolve(contract.evidence?.screenshot_dir || 'evidence');
@@ -217,6 +220,14 @@ if (require.main === module) {
     });
   }
 
+  function canonicalFormPairs(pairs) {
+    return JSON.stringify([...pairs].map(([name, value]) => [name, value]).sort((left, right) => {
+      if (left[0] !== right[0]) return left[0] < right[0] ? -1 : 1;
+      if (left[1] !== right[1]) return left[1] < right[1] ? -1 : 1;
+      return 0;
+    }));
+  }
+
   function sameRequest(left, right) {
     // Playwright returns the same Request object for the routed retry and its
     // terminal response/redirect chain. URL, method and frame are not identity:
@@ -240,6 +251,8 @@ if (require.main === module) {
     const raw = request.postData();
     let body = null;
     let bodyError = null;
+    let formPairs = null;
+    let duplicateFormFields = [];
     if (raw) {
       const type = String(request.headers()['content-type'] || '');
       const looksJson = /^\s*[\[{]/.test(raw);
@@ -249,12 +262,22 @@ if (require.main === module) {
         try { body = parseJson(raw, 'request body'); }
         catch (err) { bodyError = String(err); }
       } else if (/application\/x-www-form-urlencoded/i.test(type)) {
-        try { body = Object.fromEntries(new URLSearchParams(raw)); }
-        catch (err) { bodyError = String(err); }
+        try {
+          formPairs = [...new URLSearchParams(raw).entries()];
+          const names = formPairs.map(([name]) => name);
+          duplicateFormFields = [...new Set(names.filter((name, index) => names.indexOf(name) !== index))];
+          body = Object.fromEntries(formPairs);
+          if (duplicateFormFields.length) {
+            Object.defineProperty(body, '__form_duplicate_fields', {
+              value: duplicateFormFields, enumerable: false,
+            });
+          }
+        } catch (err) { bodyError = String(err); }
       }
     }
     return { method: request.method(),
       url: request.url(), body, raw_body: raw, body_error: bodyError,
+      form_pairs: formPairs, duplicate_form_fields: duplicateFormFields,
       after_interruption: faultAbortStarted,
       identity_headers: identityHeaderEvidence(request) };
   }
@@ -605,6 +628,9 @@ if (require.main === module) {
     if (spec.request_fields) {
       if (!requests.length || requests.some(body => !body || typeof body !== 'object')) return false;
       const mapping = Object.entries(spec.request_fields);
+      const ambiguous = requests.some(body => mapping.some(([, key]) =>
+        Array.isArray(body?.__form_duplicate_fields) && body.__form_duplicate_fields.includes(key)));
+      if (ambiguous) return false;
       const expected = requests.map(body => mapping.map(([, key]) => own(body, key) ? body[key] : undefined));
       if (expected.some(values => values.some(value => value === undefined || value === null || value === ''))) return false;
       const signatures = new Set(expected.map(values => JSON.stringify(values)));
@@ -638,14 +664,21 @@ if (require.main === module) {
     }
     if (recoverySpec.mode === 'retry') {
       const sameBody = event => {
+        const eventForm = Array.isArray(event.form_pairs);
+        const initialForm = Array.isArray(initialRequest?.form_pairs);
+        if (eventForm || initialForm) {
+          return eventForm && initialForm
+            && canonicalFormPairs(event.form_pairs) === canonicalFormPairs(initialRequest.form_pairs);
+        }
         if (event.body && initialRequest?.body) {
           return canonical(event.body) === canonical(initialRequest.body);
         }
         return event.raw_body === initialRequest?.raw_body;
       };
-      const matchingWrites = writes.filter(event => event.after_interruption && event !== initialRequest
-        && event.method === initialRequest?.method && event.url === initialRequest?.url && sameBody(event)
-        && identityHeadersMatch(initialRequest?.identity_headers, event.identity_headers));
+      const sameIntentWrites = writes.filter(event => event.after_interruption && event !== initialRequest
+        && event.method === initialRequest?.method && event.url === initialRequest?.url && sameBody(event));
+      const matchingWrites = sameIntentWrites.filter(event =>
+        identityHeadersMatch(initialRequest?.identity_headers, event.identity_headers));
       const retries = matchingWrites.filter(event => event.status !== null && event.status !== undefined
         && event.failed_recovery_transport !== true);
       const failedTransports = writes.filter(event => event.after_interruption && event !== initialRequest
@@ -687,9 +720,14 @@ if (require.main === module) {
       } else if (unsafeResponse) {
         reason = 'An observed JSON response contained an unsafe integer; CrashLab rejects it before it can be rounded.';
       } else if (!matchingWrites.length) {
+        const headerMismatch = Boolean(initialRequest?.identity_headers)
+          && sameIntentWrites.some(event => !identityHeadersMatch(
+            initialRequest?.identity_headers, event.identity_headers));
         reason = failedTransports.length
           ? 'A matching recovery write was attempted but its transport failed before a response; recovery is not observed.'
-          : 'No matching recovery write occurred after interruption. A local success message is insufficient.';
+          : headerMismatch
+            ? 'A retry was observed with the original request, but a required identity header was missing or changed.'
+            : 'No matching recovery write occurred after interruption. A local success message is insufficient.';
       } else if (!terminal) {
         reason = 'A matching recovery write was observed but no terminal response was observed; an intermediate redirect or status is not recovery.';
       } else if (!terminalComplete) {
@@ -707,6 +745,9 @@ if (require.main === module) {
       }
       return { mode: 'retry', ok: !unsafePrimaryRequest && !unsafeResponse
           && matchingWrites.length > 0 && terminalOK && responseIdentity.ok,
+        identity_header_mismatch: Boolean(initialRequest?.identity_headers)
+          && sameIntentWrites.some(event => !identityHeadersMatch(
+            initialRequest?.identity_headers, event.identity_headers)),
         invalid_measurement: unsafePrimaryRequest || unsafeResponse,
         terminal_transport_complete: terminalComplete,
         matching_retries: retries.length,

@@ -2,6 +2,7 @@
 import copy
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -323,6 +324,32 @@ with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as 
         self.assertTrue(result["ok"], result)
         self.wait_gone()
 
+    def wait_pid_gone(self, pid_file):
+        pid = int(pid_file.read_text(encoding="utf-8"))
+        for _ in range(100):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.05)
+        self.fail(f"child process {pid} survived runner timeout")
+
+    def test_runner_timeout_stops_spawned_child(self):
+        child = self._script("timeout-child.py", self.CHILD)
+        child_pid = self.tmp / "child.pid"
+        runner = self._script(
+            "timeout-runner.py",
+            "import subprocess, sys, time\n"
+            f"subprocess.Popen([sys.executable, {str(child)!r}, {str(child_pid)!r}, '0'])\n"
+            "time.sleep(60)\n",
+        )
+        contract_path = self.tmp / "case.json"
+        contract_path.write_text(json.dumps(self.start()), encoding="utf-8")
+        with patch.object(core, "RUNNER", runner), patch.object(core, "_node", lambda: sys.executable):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                core.run_contract(contract_path, timeout=1)
+        self.wait_pid_gone(child_pid)
+
     CHILD = """\
 import os, signal, sys, time
 signal.signal(signal.SIGTERM, signal.SIG_IGN if sys.argv[2] == "1" else signal.SIG_DFL)
@@ -407,3 +434,41 @@ class ControlIdentityValidationTests(unittest.TestCase):
         # A cardinality/content control without per-intent identity remains explicit and valid.
         case['control']['state'].pop('request_fields')
         core.validate_contract(case)
+
+
+class ArtifactSafetyTests(unittest.TestCase):
+    def base_case(self):
+        return json.loads((core.ROOT / 'cases/checkout-local-fixed.json').read_text())
+
+    def test_contract_id_rejects_traversal_and_non_strings(self):
+        for value in ('../escaped-case', 'bad/name', 'bad\\name', 123, [], None):
+            with self.subTest(value=value):
+                case = self.base_case()
+                case['id'] = value
+                with self.assertRaises(ValueError):
+                    core.validate_contract(case)
+
+    def test_persisted_run_ids_cannot_escape_runs_directory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {'CRASHLAB_DATA_DIR': temporary}):
+                for value in ('../escaped-evidence', 'bad/name', 'bad\\name', 123):
+                    with self.subTest(value=value):
+                        with self.assertRaises(ValueError):
+                            core.persist_run({'run_id': value, 'contract': 'x', 'ok': True})
+                with self.assertRaises(ValueError):
+                    core._persist({'run_id': '../escaped-comparison', 'ok': True})
+                self.assertFalse((Path(temporary) / 'escaped-evidence.json').exists())
+                self.assertFalse((Path(temporary) / 'escaped-comparison.json').exists())
+
+    def test_evidence_directory_must_stay_inside_the_run_root(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data = root / 'run'
+            data.mkdir()
+            contract = {'evidence': {'screenshot_dir': str(root / 'outside')}}
+            with self.assertRaisesRegex(ValueError, 'stay inside'):
+                core._contained_evidence_dir(contract, root, data, True)
+            inside = data / 'shots'
+            contract['evidence']['screenshot_dir'] = str(inside)
+            core._contained_evidence_dir(contract, root, data, True)
+            self.assertEqual(contract['evidence']['screenshot_dir'], str(inside.resolve()))

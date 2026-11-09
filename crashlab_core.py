@@ -23,6 +23,25 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent
 RUNNER = ROOT / "crashlab_runner.js"
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
+SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+
+
+def _safe_id(value: Any, field: str = "id") -> str:
+    """Reject names that can escape a persisted artifact path or filename."""
+    if not isinstance(value, str) or not SAFE_ID.fullmatch(value):
+        raise ValueError(f"{field} must be a safe identifier: letters, digits, dot, dash or underscore")
+    return value
+
+
+def _artifact_path(directory: Path, name: str) -> Path:
+    """Resolve a persisted artifact name and keep it directly inside directory."""
+    _safe_id(name, "artifact name")
+    root = directory.resolve()
+    path = (root / name).resolve()
+    if path.parent != root:
+        raise ValueError("artifact path escapes its configured directory")
+    return path
+
 
 def _data_dir() -> Path:
     return Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local" / "share" / "crashlab"))
@@ -68,13 +87,14 @@ def explain_comparison(result: dict) -> str:
 
 def persist_run(result: dict) -> dict:
     """Save one completed run outside the plugin directory for the Desktop pane."""
-    run_id = str(result.get("run_id") or f"run-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}")
+    run_id = result.get("run_id") or f"run-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}"
+    run_id = _safe_id(run_id, "run_id")
     result["run_id"] = run_id
     data = _data_dir()
     runs = data / "runs"
     runs.mkdir(parents=True, exist_ok=True)
     result["diagnosis"] = explain_run(result)
-    path = runs / f"{run_id}.json"
+    path = _artifact_path(runs, f"{run_id}.json")
     result["evidence_path"] = str(path)
     raw = json.dumps(result, indent=2, default=str) + "\n"
     path.write_text(raw, encoding="utf-8")
@@ -85,13 +105,14 @@ def persist_run(result: dict) -> dict:
 
 def _persist(result: dict) -> dict:
     """Save a completed comparison outside the plugin directory and expose its id."""
-    run_id = str(result.get("run_id") or f"compare-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}")
+    run_id = result.get("run_id") or f"compare-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}"
+    run_id = _safe_id(run_id, "run_id")
     result["run_id"] = run_id
     data = _data_dir()
     runs = data / "runs"
     runs.mkdir(parents=True, exist_ok=True)
     result["diagnosis"] = explain_comparison(result)
-    path = runs / f"{run_id}.json"
+    path = _artifact_path(runs, f"{run_id}.json")
     result["evidence_path"] = str(path)
     path.write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
     (data / "latest.json").write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
@@ -245,7 +266,9 @@ def _reject_unsafe_integers(value: Any, where: str = "value") -> None:
             raise ValueError(f"{where} is outside the safe integer range; use a decimal string")
         return
     if isinstance(value, float):
-        if math.isfinite(value) and value.is_integer() and abs(value) > MAX_SAFE_INTEGER:
+        if not math.isfinite(value):
+            raise ValueError(f"{where} must be a finite number")
+        if value.is_integer() and abs(value) > MAX_SAFE_INTEGER:
             raise ValueError(f"{where} is outside the safe integer range; use a decimal string")
         return
     if isinstance(value, dict):
@@ -262,6 +285,7 @@ def validate_contract(contract: dict) -> dict:
     for key in ("id", "app", "journey", "state"):
         if key not in contract:
             raise ValueError(f"contract missing {key}")
+    _safe_id(contract["id"], "contract.id")
     if not isinstance(contract["app"], dict):
         raise ValueError("app must be an object")
     if "setup_required" in contract and not isinstance(contract["setup_required"], str):
@@ -660,9 +684,29 @@ def _run_with_restart(argv, env, timeout, restart):
             runner.communicate()
 
 
+def _contained_evidence_dir(contract: dict, contract_dir: Path, data: Path, managed: bool) -> None:
+    """Keep screenshot output inside the disposable run directory or case directory."""
+    evidence = contract.get("evidence")
+    if not isinstance(evidence, dict):
+        evidence = {}
+        contract["evidence"] = evidence
+    raw = evidence.get("screenshot_dir")
+    if raw is None:
+        raw = str(data / "shots") if managed else str(contract_dir / "evidence")
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("evidence.screenshot_dir must be a non-empty string")
+    expanded = _expand_start(raw, contract_dir=contract_dir, data=data, port=0)
+    path = Path(expanded).expanduser().resolve()
+    root = (data if managed else contract_dir).resolve()
+    if not path.is_relative_to(root):
+        raise ValueError("evidence.screenshot_dir must stay inside the disposable run directory")
+    evidence["screenshot_dir"] = str(path)
+
+
 def run_contract(contract_path: str | Path, base_url: str | None = None,
                  timeout: int = 120, *, frozen_contract: dict | None = None) -> dict:
     contract = copy.deepcopy(frozen_contract) if frozen_contract is not None else load_contract(contract_path)
+    validate_contract(contract)
     if contract.get('recovery_campaign'):
         return run_recovery_campaign(contract_path, contract, base_url=base_url, timeout=timeout)
     if contract.get("setup_required"):
@@ -687,11 +731,9 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
                 if not db.is_absolute():
                     db = (contract_dir / db).resolve()
                 state["db"] = str(db)
-        evidence = contract.get("evidence")
-        if started is not None and isinstance(evidence, dict) and evidence.get("screenshot_dir"):
-            evidence["screenshot_dir"] = _expand_start(
-                evidence["screenshot_dir"], contract_dir=contract_dir,
-                data=app_data, port=0)
+        _contained_evidence_dir(
+            contract, contract_dir, app_data if started is not None else contract_dir,
+            started is not None)
         fd, temp_path = tempfile.mkstemp(prefix="crashlab-contract-", suffix=".json")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -717,8 +759,17 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
                     return event
                 proc = _run_with_restart(argv, env, timeout, restart)
             else:
-                proc = subprocess.run(argv, cwd=ROOT, capture_output=True, text=True,
-                                      timeout=timeout, env=env)
+                runner = subprocess.Popen(
+                    argv, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True, env=env, start_new_session=(os.name == "posix"))
+                if os.name == "posix":
+                    runner._crashlab_pgid = runner.pid
+                try:
+                    stdout, stderr = runner.communicate(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    _stop_process(runner)
+                    raise
+                proc = subprocess.CompletedProcess(argv, runner.returncode, stdout, stderr)
         finally:
             Path(temp_path).unlink(missing_ok=True)
     finally:
