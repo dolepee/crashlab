@@ -1,6 +1,10 @@
 """Hermes handler contract: positional argument mapping and JSON result."""
 import json
+import os
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 import plugin
 
@@ -88,6 +92,59 @@ class FirstUseTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Case setup required'):
                 plugin.core.run_contract(flaskr['path'])
         start.assert_not_called()
+
+
+class GitPreflightTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.project = Path(self.temp.name) / "app"
+        self.project.mkdir()
+        self.data = Path(self.temp.name) / "data"
+        self.data.mkdir()
+        self.env = patch.dict(os.environ, {"CRASHLAB_DATA_DIR": str(self.data)})
+        self.env.start()
+        self.addCleanup(self.env.stop)
+
+    def args(self, project=None):
+        return {"project_path": str(project or self.project), "intent": "one saved record", "contract": {}}
+
+    def test_non_git_directory_is_actionable_and_writes_nothing(self):
+        with patch.object(plugin.repair_workflow, "invoke") as invoke:
+            with self.assertRaisesRegex(ValueError, "Git repository root"):
+                plugin._handler("crashlab_prepare")(self.args())
+            with self.assertRaisesRegex(ValueError, "does not initialise"):
+                plugin._handler("crashlab_prepare")(self.args())
+        invoke.assert_not_called()
+        self.assertFalse((self.project / ".git").exists())
+        self.assertEqual(list(self.data.rglob("*")), [])
+
+    def test_missing_git_executable_is_actionable_and_writes_nothing(self):
+        with patch.object(plugin.shutil, "which", return_value=None),              patch.object(plugin.repair_workflow, "invoke") as invoke:
+            with self.assertRaisesRegex(ValueError, "Git is required"):
+                plugin._handler("crashlab_prepare")(self.args())
+        invoke.assert_not_called()
+        self.assertEqual(list(self.data.rglob("*")), [])
+
+    def test_nested_git_path_names_the_repository_root_and_writes_nothing(self):
+        subprocess.run(["git", "init", "-q"], cwd=self.project, check=True)
+        nested = self.project / "nested"
+        nested.mkdir()
+        with patch.object(plugin.repair_workflow, "invoke") as invoke:
+            with self.assertRaisesRegex(ValueError, "not a nested folder"):
+                plugin._handler("crashlab_prepare")(self.args(nested))
+        invoke.assert_not_called()
+        self.assertEqual(list(self.data.rglob("*")), [])
+
+    def test_git_root_passes_to_the_existing_prepare_path(self):
+        subprocess.run(["git", "init", "-q"], cwd=self.project, check=True)
+        expected = {"status": "PREPARED", "experiment_id": "a" * 32}
+        with patch.object(plugin.repair_workflow, "invoke", return_value=expected) as invoke:
+            result = json.loads(plugin._handler("crashlab_prepare")(self.args()))
+        self.assertEqual(result, expected)
+        invoke.assert_called_once()
+        self.assertEqual(invoke.call_args.args[0], "crashlab_prepare")
+        self.assertEqual(invoke.call_args.args[1]["project_path"], str(self.project))
 
 
 class RegisterTests(unittest.TestCase):

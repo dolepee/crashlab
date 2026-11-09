@@ -84,7 +84,9 @@ what behavior you expect. For example:
 
 The bundled skill guides app inspection and case preparation. Review the intended
 behavior and assertions, reproduce a failure, repair the application, then rerun
-the same experiment ID. The dashboard shows whether that evidence is current and
+the same experiment ID. For the short first-run and own-app checklist, including
+the Git, `CHROME_PATH`, replay and campaign boundaries, see
+[docs/FIRST_RUN.md](docs/FIRST_RUN.md). The dashboard shows whether that evidence is current and
 lets you rerun the case or enable completion reminders.
 
 A passing fault case must explicitly exercise recovery. A fault case must

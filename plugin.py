@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import json
 import shlex
+import shutil
+import subprocess
+from pathlib import Path
 
 try:
     from . import crashlab_core as core
@@ -82,9 +85,57 @@ def _public_arguments(name: str, kwargs):
     return {key: value for key, value in kwargs.items() if key in allowed}
 
 
+def _prepare_git_error(project_path):
+    """Return an actionable Git prerequisite error without changing app state.
+
+    This is presentation only: it runs the same repository-root query that the
+    frozen evaluator already requires, before any experiment directory is made.
+    It never initialises Git and never writes to the project or data directory.
+    """
+    if not isinstance(project_path, str) or not project_path.strip():
+        raise ValueError("project_path must be an existing directory for the app you want to test")
+    project = Path(project_path).expanduser().resolve()
+    if not project.is_dir():
+        raise ValueError(f"project_path must be an existing directory: {project}")
+    git = shutil.which("git")
+    if not git:
+        raise ValueError(
+            "Git is required to prepare a CrashLab experiment, but `git` was not found on PATH. "
+            "Install Git and retry. CrashLab does not initialise an app for you."
+        )
+    try:
+        check = subprocess.run(
+            [git, "-C", str(project), "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=15,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ValueError(
+            "The Git prerequisite check timed out. Check that the project is on a responsive "
+            "local filesystem and retry."
+        ) from exc
+    except OSError as exc:
+        raise ValueError(
+            "Git could not be executed. Install or repair Git on PATH and retry; "
+            "CrashLab does not initialise an app for you."
+        ) from exc
+    if check.returncode != 0:
+        raise ValueError(
+            "project_path must be a Git repository root. If this app should be a repository, "
+            "run `git init` in it; otherwise pass the existing repository root. "
+            "CrashLab does not initialise apps for you."
+        )
+    top = Path((check.stdout or "").strip()).expanduser().resolve()
+    if top != project:
+        raise ValueError(
+            f"project_path must be the Git repository root, not a nested folder. Use {top} instead."
+        )
+
+
 def _handler(name: str):
     def invoke(kwargs, context):
         kwargs = _public_arguments(name, kwargs)
+        if name == "crashlab_prepare":
+            _prepare_git_error(kwargs.get("project_path"))
         session_id = str(context.get("session_id") or "")
         task_id = str(context.get("task_id") or "")
         # The host binds the originating call id for the dispatch but does not
@@ -98,7 +149,16 @@ def _handler(name: str):
         if name == "crashlab_experiment_watch":
             return completion_reminder.watch(**kwargs)
         if name in {schema["name"] for schema in repair_workflow.schemas()}:
-            return repair_workflow.invoke(name, kwargs, approval_context=context)
+            try:
+                return repair_workflow.invoke(name, kwargs, approval_context=context)
+            except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+                if name == "crashlab_prepare":
+                    raise ValueError(
+                        "The Git prerequisite check failed while reading the project. "
+                        "Confirm that Git is installed and that project_path is the repository root; "
+                        "CrashLab did not initialise the app or create an experiment."
+                    ) from exc
+                raise
         if name.startswith("crashlab_campaign_"):
             return campaign_plugin.invoke(name, kwargs, approval_context=context)
         if name == "crashlab_validate":
