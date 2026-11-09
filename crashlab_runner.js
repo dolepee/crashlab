@@ -221,11 +221,9 @@ if (require.main === module) {
   }
 
   function canonicalFormPairs(pairs) {
-    return JSON.stringify([...pairs].map(([name, value]) => [name, value]).sort((left, right) => {
-      if (left[0] !== right[0]) return left[0] < right[0] ? -1 : 1;
-      if (left[1] !== right[1]) return left[1] < right[1] ? -1 : 1;
-      return 0;
-    }));
+    // Preserve submitted order and every repeated value. Form order can be part
+    // of an application's intent, so sorting would reintroduce ambiguity.
+    return JSON.stringify([...pairs].map(([name, value]) => [name, value]));
   }
 
   function sameRequest(left, right) {

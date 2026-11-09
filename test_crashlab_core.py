@@ -334,6 +334,23 @@ with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as 
             time.sleep(0.05)
         self.fail(f"child process {pid} survived runner timeout")
 
+    def test_runner_exit_without_child_cleanup_is_stopped(self):
+        child = self._script("exit-child.py", self.CHILD)
+        child_pid = self.tmp / "exit-child.pid"
+        runner = self._script(
+            "exit-runner.py",
+            "import os, subprocess, sys, time\n"
+            f"subprocess.Popen([sys.executable, {str(child)!r}, {str(child_pid)!r}, '0'], "
+            "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+            f"while not os.path.exists({str(child_pid)!r}): time.sleep(0.01)\n",
+        )
+        contract_path = self.tmp / "case.json"
+        contract_path.write_text(json.dumps(self.start()), encoding="utf-8")
+        with patch.object(core, "RUNNER", runner), patch.object(core, "_node", lambda: sys.executable):
+            result = core.run_contract(contract_path)
+        self.assertEqual(result["status"], "ERROR", result)
+        self.wait_pid_gone(child_pid)
+
     def test_runner_timeout_stops_spawned_child(self):
         child = self._script("timeout-child.py", self.CHILD)
         child_pid = self.tmp / "child.pid"

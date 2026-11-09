@@ -374,6 +374,11 @@ ThreadingHTTPServer(('127.0.0.1', int(os.environ['PORT'])), H).serve_forever()
         self.assertTrue(result['ok'], result)
         self.assertTrue(result['recovery']['ok'], result)
 
+        reordered = source.replace('BODY_RETRY', 'intent_key=stable&item=two&item=one')
+        result = self.run_case(reordered, self.form_case('', '', 'two'))
+        self.assertFalse(result['ok'], result)
+        self.assertFalse(result['recovery']['ok'], result)
+
     def test_repeated_form_mapping_is_rejected_when_ambiguous(self):
         source = self.FORM_APP.replace('BODY_INITIAL', 'intent_key=stable&item=one&item=two')
         source = source.replace('BODY_RETRY', 'intent_key=stable&item=one&item=two')

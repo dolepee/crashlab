@@ -766,9 +766,10 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
                     runner._crashlab_pgid = runner.pid
                 try:
                     stdout, stderr = runner.communicate(timeout=timeout)
-                except subprocess.TimeoutExpired:
+                finally:
+                    # Reap the owned group even when the direct runner exits
+                    # first and leaves a browser child behind.
                     _stop_process(runner)
-                    raise
                 proc = subprocess.CompletedProcess(argv, runner.returncode, stdout, stderr)
         finally:
             Path(temp_path).unlink(missing_ok=True)
