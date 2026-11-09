@@ -1,0 +1,164 @@
+{
+  "recorded_at": "2026-11-09T18:20:35.898577+00:00",
+  "version": "0.5.9",
+  "official_installed_head": "93e2f1aa1b666df5a018f18e79fa9cbba449dfca",
+  "identical_tree_merge": "17b8f34944ff9c06bb0d0cd67569605150c90f1d",
+  "hermes_version": "0.23.0",
+  "hermes_source": "2bd378ed1b8d6bf2192cb26e0a55ff3091e6bd19",
+  "install": "Official Hermes plugins install with exact --ref, real PTY and explicit Node-dependency consent.",
+  "validator": "PASS",
+  "doctor": "PASS; 14 tools, 3 hooks",
+  "approval": "Actual standalone replay CLI captured plans; explicit terminal approvals for all four runs. No mocked callbacks or unattended yes flag.",
+  "scope": "Operator replay with the retained model patch, not a new model repair or unrelated-user onboarding trial. Historical 0.5.7 model session is separate.",
+  "patch_sha256": "f86a44ad078529136c45ca11ea1fea7958900130bfeabb77ee9626337da1dfa3",
+  "experiments": [
+    {
+      "kind": "prepared",
+      "experiment_id": "96fba5725dc3428c95eb3983927cb02c",
+      "case_sha256": "db60f08a2b7f8af4f9dc42b87395e5700851d8b7fb776d462708cd02e9c26dda",
+      "statuses": [
+        {
+          "workflow": "REPRODUCED",
+          "source_sha256": "5a1c4a2896bcbb11f7f41429f3f78927ab4843e28fc9301b7537476d9cb2ebaa",
+          "raw_file": "prepared/run-1794248231254-a940a701.json",
+          "raw_sha256": "6eb14665b6c68d795c81bc90bf4c8af2f7d40a025a8566041d07971a5bd98736",
+          "boundaries": [
+            {
+              "boundary": "before_delivery",
+              "status": "FAIL",
+              "observed": 1,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            },
+            {
+              "boundary": "after_commit",
+              "status": "FAIL",
+              "observed": 2,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            },
+            {
+              "boundary": "restart_after_commit",
+              "status": "FAIL",
+              "observed": 2,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            }
+          ]
+        },
+        {
+          "workflow": "VERIFIED",
+          "source_sha256": "d01191f03244d64aa10d7ef692134c9195e3b064bf9e20b54e69f6d8a423b230",
+          "raw_file": "prepared/run-1794248258850-bc68b397.json",
+          "raw_sha256": "cb8b04e3befeeb43e8701db5238fc8ed7c299df7a2eeb49eb59e0fabc374ab32",
+          "boundaries": [
+            {
+              "boundary": "before_delivery",
+              "status": "PASS",
+              "observed": 1,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            },
+            {
+              "boundary": "after_commit",
+              "status": "PASS",
+              "observed": 1,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            },
+            {
+              "boundary": "restart_after_commit",
+              "status": "PASS",
+              "observed": 1,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "imported",
+      "experiment_id": "cc6de3a86490451b8802da14b9cd4c95",
+      "case_sha256": "8caff959a37dc90e24e44fe780822f9a3e70db5714bbd82efe700a523daa2654",
+      "statuses": [
+        {
+          "workflow": "REPRODUCED",
+          "source_sha256": "5a1c4a2896bcbb11f7f41429f3f78927ab4843e28fc9301b7537476d9cb2ebaa",
+          "raw_file": "imported/run-1794248364263-5adf2b87.json",
+          "raw_sha256": "3f010037276e13fc5c2c0562dabd911f8672e550a80d96f5ec3090db04bad03e",
+          "boundaries": [
+            {
+              "boundary": "before_delivery",
+              "status": "FAIL",
+              "observed": 1,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            },
+            {
+              "boundary": "after_commit",
+              "status": "FAIL",
+              "observed": 2,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            },
+            {
+              "boundary": "restart_after_commit",
+              "status": "FAIL",
+              "observed": 2,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            }
+          ]
+        },
+        {
+          "workflow": "VERIFIED",
+          "source_sha256": "d01191f03244d64aa10d7ef692134c9195e3b064bf9e20b54e69f6d8a423b230",
+          "raw_file": "imported/run-1794248393034-9ebf4128.json",
+          "raw_sha256": "b67f289a4a79226a9fc3d72c7e83e6d6fdb0f8466cdc6d6821488699527a33f6",
+          "boundaries": [
+            {
+              "boundary": "before_delivery",
+              "status": "PASS",
+              "observed": 1,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            },
+            {
+              "boundary": "after_commit",
+              "status": "PASS",
+              "observed": 1,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            },
+            {
+              "boundary": "restart_after_commit",
+              "status": "PASS",
+              "observed": 1,
+              "expected": 1,
+              "control_observed": 2,
+              "control_expected": 2
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "evaluator_sha256": {
+    "crashlab_core.py": "4523750745b5173d66c7e375651bcb16cab7819030b2f315cd8c4ae452f9e107",
+    "crashlab_runner.js": "caeeb5b77cfce3200014a35f7cff2da3779c108a689938e7b9330596c416c6fc",
+    "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
+    "repair_workflow.py": "3f91a4ee3fac1d8fb7d29afe5dc2c51e794d482376486faf2744a8d1b05f241f"
+  }
+}

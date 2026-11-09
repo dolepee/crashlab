@@ -1,0 +1,1694 @@
+{
+  "contract": "kist-goal-lost-ack-v2",
+  "kind": "recovery_campaign",
+  "cases": [
+    {
+      "name": "before_delivery",
+      "result": {
+        "contract": "kist-goal-lost-ack-v2-before_delivery",
+        "run_id": "kist-goal-lost-ack-v2-before_delivery-2026-11-09T18-19-47-800Z",
+        "base_url": "http://127.0.0.1:52667",
+        "ok": true,
+        "primary_ok": true,
+        "expected": 1,
+        "observed": 1,
+        "observations": {},
+        "status": "PASS",
+        "upstream_status": null,
+        "scenario": {
+          "matched": true,
+          "delivered": true,
+          "upstream_status": null,
+          "committed_after_fault": 0,
+          "mode": "prevent_before_delivery",
+          "valid": true
+        },
+        "recovery": {
+          "mode": "retry",
+          "ok": true,
+          "identity_header_mismatch": false,
+          "invalid_measurement": false,
+          "terminal_transport_complete": true,
+          "matching_retries": 1,
+          "failed_recovery_transports": 0,
+          "success_statuses": [
+            200,
+            201
+          ],
+          "identity_headers": {
+            "Idempotency-Key": {
+              "present": true,
+              "sha256": "235af027bd5b2cca1339833651c4305d95414b72a51f69545dc5f1b6537e775a",
+              "length": 36
+            }
+          },
+          "identity_headers_match": true,
+          "response_identity": {
+            "configured": true,
+            "ok": true,
+            "response_id_path": "id",
+            "record_id_field": "id",
+            "response_id": "003d6dcd-ff10-4617-9b56-2bb36fa497c1",
+            "record_ids": [
+              "003d6dcd-ff10-4617-9b56-2bb36fa497c1"
+            ],
+            "reason": "The terminal JSON reply ID matched the single observed record ID."
+          },
+          "terminal_response": {
+            "status": 201,
+            "url": "http://127.0.0.1:52667/api/goals",
+            "redirected_from": null,
+            "body_complete": true,
+            "body_error": null,
+            "body_sha256": "096b9a342ccf56a768936cccc05ba384353eac01ddd3c41fb3265528688533cd",
+            "json": {
+              "id": "003d6dcd-ff10-4617-9b56-2bb36fa497c1"
+            },
+            "json_error": null
+          },
+          "write_requests": 2,
+          "initial_request": {
+            "sequence": 2,
+            "elapsed_ms": 493,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52667/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": false,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "235af027bd5b2cca1339833651c4305d95414b72a51f69545dc5f1b6537e775a",
+                "length": 36
+              }
+            }
+          },
+          "reason": "Observed a repeated write with the original request identity and payload, a terminal success, and the configured reply/record identity match."
+        },
+        "network": [
+          {
+            "sequence": 2,
+            "elapsed_ms": 493,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52667/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": false,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "235af027bd5b2cca1339833651c4305d95414b72a51f69545dc5f1b6537e775a",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 5,
+            "elapsed_ms": 658,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52667/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "235af027bd5b2cca1339833651c4305d95414b72a51f69545dc5f1b6537e775a",
+                "length": 36
+              }
+            },
+            "status": 201
+          },
+          {
+            "sequence": 9,
+            "elapsed_ms": 842,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52667/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "38df8be4d8dd7828db343ba9d0764392b2ce5407fc947f7dc617ccde591f7f2c",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 10,
+            "elapsed_ms": 975,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52667/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "43c7e77bd41a25178f4fe68dd3c1fe6038f6fd92964830f69d07e10af71e30ff",
+                "length": 36
+              }
+            }
+          }
+        ],
+        "events": [
+          {
+            "sequence": 1,
+            "elapsed_ms": 331,
+            "phase": "primary",
+            "kind": "baseline",
+            "state": {
+              "observed": 0,
+              "expected": 1,
+              "records": [],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-9823rg11/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 2,
+            "elapsed_ms": 493,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52667/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": false,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "235af027bd5b2cca1339833651c4305d95414b72a51f69545dc5f1b6537e775a",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 3,
+            "elapsed_ms": 518,
+            "phase": "primary",
+            "kind": "undelivered_state",
+            "state": {
+              "observed": 0,
+              "expected": 1,
+              "records": [],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-9823rg11/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 4,
+            "elapsed_ms": 518,
+            "phase": "primary",
+            "kind": "interruption",
+            "mode": "prevent_before_delivery",
+            "completed": true
+          },
+          {
+            "sequence": 5,
+            "elapsed_ms": 658,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52667/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "235af027bd5b2cca1339833651c4305d95414b72a51f69545dc5f1b6537e775a",
+                "length": 36
+              }
+            },
+            "status": 201
+          },
+          {
+            "sequence": 6,
+            "elapsed_ms": 680,
+            "phase": "primary",
+            "kind": "response",
+            "status": 201,
+            "url": "http://127.0.0.1:52667/api/goals",
+            "method": "POST",
+            "resource_type": "fetch",
+            "redirected_from": null,
+            "retry_write_sequence": 5,
+            "retry_chain": true,
+            "terminal": true,
+            "body_complete": true,
+            "body_sha256": "096b9a342ccf56a768936cccc05ba384353eac01ddd3c41fb3265528688533cd",
+            "body_length": 46,
+            "json": {
+              "id": "003d6dcd-ff10-4617-9b56-2bb36fa497c1"
+            }
+          },
+          {
+            "sequence": 7,
+            "elapsed_ms": 784,
+            "phase": "primary",
+            "kind": "final_state",
+            "state": {
+              "observed": 1,
+              "expected": 1,
+              "records": [
+                {
+                  "id": "003d6dcd-ff10-4617-9b56-2bb36fa497c1",
+                  "name": "CRASHLAB-A7",
+                  "target_amount": 24000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:48",
+                  "updated_at": "2026-11-09T19:19:48",
+                  "intent_key": "9c996577-48d5-4e3d-9b94-af33c75cbda0"
+                }
+              ],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-9823rg11/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 8,
+            "elapsed_ms": 809,
+            "phase": "control",
+            "kind": "baseline",
+            "state": {
+              "observed": 0,
+              "expected": 2,
+              "records": [],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-9823rg11/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 9,
+            "elapsed_ms": 842,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52667/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "38df8be4d8dd7828db343ba9d0764392b2ce5407fc947f7dc617ccde591f7f2c",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 10,
+            "elapsed_ms": 975,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52667/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "43c7e77bd41a25178f4fe68dd3c1fe6038f6fd92964830f69d07e10af71e30ff",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 11,
+            "elapsed_ms": 1153,
+            "phase": "control",
+            "kind": "final_state",
+            "state": {
+              "observed": 2,
+              "expected": 2,
+              "records": [
+                {
+                  "id": "7a4d3b12-ca99-4f19-b8ee-550a3bc28765",
+                  "name": "CRASHLAB-B3",
+                  "target_amount": 5000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:48",
+                  "updated_at": "2026-11-09T19:19:48",
+                  "intent_key": "525cbd44-ee9d-4909-a615-f71daae4e447"
+                },
+                {
+                  "id": "cbaa5d7c-87dc-4204-852a-f05c53429b37",
+                  "name": "CRASHLAB-B3",
+                  "target_amount": 5000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:48",
+                  "updated_at": "2026-11-09T19:19:48",
+                  "intent_key": "d4bc36b6-f2ed-4d78-8a50-508bd40d0adf"
+                }
+              ],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-9823rg11/.finance/finance.db"
+            }
+          }
+        ],
+        "baseline": {
+          "observed": 0,
+          "expected": 1,
+          "records": [],
+          "records_available": true,
+          "observer": "sqlite",
+          "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-9823rg11/.finance/finance.db"
+        },
+        "state_after_interruption": {
+          "observed": 0,
+          "expected": 1,
+          "records": [],
+          "records_available": true,
+          "observer": "sqlite",
+          "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-9823rg11/.finance/finance.db"
+        },
+        "screenshots": [],
+        "records": [
+          {
+            "id": "003d6dcd-ff10-4617-9b56-2bb36fa497c1",
+            "name": "CRASHLAB-A7",
+            "target_amount": 24000,
+            "current_amount": 0,
+            "target_date": null,
+            "currency": "PLN",
+            "status": "active",
+            "created_at": "2026-11-09T19:19:48",
+            "updated_at": "2026-11-09T19:19:48",
+            "intent_key": "9c996577-48d5-4e3d-9b94-af33c75cbda0"
+          }
+        ],
+        "control": {
+          "observed": 2,
+          "expected": 2,
+          "records": [
+            {
+              "id": "7a4d3b12-ca99-4f19-b8ee-550a3bc28765",
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-09T19:19:48",
+              "updated_at": "2026-11-09T19:19:48",
+              "intent_key": "525cbd44-ee9d-4909-a615-f71daae4e447"
+            },
+            {
+              "id": "cbaa5d7c-87dc-4204-852a-f05c53429b37",
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-09T19:19:48",
+              "updated_at": "2026-11-09T19:19:48",
+              "intent_key": "d4bc36b6-f2ed-4d78-8a50-508bd40d0adf"
+            }
+          ],
+          "records_available": true,
+          "observer": "sqlite",
+          "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-9823rg11/.finance/finance.db",
+          "ok": true,
+          "write_requests": 2,
+          "unsafe_request": false,
+          "invalid_measurement": false
+        },
+        "returncode": 0,
+        "app_lifecycle": [],
+        "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+        "case_sha256": "7b9acc9b3ed8c72f1f171430c53a437308fb7e02c767c9d5b49e04bda30223c3"
+      }
+    },
+    {
+      "name": "after_commit",
+      "result": {
+        "contract": "kist-goal-lost-ack-v2-after_commit",
+        "run_id": "kist-goal-lost-ack-v2-after_commit-2026-11-09T18-19-49-554Z",
+        "base_url": "http://127.0.0.1:52722",
+        "ok": true,
+        "primary_ok": true,
+        "expected": 1,
+        "observed": 1,
+        "observations": {},
+        "status": "PASS",
+        "upstream_status": 201,
+        "scenario": {
+          "matched": true,
+          "delivered": true,
+          "upstream_status": 201,
+          "committed_after_fault": 1,
+          "mode": "suppress_after_upstream",
+          "valid": true
+        },
+        "recovery": {
+          "mode": "retry",
+          "ok": true,
+          "identity_header_mismatch": false,
+          "invalid_measurement": false,
+          "terminal_transport_complete": true,
+          "matching_retries": 1,
+          "failed_recovery_transports": 0,
+          "success_statuses": [
+            200,
+            201
+          ],
+          "identity_headers": {
+            "Idempotency-Key": {
+              "present": true,
+              "sha256": "f202de15df6f061bee4128fc663e25397d63d552d5623507bc55b5f67c23e890",
+              "length": 36
+            }
+          },
+          "identity_headers_match": true,
+          "response_identity": {
+            "configured": true,
+            "ok": true,
+            "response_id_path": "id",
+            "record_id_field": "id",
+            "response_id": "579f7bc0-847e-4679-ad98-189d6b67855e",
+            "record_ids": [
+              "579f7bc0-847e-4679-ad98-189d6b67855e"
+            ],
+            "reason": "The terminal JSON reply ID matched the single observed record ID."
+          },
+          "terminal_response": {
+            "status": 200,
+            "url": "http://127.0.0.1:52722/api/goals",
+            "redirected_from": null,
+            "body_complete": true,
+            "body_error": null,
+            "body_sha256": "1f91ffcb7d6d3a625ec91568c3b61e4dd02bf4a81d9cbc3cb2b11c825f940385",
+            "json": {
+              "id": "579f7bc0-847e-4679-ad98-189d6b67855e"
+            },
+            "json_error": null
+          },
+          "write_requests": 2,
+          "initial_request": {
+            "sequence": 2,
+            "elapsed_ms": 482,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52722/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": false,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "f202de15df6f061bee4128fc663e25397d63d552d5623507bc55b5f67c23e890",
+                "length": 36
+              }
+            },
+            "status": 201
+          },
+          "reason": "Observed a repeated write with the original request identity and payload, a terminal success, and the configured reply/record identity match."
+        },
+        "network": [
+          {
+            "sequence": 2,
+            "elapsed_ms": 482,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52722/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": false,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "f202de15df6f061bee4128fc663e25397d63d552d5623507bc55b5f67c23e890",
+                "length": 36
+              }
+            },
+            "status": 201
+          },
+          {
+            "sequence": 5,
+            "elapsed_ms": 615,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52722/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "f202de15df6f061bee4128fc663e25397d63d552d5623507bc55b5f67c23e890",
+                "length": 36
+              }
+            },
+            "status": 200
+          },
+          {
+            "sequence": 9,
+            "elapsed_ms": 782,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52722/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "de38b8f55d42c22bad6541610320080db83292c57764763d6f1d4ed7a896afa6",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 10,
+            "elapsed_ms": 915,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52722/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "8e91035ae4d258705bfda66cd961541441850c6a2b44e8fb177ec7d1c23ffcec",
+                "length": 36
+              }
+            }
+          }
+        ],
+        "events": [
+          {
+            "sequence": 1,
+            "elapsed_ms": 321,
+            "phase": "primary",
+            "kind": "baseline",
+            "state": {
+              "observed": 0,
+              "expected": 1,
+              "records": [],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-qwr64lxd/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 2,
+            "elapsed_ms": 482,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52722/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": false,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "f202de15df6f061bee4128fc663e25397d63d552d5623507bc55b5f67c23e890",
+                "length": 36
+              }
+            },
+            "status": 201
+          },
+          {
+            "sequence": 3,
+            "elapsed_ms": 525,
+            "phase": "primary",
+            "kind": "committed_state",
+            "state": {
+              "observed": 1,
+              "expected": 1,
+              "records": [
+                {
+                  "id": "579f7bc0-847e-4679-ad98-189d6b67855e",
+                  "name": "CRASHLAB-A7",
+                  "target_amount": 24000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:50",
+                  "updated_at": "2026-11-09T19:19:50",
+                  "intent_key": "ba7c2845-47fd-461a-8778-c3b9b58aadd4"
+                }
+              ],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-qwr64lxd/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 4,
+            "elapsed_ms": 525,
+            "phase": "primary",
+            "kind": "interruption",
+            "mode": "suppress_after_upstream",
+            "completed": true
+          },
+          {
+            "sequence": 5,
+            "elapsed_ms": 615,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52722/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "f202de15df6f061bee4128fc663e25397d63d552d5623507bc55b5f67c23e890",
+                "length": 36
+              }
+            },
+            "status": 200
+          },
+          {
+            "sequence": 6,
+            "elapsed_ms": 629,
+            "phase": "primary",
+            "kind": "response",
+            "status": 200,
+            "url": "http://127.0.0.1:52722/api/goals",
+            "method": "POST",
+            "resource_type": "fetch",
+            "redirected_from": null,
+            "retry_write_sequence": 5,
+            "retry_chain": true,
+            "terminal": true,
+            "body_complete": true,
+            "body_sha256": "1f91ffcb7d6d3a625ec91568c3b61e4dd02bf4a81d9cbc3cb2b11c825f940385",
+            "body_length": 46,
+            "json": {
+              "id": "579f7bc0-847e-4679-ad98-189d6b67855e"
+            }
+          },
+          {
+            "sequence": 7,
+            "elapsed_ms": 725,
+            "phase": "primary",
+            "kind": "final_state",
+            "state": {
+              "observed": 1,
+              "expected": 1,
+              "records": [
+                {
+                  "id": "579f7bc0-847e-4679-ad98-189d6b67855e",
+                  "name": "CRASHLAB-A7",
+                  "target_amount": 24000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:50",
+                  "updated_at": "2026-11-09T19:19:50",
+                  "intent_key": "ba7c2845-47fd-461a-8778-c3b9b58aadd4"
+                }
+              ],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-qwr64lxd/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 8,
+            "elapsed_ms": 751,
+            "phase": "control",
+            "kind": "baseline",
+            "state": {
+              "observed": 0,
+              "expected": 2,
+              "records": [],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-qwr64lxd/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 9,
+            "elapsed_ms": 782,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52722/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "de38b8f55d42c22bad6541610320080db83292c57764763d6f1d4ed7a896afa6",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 10,
+            "elapsed_ms": 915,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52722/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "8e91035ae4d258705bfda66cd961541441850c6a2b44e8fb177ec7d1c23ffcec",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 11,
+            "elapsed_ms": 1096,
+            "phase": "control",
+            "kind": "final_state",
+            "state": {
+              "observed": 2,
+              "expected": 2,
+              "records": [
+                {
+                  "id": "52e81e6d-f031-46f7-8b76-056ad332e370",
+                  "name": "CRASHLAB-B3",
+                  "target_amount": 5000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:50",
+                  "updated_at": "2026-11-09T19:19:50",
+                  "intent_key": "4d86624b-803e-4c58-9d20-8b39fd8be4b6"
+                },
+                {
+                  "id": "34e8324c-62ba-41ed-be1a-0512fe6cc2b3",
+                  "name": "CRASHLAB-B3",
+                  "target_amount": 5000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:50",
+                  "updated_at": "2026-11-09T19:19:50",
+                  "intent_key": "60e0c25a-112f-47ad-a1e6-e087d9c47a5f"
+                }
+              ],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-qwr64lxd/.finance/finance.db"
+            }
+          }
+        ],
+        "baseline": {
+          "observed": 0,
+          "expected": 1,
+          "records": [],
+          "records_available": true,
+          "observer": "sqlite",
+          "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-qwr64lxd/.finance/finance.db"
+        },
+        "state_after_interruption": {
+          "observed": 1,
+          "expected": 1,
+          "records": [
+            {
+              "id": "579f7bc0-847e-4679-ad98-189d6b67855e",
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-09T19:19:50",
+              "updated_at": "2026-11-09T19:19:50",
+              "intent_key": "ba7c2845-47fd-461a-8778-c3b9b58aadd4"
+            }
+          ],
+          "records_available": true,
+          "observer": "sqlite",
+          "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-qwr64lxd/.finance/finance.db"
+        },
+        "screenshots": [],
+        "records": [
+          {
+            "id": "579f7bc0-847e-4679-ad98-189d6b67855e",
+            "name": "CRASHLAB-A7",
+            "target_amount": 24000,
+            "current_amount": 0,
+            "target_date": null,
+            "currency": "PLN",
+            "status": "active",
+            "created_at": "2026-11-09T19:19:50",
+            "updated_at": "2026-11-09T19:19:50",
+            "intent_key": "ba7c2845-47fd-461a-8778-c3b9b58aadd4"
+          }
+        ],
+        "control": {
+          "observed": 2,
+          "expected": 2,
+          "records": [
+            {
+              "id": "52e81e6d-f031-46f7-8b76-056ad332e370",
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-09T19:19:50",
+              "updated_at": "2026-11-09T19:19:50",
+              "intent_key": "4d86624b-803e-4c58-9d20-8b39fd8be4b6"
+            },
+            {
+              "id": "34e8324c-62ba-41ed-be1a-0512fe6cc2b3",
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-09T19:19:50",
+              "updated_at": "2026-11-09T19:19:50",
+              "intent_key": "60e0c25a-112f-47ad-a1e6-e087d9c47a5f"
+            }
+          ],
+          "records_available": true,
+          "observer": "sqlite",
+          "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-qwr64lxd/.finance/finance.db",
+          "ok": true,
+          "write_requests": 2,
+          "unsafe_request": false,
+          "invalid_measurement": false
+        },
+        "returncode": 0,
+        "app_lifecycle": [],
+        "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+        "case_sha256": "301ec11f3cdd84e5d6d9a0dfb7f29558d598a92b4fc6d8e956034cbd13a532c0"
+      }
+    },
+    {
+      "name": "restart_after_commit",
+      "result": {
+        "contract": "kist-goal-lost-ack-v2-restart_after_commit",
+        "run_id": "kist-goal-lost-ack-v2-restart_after_commit-2026-11-09T18-19-51-235Z",
+        "base_url": "http://127.0.0.1:52777",
+        "ok": true,
+        "primary_ok": true,
+        "expected": 1,
+        "observed": 1,
+        "observations": {},
+        "status": "PASS",
+        "upstream_status": 201,
+        "scenario": {
+          "matched": true,
+          "delivered": true,
+          "upstream_status": 201,
+          "committed_after_fault": 1,
+          "mode": "suppress_after_upstream",
+          "valid": true
+        },
+        "recovery": {
+          "mode": "retry",
+          "ok": true,
+          "identity_header_mismatch": false,
+          "invalid_measurement": false,
+          "terminal_transport_complete": true,
+          "matching_retries": 1,
+          "failed_recovery_transports": 0,
+          "success_statuses": [
+            200,
+            201
+          ],
+          "identity_headers": {
+            "Idempotency-Key": {
+              "present": true,
+              "sha256": "7099defec981fd528d6e78cba7c5dd7f7456513b28a918c994bb1d5400d92432",
+              "length": 36
+            }
+          },
+          "identity_headers_match": true,
+          "response_identity": {
+            "configured": true,
+            "ok": true,
+            "response_id_path": "id",
+            "record_id_field": "id",
+            "response_id": "8dd57e90-9be9-4355-989a-d446de58c827",
+            "record_ids": [
+              "8dd57e90-9be9-4355-989a-d446de58c827"
+            ],
+            "reason": "The terminal JSON reply ID matched the single observed record ID."
+          },
+          "terminal_response": {
+            "status": 200,
+            "url": "http://127.0.0.1:52777/api/goals",
+            "redirected_from": null,
+            "body_complete": true,
+            "body_error": null,
+            "body_sha256": "4909444c3cd0ad1e10650f5e46b33238e8ada2ce02930726f71b1067c6ac0f77",
+            "json": {
+              "id": "8dd57e90-9be9-4355-989a-d446de58c827"
+            },
+            "json_error": null
+          },
+          "write_requests": 2,
+          "initial_request": {
+            "sequence": 2,
+            "elapsed_ms": 486,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52777/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": false,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "7099defec981fd528d6e78cba7c5dd7f7456513b28a918c994bb1d5400d92432",
+                "length": 36
+              }
+            },
+            "status": 201
+          },
+          "reason": "Observed a repeated write with the original request identity and payload, a terminal success, and the configured reply/record identity match."
+        },
+        "network": [
+          {
+            "sequence": 2,
+            "elapsed_ms": 486,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52777/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": false,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "7099defec981fd528d6e78cba7c5dd7f7456513b28a918c994bb1d5400d92432",
+                "length": 36
+              }
+            },
+            "status": 201
+          },
+          {
+            "sequence": 6,
+            "elapsed_ms": 1068,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52777/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "7099defec981fd528d6e78cba7c5dd7f7456513b28a918c994bb1d5400d92432",
+                "length": 36
+              }
+            },
+            "status": 200
+          },
+          {
+            "sequence": 10,
+            "elapsed_ms": 1268,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52777/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "e34890062a7508f84989247cfcad509ef2c9fd58be9256fb8dd92cbd161d07f3",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 11,
+            "elapsed_ms": 1402,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52777/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "cab599f944db5f7f19b6d837c917bee0941e002aedf5e3c8f85e97e085f74aad",
+                "length": 36
+              }
+            }
+          }
+        ],
+        "events": [
+          {
+            "sequence": 1,
+            "elapsed_ms": 320,
+            "phase": "primary",
+            "kind": "baseline",
+            "state": {
+              "observed": 0,
+              "expected": 1,
+              "records": [],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-1jzsulzd/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 2,
+            "elapsed_ms": 486,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52777/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": false,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "7099defec981fd528d6e78cba7c5dd7f7456513b28a918c994bb1d5400d92432",
+                "length": 36
+              }
+            },
+            "status": 201
+          },
+          {
+            "sequence": 3,
+            "elapsed_ms": 531,
+            "phase": "primary",
+            "kind": "committed_state",
+            "state": {
+              "observed": 1,
+              "expected": 1,
+              "records": [
+                {
+                  "id": "8dd57e90-9be9-4355-989a-d446de58c827",
+                  "name": "CRASHLAB-A7",
+                  "target_amount": 24000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:51",
+                  "updated_at": "2026-11-09T19:19:51",
+                  "intent_key": "f50774c8-8e6d-4749-9a8c-bc83eb155bf5"
+                }
+              ],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-1jzsulzd/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 4,
+            "elapsed_ms": 531,
+            "phase": "primary",
+            "kind": "interruption",
+            "mode": "suppress_after_upstream",
+            "completed": true
+          },
+          {
+            "sequence": 5,
+            "elapsed_ms": 618,
+            "phase": "primary",
+            "kind": "restart",
+            "completed": true,
+            "state_before": {
+              "observed": 1,
+              "expected": 1,
+              "records": [
+                {
+                  "id": "8dd57e90-9be9-4355-989a-d446de58c827",
+                  "name": "CRASHLAB-A7",
+                  "target_amount": 24000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:51",
+                  "updated_at": "2026-11-09T19:19:51",
+                  "intent_key": "f50774c8-8e6d-4749-9a8c-bc83eb155bf5"
+                }
+              ],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-1jzsulzd/.finance/finance.db"
+            },
+            "state_after": {
+              "observed": 1,
+              "expected": 1,
+              "records": [
+                {
+                  "id": "8dd57e90-9be9-4355-989a-d446de58c827",
+                  "name": "CRASHLAB-A7",
+                  "target_amount": 24000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:51",
+                  "updated_at": "2026-11-09T19:19:51",
+                  "intent_key": "f50774c8-8e6d-4749-9a8c-bc83eb155bf5"
+                }
+              ],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-1jzsulzd/.finance/finance.db"
+            },
+            "lifecycle": {
+              "ok": true,
+              "old_pid": 54117,
+              "new_pid": 54148,
+              "same_port": true,
+              "same_data_directory": true,
+              "setup_replayed": false,
+              "reset_replayed": false
+            },
+            "scoped_records_preserved": true
+          },
+          {
+            "sequence": 6,
+            "elapsed_ms": 1068,
+            "phase": "primary",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52777/api/goals",
+            "body": {
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "monthly_contribution": 400
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-A7\",\"target_amount\":24000,\"current_amount\":0,\"monthly_contribution\":400}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "7099defec981fd528d6e78cba7c5dd7f7456513b28a918c994bb1d5400d92432",
+                "length": 36
+              }
+            },
+            "status": 200
+          },
+          {
+            "sequence": 7,
+            "elapsed_ms": 1083,
+            "phase": "primary",
+            "kind": "response",
+            "status": 200,
+            "url": "http://127.0.0.1:52777/api/goals",
+            "method": "POST",
+            "resource_type": "fetch",
+            "redirected_from": null,
+            "retry_write_sequence": 6,
+            "retry_chain": true,
+            "terminal": true,
+            "body_complete": true,
+            "body_sha256": "4909444c3cd0ad1e10650f5e46b33238e8ada2ce02930726f71b1067c6ac0f77",
+            "body_length": 46,
+            "json": {
+              "id": "8dd57e90-9be9-4355-989a-d446de58c827"
+            }
+          },
+          {
+            "sequence": 8,
+            "elapsed_ms": 1198,
+            "phase": "primary",
+            "kind": "final_state",
+            "state": {
+              "observed": 1,
+              "expected": 1,
+              "records": [
+                {
+                  "id": "8dd57e90-9be9-4355-989a-d446de58c827",
+                  "name": "CRASHLAB-A7",
+                  "target_amount": 24000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:51",
+                  "updated_at": "2026-11-09T19:19:51",
+                  "intent_key": "f50774c8-8e6d-4749-9a8c-bc83eb155bf5"
+                }
+              ],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-1jzsulzd/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 9,
+            "elapsed_ms": 1225,
+            "phase": "control",
+            "kind": "baseline",
+            "state": {
+              "observed": 0,
+              "expected": 2,
+              "records": [],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-1jzsulzd/.finance/finance.db"
+            }
+          },
+          {
+            "sequence": 10,
+            "elapsed_ms": 1268,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52777/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "e34890062a7508f84989247cfcad509ef2c9fd58be9256fb8dd92cbd161d07f3",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 11,
+            "elapsed_ms": 1402,
+            "phase": "control",
+            "kind": "write",
+            "method": "POST",
+            "url": "http://127.0.0.1:52777/api/goals",
+            "body": {
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0
+            },
+            "raw_body": "{\"name\":\"CRASHLAB-B3\",\"target_amount\":5000,\"current_amount\":0}",
+            "body_error": null,
+            "form_pairs": null,
+            "duplicate_form_fields": [],
+            "after_interruption": true,
+            "identity_headers": {
+              "Idempotency-Key": {
+                "present": true,
+                "sha256": "cab599f944db5f7f19b6d837c917bee0941e002aedf5e3c8f85e97e085f74aad",
+                "length": 36
+              }
+            }
+          },
+          {
+            "sequence": 12,
+            "elapsed_ms": 1585,
+            "phase": "control",
+            "kind": "final_state",
+            "state": {
+              "observed": 2,
+              "expected": 2,
+              "records": [
+                {
+                  "id": "08aa84a2-41fd-46d6-b5ae-2f2b1a11f3b5",
+                  "name": "CRASHLAB-B3",
+                  "target_amount": 5000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:52",
+                  "updated_at": "2026-11-09T19:19:52",
+                  "intent_key": "9daa2948-ec7b-4d06-9ffc-312029a199cb"
+                },
+                {
+                  "id": "43fcba0d-6aba-44d0-96d8-53a651b67e64",
+                  "name": "CRASHLAB-B3",
+                  "target_amount": 5000,
+                  "current_amount": 0,
+                  "target_date": null,
+                  "currency": "PLN",
+                  "status": "active",
+                  "created_at": "2026-11-09T19:19:52",
+                  "updated_at": "2026-11-09T19:19:52",
+                  "intent_key": "0f73860f-248c-4a0f-ba1f-83985184576a"
+                }
+              ],
+              "records_available": true,
+              "observer": "sqlite",
+              "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-1jzsulzd/.finance/finance.db"
+            }
+          }
+        ],
+        "baseline": {
+          "observed": 0,
+          "expected": 1,
+          "records": [],
+          "records_available": true,
+          "observer": "sqlite",
+          "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-1jzsulzd/.finance/finance.db"
+        },
+        "state_after_interruption": {
+          "observed": 1,
+          "expected": 1,
+          "records": [
+            {
+              "id": "8dd57e90-9be9-4355-989a-d446de58c827",
+              "name": "CRASHLAB-A7",
+              "target_amount": 24000,
+              "current_amount": 0,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-09T19:19:51",
+              "updated_at": "2026-11-09T19:19:51",
+              "intent_key": "f50774c8-8e6d-4749-9a8c-bc83eb155bf5"
+            }
+          ],
+          "records_available": true,
+          "observer": "sqlite",
+          "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-1jzsulzd/.finance/finance.db"
+        },
+        "screenshots": [],
+        "records": [
+          {
+            "id": "8dd57e90-9be9-4355-989a-d446de58c827",
+            "name": "CRASHLAB-A7",
+            "target_amount": 24000,
+            "current_amount": 0,
+            "target_date": null,
+            "currency": "PLN",
+            "status": "active",
+            "created_at": "2026-11-09T19:19:51",
+            "updated_at": "2026-11-09T19:19:51",
+            "intent_key": "f50774c8-8e6d-4749-9a8c-bc83eb155bf5"
+          }
+        ],
+        "control": {
+          "observed": 2,
+          "expected": 2,
+          "records": [
+            {
+              "id": "08aa84a2-41fd-46d6-b5ae-2f2b1a11f3b5",
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-09T19:19:52",
+              "updated_at": "2026-11-09T19:19:52",
+              "intent_key": "9daa2948-ec7b-4d06-9ffc-312029a199cb"
+            },
+            {
+              "id": "43fcba0d-6aba-44d0-96d8-53a651b67e64",
+              "name": "CRASHLAB-B3",
+              "target_amount": 5000,
+              "current_amount": 0,
+              "target_date": null,
+              "currency": "PLN",
+              "status": "active",
+              "created_at": "2026-11-09T19:19:52",
+              "updated_at": "2026-11-09T19:19:52",
+              "intent_key": "0f73860f-248c-4a0f-ba1f-83985184576a"
+            }
+          ],
+          "records_available": true,
+          "observer": "sqlite",
+          "db": "/var/folders/sv/c5hf4mdn7hbc81v_pvd87zm80000gn/T/crashlab-app-1jzsulzd/.finance/finance.db",
+          "ok": true,
+          "write_requests": 2,
+          "unsafe_request": false,
+          "invalid_measurement": false
+        },
+        "returncode": 0,
+        "app_lifecycle": [
+          {
+            "old_pid": 54117,
+            "new_pid": 54148,
+            "same_port": true,
+            "same_data_directory": true,
+            "setup_replayed": false,
+            "reset_replayed": false
+          }
+        ],
+        "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+        "case_sha256": "e274575d53136579123bfb737dba022d7edffbba1235a5a78a32671900048553"
+      }
+    }
+  ],
+  "ok": true,
+  "primary_ok": true,
+  "status": "PASS",
+  "error": null,
+  "returncode": 0,
+  "observed": 1,
+  "expected": 1,
+  "representative_scenario": "restart_after_commit",
+  "scenario": {
+    "valid": true
+  },
+  "recovery": {
+    "ok": true,
+    "reason": "Inspect each recorded recovery boundary."
+  },
+  "control": {
+    "ok": true,
+    "observed": 6,
+    "expected": 6
+  },
+  "run_id": "run-1794248393034-9ebf4128",
+  "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+  "evidence_path": "/Users/qdee/Documents/Codex/audits/crashlab-2026-11-07/final-059-mac-import-data/runs/run-1794248393034-9ebf4128.json"
+}
