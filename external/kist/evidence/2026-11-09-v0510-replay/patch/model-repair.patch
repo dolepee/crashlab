@@ -1,0 +1,256 @@
+diff --git a/server/app.py b/server/app.py
+index 7885977..a90d634 100644
+--- a/server/app.py
++++ b/server/app.py
+@@ -434,7 +434,12 @@ def goals_list():
+ 
+ @app.post("/api/goals")
+ def goals_add():
+-    return jsonify({"id": planner.add_goal(request.get_json(force=True))}), 201
++    # A lost acknowledgement must not turn one intended goal into two rows: the
++    # client resends the same Idempotency-Key on retry and gets the committed
++    # goal back (200). A first, successful add answers 201.
++    intent_key = request.headers.get("Idempotency-Key")
++    goal_id, created = planner.add_goal(request.get_json(force=True), intent_key=intent_key)
++    return jsonify({"id": goal_id}), (201 if created else 200)
+ 
+ 
+ @app.put("/api/goals/<goal_id>")
+diff --git a/server/db.py b/server/db.py
+index f098031..47beb2b 100644
+--- a/server/db.py
++++ b/server/db.py
+@@ -62,7 +62,7 @@ create index if not exists idx_budget_month on budget_categories(month);
+ create table if not exists goals (
+   id text primary key, name text not null, target_amount real not null, current_amount real default 0,
+   target_date text, currency text default 'EUR', status text default 'active',
+-  created_at text not null, updated_at text not null);
++  created_at text not null, updated_at text not null, intent_key text);
+ create table if not exists debts (
+   id text primary key, name text not null, balance real not null, interest_rate real not null,
+   minimum_payment real not null, type text default 'loan', currency text default 'EUR', updated_at text not null);
+diff --git a/server/planner_core.py b/server/planner_core.py
+index 23b212f..cc94260 100644
+--- a/server/planner_core.py
++++ b/server/planner_core.py
+@@ -26,6 +26,16 @@ def ensure_tables():
+         value real not null, created_at text not null)""")
+     eb._exec("""create table if not exists goal_meta (
+         goal_id text primary key, monthly_contribution real)""")
++    # Idempotency for a retried goal add: the browser keeps one key per user
++    # intent, so a lost acknowledgement recovers the committed goal instead of
++    # inserting a duplicate. Nullable = every legacy row and every deliberate
++    # new intent stays its own record. Migrates an existing database in place.
++    try:
++        eb._exec("alter table goals add column intent_key text")
++    except Exception:
++        pass  # column exists
++    eb._exec("create unique index if not exists idx_goals_intent_key "
++             "on goals(intent_key)")
+     eb._exec("""create table if not exists job_offers (
+         id text primary key, company text not null, role text default '',
+         recruiter text default '', total_monthly real not null,
+diff --git a/server/planner_goals.py b/server/planner_goals.py
+index b2ebfea..b477977 100644
+--- a/server/planner_goals.py
++++ b/server/planner_goals.py
+@@ -2,9 +2,11 @@
+ 
+ Split out of planner.py on 2026-09-05 (code moved 1:1; other modules are reached through `P`).
+ """
++import sqlite3
+ import uuid
+ from datetime import date, datetime
+ 
++import db
+ import engine_bridge as eb
+ from planner_proxy import P
+ 
+@@ -46,19 +48,44 @@ def _project(goal, cfg):
+             "eta_band": band}
+ 
+ 
+-def add_goal(data):
++def add_goal(data, intent_key=None):
++    """Insert a goal and return ``(goal_id, created)``.
++
++    A non-empty ``intent_key`` makes the write idempotent: a browser retry of an
++    add whose acknowledgement was lost sends the same key, so it recovers the
++    row committed by the first attempt instead of inserting a second one. The
++    key is stored on the goal, so recovery also works after a server restart.
++    Two deliberate adds are separate intents with different keys and stay two
++    goals.
++    """
++    intent_key = (intent_key or "").strip() or None
+     goal_id = str(uuid.uuid4())
+-    eb._exec(
+-        "insert into goals (id, name, target_amount, current_amount, target_date, "
+-        "currency, status, created_at, updated_at) values (?,?,?,?,?,?,?,?,?)",
+-        (goal_id, data["name"], float(data["target_amount"]),
+-         float(data.get("current_amount", 0)), data.get("target_date"),
+-         data.get("currency", "PLN"), "active", P._now(), P._now()))
+-    if data.get("monthly_contribution") is not None:
+-        eb._exec("insert into goal_meta (goal_id, monthly_contribution) values (?,?)",
+-                 (goal_id, float(data["monthly_contribution"])))
++    with db.get_conn() as conn:
++        if intent_key:
++            row = conn.execute("select id from goals where intent_key = ?",
++                               (intent_key,)).fetchone()
++            if row:
++                return row["id"], False
++        try:
++            conn.execute(
++                "insert into goals (id, name, target_amount, current_amount, target_date, "
++                "currency, status, created_at, updated_at, intent_key) "
++                "values (?,?,?,?,?,?,?,?,?,?)",
++                (goal_id, data["name"], float(data["target_amount"]),
++                 float(data.get("current_amount", 0)), data.get("target_date"),
++                 data.get("currency", "PLN"), "active", P._now(), P._now(), intent_key))
++        except sqlite3.IntegrityError:
++            # a concurrent retry with the same key won the unique index; use its row
++            row = conn.execute("select id from goals where intent_key = ?",
++                               (intent_key,)).fetchone()
++            if row:
++                return row["id"], False
++            raise
++        if data.get("monthly_contribution") is not None:
++            conn.execute("insert into goal_meta (goal_id, monthly_contribution) values (?,?)",
++                         (goal_id, float(data["monthly_contribution"])))
+     P._audit("goal", goal_id, "add", data)
+-    return goal_id
++    return goal_id, True
+ 
+ 
+ def update_goal(goal_id, data):
+diff --git a/static/js/api.js b/static/js/api.js
+index 9a2250c..9071a5b 100644
+--- a/static/js/api.js
++++ b/static/js/api.js
+@@ -45,11 +45,11 @@ const api = {
+       return await r.json();
+     } finally { _busy(-1); }
+   },
+-  async send(method, path, body) {
++  async send(method, path, body, headers) {
+     _busy(1);
+-    try { return await this._send(method, path, body); } finally { _busy(-1); }
++    try { return await this._send(method, path, body, headers); } finally { _busy(-1); }
+   },
+-  async _send(method, path, body) {
++  async _send(method, path, body, headers) {
+     if (demoStatic()) {
+       // compute-only POSTs (e.g. overpayment simulations) have baked responses
+       const key = ("post_" + path + "__" + JSON.stringify(body === undefined ? "" : body))
+@@ -61,13 +61,13 @@ const api = {
+     }
+     const r = await fetch(path, {
+       method,
+-      headers: { "Content-Type": "application/json" },
++      headers: Object.assign({ "Content-Type": "application/json" }, headers || {}),
+       body: body === undefined ? undefined : JSON.stringify(body),
+     });
+     if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+     return r.json();
+   },
+-  post(p, b) { return this.send("POST", p, b); },
++  post(p, b, h) { return this.send("POST", p, b, h); },
+   put(p, b) { return this.send("PUT", p, b); },
+   del(p) { return this.send("DELETE", p); },
+ };
+diff --git a/static/js/views/goals.js b/static/js/views/goals.js
+index 00eefee..c36f2f2 100644
+--- a/static/js/views/goals.js
++++ b/static/js/views/goals.js
+@@ -1,4 +1,20 @@
++// One idempotency key per goal-creation intent: a retry after a lost
++// acknowledgement resends the same key, so the server recovers the goal it
++// already committed instead of inserting a duplicate. A deliberate second add
++// is a new intent (new key) and stays a separate goal.
++let _goalIntent = null;
++
++function _goalIntentKey() {
++  try {
++    if (window.crypto && typeof window.crypto.randomUUID === "function") {
++      return window.crypto.randomUUID();
++    }
++  } catch (e) { /* fall back below */ }
++  return "goal-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
++}
++
+ async function renderGoals(el) {
++  _goalIntent = null;  // a freshly rendered form is a new intent
+   const [goals, cfg] = await Promise.all([
+     api.get("/api/goals"), api.get("/api/settings")]);
+   el.innerHTML = `
+@@ -71,12 +87,36 @@ async function renderGoals(el) {
+     const target = parseNum(document.getElementById("gTarget"));
+     if (!name || !target) { alert("Enter a name and target amount"); return; }
+     const monthly = parseNum(document.getElementById("gMonthly"));
+-    await api.post("/api/goals", {
++    const payload = {
+       name, target_amount: target,
+       current_amount: parseNum(document.getElementById("gCurrent")) || 0,
+-      monthly_contribution: isNaN(monthly) ? undefined : monthly,
+-    });
+-    route();
++    };
++    if (!isNaN(monthly)) payload.monthly_contribution = monthly;
++    const fingerprint = JSON.stringify(payload);
++    if (!_goalIntent || _goalIntent.fingerprint !== fingerprint) {
++      _goalIntent = { key: _goalIntentKey(), fingerprint };
++    }
++    const oldNote = document.getElementById("gRetryNote");
++    if (oldNote) oldNote.remove();
++    try {
++      await api.post("/api/goals", payload, { "Idempotency-Key": _goalIntent.key });
++      _goalIntent = null;
++      route();
++    } catch (e) {
++      // Keep the intent key: pressing "Add goal" again retries the same
++      // operation, so a goal the server already committed is recovered rather
++      // than created a second time.
++      const card = document.getElementById("gAdd").closest(".card");
++      if (card) {
++        const note = document.createElement("div");
++        note.id = "gRetryNote";
++        note.className = "muted mt";
++        note.style.cssText = "padding:8px 12px;border-radius:8px;background:rgba(242,199,79,.12)";
++        note.textContent = "Save not confirmed — press “Add goal” again to retry. "
++          + "The same goal will be recovered, not created twice.";
++        card.appendChild(note);
++      }
++    }
+   });
+   list.querySelectorAll("[data-gupd]").forEach((b) =>
+     b.addEventListener("click", async () => {
+diff --git a/tests/test_api.py b/tests/test_api.py
+index 58e1428..f4065d3 100644
+--- a/tests/test_api.py
++++ b/tests/test_api.py
+@@ -24,6 +24,26 @@ def test_goals_crud(client):
+     assert len(client.get("/api/goals").get_json()) == before
+ 
+ 
++def test_goal_add_is_idempotent_per_intent_key(client):
++    """A retried add (lost acknowledgement) recovers its goal; a deliberate
++    second add with a new intent key is still a second goal."""
++    before = len(client.get("/api/goals").get_json())
++    body = {"name": "Retried goal", "target_amount": 4242}
++    first = client.post("/api/goals", json=body, headers={"Idempotency-Key": "goal-intent-a"})
++    retry = client.post("/api/goals", json=body, headers={"Idempotency-Key": "goal-intent-a"})
++    assert first.status_code == 201
++    assert retry.status_code == 200
++    assert first.get_json()["id"] == retry.get_json()["id"]
++    names = [g["name"] for g in client.get("/api/goals").get_json()]
++    assert names.count("Retried goal") == 1
++    other = client.post("/api/goals", json=body, headers={"Idempotency-Key": "goal-intent-b"})
++    assert other.status_code == 201
++    assert other.get_json()["id"] != first.get_json()["id"]
++    goals = client.get("/api/goals").get_json()
++    assert [g["name"] for g in goals].count("Retried goal") == 2
++    assert len(goals) == before + 2
++
++
+ def test_business_endpoint(client):
+     # regression: /api/business exists after the firma->business rename
+     d = client.get("/api/business").get_json()

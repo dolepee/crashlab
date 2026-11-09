@@ -1,4 +1,4 @@
-# Replay Kist recovery with CrashLab 0.5.9
+# Replay Kist recovery with CrashLab 0.5.10
 
 Reproduce an interrupted savings-goal create, inspect the saved records, apply a
 retained model repair and rerun the same regression. The
@@ -6,17 +6,18 @@ retained model repair and rerun the same regression. The
 a genuine model-constructed case and repair, followed by separate operator
 replays. Savings goals are records, not payments or money movement.
 
-The [portable regression](evidence/2026-11-09-v059-replay/export/regression.json) records evaluator
-`17b8f34944ff9c06bb0d0cd67569605150c90f1d` (0.5.9). Import requires identical
+The [portable regression](evidence/2026-11-09-v0510-replay/export/regression.json) records evaluator
+`83992f22a4a5ef168636a3b4676244b353968073` (0.5.10). Import requires identical
 evaluator hashes. Older 0.5.7, 0.5.6 and 0.5.4 bundles remain historical; do not rewrite
 their hashes to use them with this evaluator. The
 [0.5.7 instructions](REPLAY_V057.md) are preserved separately.
 
-The [0.5.9 operator replay](evidence/2026-11-09-v059-replay/README.md) preserves
-the published native case, prepares it with the corrected evaluator and earns
-new results. The [official installed Mac replay](evidence/2026-11-09-v059-mac/README.md)
-independently repeats preparation and fresh-checkout import. The retained patch
-is unchanged; these are not additional model repairs.
+The [0.5.10 operator replay](evidence/2026-11-09-v0510-replay/README.md)
+preserves the published native case, prepares it with the corrected evaluator
+and earns new results. The [0.5.9 replay instructions](REPLAY_V059.md) and the
+[official installed Mac replay](evidence/2026-11-09-v059-mac/README.md) remain
+separate historical records. The retained patch is unchanged; these are not
+additional model repairs.
 
 ## Prepare the disposable application
 
@@ -29,7 +30,7 @@ for the baseline. To run the full application tests as well, install its
 Install the recorded evaluator using Hermes v0.23:
 
 ```bash
-hermes plugins install dolepee/crashlab --ref 17b8f34944ff9c06bb0d0cd67569605150c90f1d --enable
+hermes plugins install dolepee/crashlab --ref 83992f22a4a5ef168636a3b4676244b353968073 --enable
 ```
 
 For an intentional replacement of an existing same-source installation, add
@@ -41,7 +42,7 @@ package application or browser dependencies.
 
 ## Import the frozen regression
 
-Save the raw linked [regression JSON](evidence/2026-11-09-v059-replay/export/regression.json) and
+Save the raw linked [regression JSON](evidence/2026-11-09-v0510-replay/export/regression.json) and
 [model repair](evidence/2026-11-09-native/model-repair.patch) as separate local
 files. The new bundle was produced after the recorded code pin;
 download it from this documentation rather than expecting that older checkout
@@ -50,7 +51,7 @@ are JSON/patch data, not GitHub HTML pages:
 
 | File | SHA-256 |
 | --- | --- |
-| Regression JSON | `09ce8c60fcc005abe83858c54923b1e003d36c4da0cd4ec3fdf86a7302e8b6f4` |
+| Regression JSON | `2f28329f71649d89830cccab5d77e196b7317d6c5bd688c6b6067b8a5d5b2b5e` |
 | Model repair | `f86a44ad078529136c45ca11ea1fea7958900130bfeabb77ee9626337da1dfa3` |
 
 Create a bindings JSON file containing only your local project root and absolute
@@ -111,7 +112,7 @@ and let it inspect, prepare and edit the app itself. Applying this retained patc
 is a replay, not a new model repair. The [native acceptance](evidence/2026-11-09-native/README.md)
 records the actual model journey separately from reuse.
 
-The [receipts](evidence/2026-11-09-native/summary.json) cover this configured
+The [receipts](evidence/2026-11-09-v0510-replay/source/source.json) cover this configured
 operation, not all application behavior. Legacy keyless callers and recovery
 after client-state loss are outside the demonstrated repair. This is not a
 production-safety, adoption or speed/cost claim. Use trusted disposable apps and

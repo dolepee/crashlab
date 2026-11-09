@@ -18,16 +18,17 @@ operations. The comparison freezes the contract and checks evaluator identity
 across the before/after runs. Results cover the configured assertions, not every
 possible application failure.
 
-## Current 0.5.9 replay
+## Current 0.5.10 replay
 
-The corrected evaluator replays the [published native Kist case](external/kist/evidence/2026-11-09-v059-replay/README.md):
+The corrected evaluator replays the [published native Kist case](external/kist/evidence/2026-11-09-v0510-replay/README.md):
 acknowledgement loss and server restart each save two goals before repair and one
 after the retained repair; all deliberate-use controls pass. A fresh checkout
 imports PREPARED and earns its own result. The original model session remains
-labeled 0.5.7. [Replay with 0.5.9](external/kist/CURRENT_REPLAY.md); historical
-bundles keep their original evaluator hashes. The [official installed Mac replay](external/kist/evidence/2026-11-09-v059-mac/README.md)
-also reproduced and verified both a newly prepared case and a fresh imported
-regression with real terminal plan approvals.
+labeled 0.5.7. [Replay with 0.5.10](external/kist/CURRENT_REPLAY.md); the
+[0.5.9 replay instructions](external/kist/REPLAY_V059.md) are preserved
+separately, and historical bundles keep their original evaluator hashes. The
+[official installed Mac replay](external/kist/evidence/2026-11-09-v059-mac/README.md)
+is a 0.5.9 record; an installed 0.5.10 replay remains owner-owned.
 
 ## Native workflow: app path to reusable repair
 
