@@ -155,8 +155,9 @@ if (require.main === module) {
   }
   if (baseOverride) contract.app.base_url = baseOverride;
   const base = contract.app.base_url.replace(/\/$/, '');
-  const evidenceDir = path.resolve(contract.evidence?.screenshot_dir || 'evidence');
-  fs.mkdirSync(evidenceDir, { recursive: true });
+  const requestedEvidenceDir = path.resolve(contract.evidence?.screenshot_dir || 'evidence');
+  fs.mkdirSync(requestedEvidenceDir, { recursive: true });
+  const evidenceDir = fs.realpathSync(requestedEvidenceDir);
   const runId = `${contract.id}-${nowId()}`;
   const safeScreenshotName = value => {
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(String(value))) {
@@ -582,7 +583,10 @@ if (require.main === module) {
       } else if (step.action === 'text') {
         observations[step.as || 'text'] = await page.textContent(step.selector);
       } else if (step.action === 'screenshot') {
-        const file = path.join(evidenceDir, `${runId}-${safeScreenshotName(step.as || 'shot')}.png`);
+        const file = path.resolve(evidenceDir, `${runId}-${safeScreenshotName(step.as || 'shot')}.png`);
+        if (path.dirname(file) !== evidenceDir) {
+          throw new Error('screenshot path escapes the evidence directory');
+        }
         await page.screenshot({ path: file, fullPage: true });
         screenshots.push(file);
       } else {

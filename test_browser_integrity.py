@@ -3,6 +3,7 @@ import copy
 import json
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -101,6 +102,38 @@ class BrowserIntegrity(unittest.TestCase):
             self.run_case(case=case)
         self.assertFalse((self.root / 'outside').exists())
 
+    def test_screenshot_alias_cannot_escape_the_evidence_root(self):
+        case = copy.deepcopy(self.case)
+        base = self.root / 'runs'
+        case['evidence']['screenshot_dir'] = str(base / 'shots')
+        case['journey'].append({'action': 'screenshot', 'as': '../../../../escape-run'})
+        with self.assertRaisesRegex(ValueError, 'screenshot slug'):
+            self.run_case(case=case)
+        self.assertEqual(list(self.root.glob('**/escape-run*')), [])
+
+    def test_standalone_runner_rejects_escaping_screenshot_alias(self):
+        case = copy.deepcopy(self.case)
+        base = self.root / 'runs'
+        case['evidence']['screenshot_dir'] = str(base / 'shots')
+        case['journey'].append({'action': 'screenshot', 'as': '../../../escape-shots'})
+        proc, url, _log, handle, _data = core._start_app(case, core.ROOT)
+        try:
+            case['app']['base_url'] = url
+            case['app']['start']['env']['CRASHLAB_DB'] = str(_data / 'orders.db')
+            for state in (case['state'], case['control']['state']):
+                state['db'] = str(_data / 'orders.db')
+            path = self.root / 'standalone.json'
+            path.write_text(json.dumps(case))
+            completed = subprocess.run(
+                [core._node(), str(core.RUNNER), str(path)],
+                capture_output=True, text=True, timeout=180)
+        finally:
+            core._stop_process(proc)
+            handle.close()
+        self.assertEqual(completed.returncode, 2, completed.stdout + completed.stderr)
+        self.assertIn('bounded screenshot slug', completed.stdout)
+        self.assertEqual(list(self.root.glob('**/escape-shots*')), [])
+
     def test_long_case_id_keeps_generated_run_and_screenshots_within_budget(self):
         case = copy.deepcopy(self.case)
         case['id'] = 'a' * 128
@@ -111,6 +144,14 @@ class BrowserIntegrity(unittest.TestCase):
         self.assertTrue(screenshots, result)
         for path in screenshots:
             self.assertLessEqual(len(Path(path).name), 240)
+
+    def test_screenshot_slug_cannot_traverse_from_the_evidence_directory(self):
+        for value in ('../../../../escape-run', '../../../escape-shots', 'bad/name'):
+            with self.subTest(value=value):
+                case = copy.deepcopy(self.case)
+                case['journey'].append({'action': 'screenshot', 'as': value})
+                with self.assertRaisesRegex(ValueError, 'screenshot slug'):
+                    self.run_case(case=case)
 
     def test_browser_launch_error_is_actionable(self):
         with patch.dict(os.environ,CHROME_PATH=str(self.root/'missing-chrome')):

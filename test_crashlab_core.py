@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -425,6 +426,30 @@ with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as 
             handle.close()
         self.wait_gone()
 
+    def test_managed_restart_reaps_group_after_runner_exits(self):
+        child = self._script("restart-child.py", self.CHILD)
+        child_pid = self.tmp / "restart-child.pid"
+        runner = self._script(
+            "restart-runner.py",
+            "import os, subprocess, sys, time\n"
+            f"subprocess.Popen([sys.executable, {str(child)!r}, {str(child_pid)!r}, '0'])\n"
+            f"while not os.path.exists({str(child_pid)!r}): time.sleep(0.01)\n",
+        )
+        outcome = {}
+
+        def call():
+            try:
+                core._run_with_restart([sys.executable, str(runner)], dict(os.environ), 0.2, lambda: {})
+            except BaseException as exc:  # recorded so a regression cannot hang the suite
+                outcome["error"] = exc
+
+        worker = threading.Thread(target=call, daemon=True)
+        worker.start()
+        worker.join(10)
+        self.assertFalse(worker.is_alive(), "managed restart helper did not unwind after its leader exited")
+        self.assertIsInstance(outcome.get("error"), subprocess.TimeoutExpired)
+        self.wait_pid_gone(child_pid)
+
     def test_cleanup_without_children_is_fast(self):
         start = self.start()
         proc, base, log, handle, data = core._start_app(start, self.tmp)
@@ -496,16 +521,28 @@ class ArtifactSafetyTests(unittest.TestCase):
                 core._contained_evidence_dir(contract, root, data, True)
 
     def test_long_case_id_and_generated_artifact_fit_the_filename_budget(self):
-        case = self.base_case()
-        case['id'] = 'a' * 128
-        core.validate_contract(case)
-        generated = f"{case['id']}-2026-11-09T16-09-12-168Z"
-        self.assertGreater(len(generated), 128)
         with tempfile.TemporaryDirectory() as temporary:
             with patch.dict(os.environ, {'CRASHLAB_DATA_DIR': temporary}):
-                core.persist_run({'run_id': generated, 'contract': case['id'], 'ok': True})
-                self.assertTrue((Path(temporary) / 'runs' / (generated + '.json')).exists())
-        self.assertLessEqual(len(f"{generated}-{'x' * 32}.png"), 240)
+                for length in (96, 98, 99, 104, 128):
+                    with self.subTest(length=length):
+                        case = self.base_case()
+                        case['id'] = 'a' * length
+                        core.validate_contract(case)
+                        generated = f"{case['id']}-2026-11-09T16-09-12-168Z"
+                        core.persist_run({'run_id': generated, 'contract': case['id'], 'ok': True})
+                        self.assertTrue((Path(temporary) / 'runs' / (generated + '.json')).exists())
+                        self.assertLessEqual(len(f"{generated}-{'x' * 32}.png"), 240)
+
+    def test_reported_99_character_case_id_persists_its_run(self):
+        case = 'c' * 99
+        run_id = f"{case}-2026-11-09T16-09-12-168Z"
+        self.assertGreater(len(run_id + '.json'), 128)
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {'CRASHLAB_DATA_DIR': temporary}):
+                saved = core.persist_run({'run_id': run_id, 'contract': case, 'ok': True})
+                self.assertTrue(Path(saved['evidence_path']).exists())
+                self.assertEqual(Path(saved['evidence_path']).parent,
+                                 (Path(temporary) / 'runs').resolve())
 
     def test_run_and_artifact_budgets_are_explicit(self):
         with tempfile.TemporaryDirectory() as temporary:

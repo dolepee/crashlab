@@ -706,9 +706,20 @@ def _run_with_restart(argv, env, timeout, restart):
                         pending.write_text(json.dumps(reply))
                         pending.replace(directory / 'restart.reply.json')
         finally:
-            if runner.poll() is None:
-                _stop_process(runner)
-            runner.communicate()
+            # Reap the owned group even when its leader has already exited: a
+            # child that inherited the pipes would otherwise keep the drain
+            # below blocked and the helper would never unwind. The group id is
+            # captured at spawn, so this reaches children that outlived the
+            # leader, as the ordinary runner route does.
+            _stop_process(runner)
+            try:
+                runner.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                runner.kill()
+                try:
+                    runner.communicate(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
 
 
 def _contained_evidence_dir(contract: dict, contract_dir: Path, data: Path, managed: bool) -> None:
