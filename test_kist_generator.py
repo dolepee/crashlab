@@ -31,6 +31,17 @@ class KistGeneratorTests(unittest.TestCase):
                     'record_id_field': 'id',
                 })
 
+    def test_external_configurable_templates_validate(self):
+        for path in (ROOT / 'external' / 'kist' / 'contract.template.json',
+                     ROOT / 'external' / 'flaskr' / 'contract.template.json'):
+            with self.subTest(template=path.parent.name):
+                contract = json.loads(path.read_text())
+                core.validate_contract(contract)
+        flaskr = json.loads((ROOT / 'external' / 'flaskr' / 'contract.template.json').read_text())
+        self.assertEqual(flaskr['recovery'], {'mode': 'retry', 'success_statuses': [200]})
+        self.assertNotIn('response_id_path', flaskr['recovery'])
+        self.assertNotIn('record_id_field', flaskr['recovery'])
+
     def test_write_contract_only_emits_validate_contract_output(self):
         with tempfile.TemporaryDirectory() as temp:
             app = Path(temp) / 'kist'
