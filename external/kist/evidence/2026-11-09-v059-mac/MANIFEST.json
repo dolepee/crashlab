@@ -1,0 +1,53 @@
+{
+  "scope": "Files in this installed Mac replay directory; manifest itself excluded.",
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "ee538cf8b39a32ce700d2c5484575f1e2361c014089c4fc2e0ef82092680115b"
+    },
+    {
+      "path": "imported/case.json",
+      "sha256": "c9afb9ca089a00e386db92b2803678c3e8067232449d58dc37dae4841596d544"
+    },
+    {
+      "path": "imported/experiment.json",
+      "sha256": "6e9a76e53383538b07601397e0fd0f43b732b4606b0cb551210c1d3ea6d151f2"
+    },
+    {
+      "path": "imported/run-1794248364263-5adf2b87.json",
+      "sha256": "3f010037276e13fc5c2c0562dabd911f8672e550a80d96f5ec3090db04bad03e"
+    },
+    {
+      "path": "imported/run-1794248393034-9ebf4128.json",
+      "sha256": "b67f289a4a79226a9fc3d72c7e83e6d6fdb0f8466cdc6d6821488699527a33f6"
+    },
+    {
+      "path": "installed-doctor.txt",
+      "sha256": "b7b5e57cc18aad56ce23e0c5ea5a57287576796ee9d257eddebbd72d0c7e5b4e"
+    },
+    {
+      "path": "installed-validate.txt",
+      "sha256": "3687f3ba362fa1f2ae1fa161dc3199b6b058875feaf1b00980bfcbc32cda6d46"
+    },
+    {
+      "path": "prepared/case.json",
+      "sha256": "e0823457cf7afd30133fe890ac415ec1546ca07f602e010ceeb7c7cca0b9cbeb"
+    },
+    {
+      "path": "prepared/experiment.json",
+      "sha256": "8f4585a9c1c20561badc6799b2c149654f9d8f1ae16332ec16c466db33efc577"
+    },
+    {
+      "path": "prepared/run-1794248231254-a940a701.json",
+      "sha256": "6eb14665b6c68d795c81bc90bf4c8af2f7d40a025a8566041d07971a5bd98736"
+    },
+    {
+      "path": "prepared/run-1794248258850-bc68b397.json",
+      "sha256": "cb8b04e3befeeb43e8701db5238fc8ed7c299df7a2eeb49eb59e0fabc374ab32"
+    },
+    {
+      "path": "summary.json",
+      "sha256": "cbdbd2f3652d2f98c205c070cd58998afcd294a804103a7b57ff8dd3209a2f2b"
+    }
+  ]
+}

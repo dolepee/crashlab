@@ -1,0 +1,178 @@
+{
+  "app": {
+    "start": {
+      "base_url": "http://127.0.0.1:{PORT}",
+      "command": [
+        "{PYTHON}",
+        "server/app.py"
+      ],
+      "cwd": "/workspace/tmp/kist-final-pristine",
+      "env": {
+        "FINANCE_PROJECT_DIR": "{DATA_DIR}",
+        "KIST_NO_OPEN": "1",
+        "KIST_NO_SCHEDULED_TASKS": "1",
+        "PORT": "{PORT}"
+      },
+      "health_path": "/",
+      "python": "/workspace/tmp/kist-accept-venv/bin/python",
+      "ready_timeout": 45,
+      "setup": [
+        {
+          "json": {
+            "wizard_completed": true
+          },
+          "method": "POST",
+          "path": "/api/app-config"
+        }
+      ]
+    }
+  },
+  "control": {
+    "journey": [
+      {
+        "action": "goto",
+        "path": "/#goals"
+      },
+      {
+        "action": "wait_for_selector",
+        "selector": "#gName"
+      },
+      {
+        "action": "fill",
+        "selector": "#gName",
+        "value": "CRASHLAB-B3"
+      },
+      {
+        "action": "fill",
+        "selector": "#gTarget",
+        "value": "5000"
+      },
+      {
+        "action": "click",
+        "selector": "#gAdd"
+      },
+      {
+        "action": "wait_for_count",
+        "min": 1,
+        "selector": "#gList h3",
+        "text": "CRASHLAB-B3"
+      },
+      {
+        "action": "wait_for_selector",
+        "selector": "#gName"
+      },
+      {
+        "action": "fill",
+        "selector": "#gName",
+        "value": "CRASHLAB-B3"
+      },
+      {
+        "action": "fill",
+        "selector": "#gTarget",
+        "value": "5000"
+      },
+      {
+        "action": "click",
+        "selector": "#gAdd"
+      },
+      {
+        "action": "wait_for_count",
+        "min": 2,
+        "selector": "#gList h3",
+        "text": "CRASHLAB-B3"
+      }
+    ],
+    "state": {
+      "db": "{DATA_DIR}/.finance/finance.db",
+      "expect": 2,
+      "mode": "sqlite",
+      "record_fields": {
+        "currency": "PLN",
+        "name": "CRASHLAB-B3",
+        "target_amount": 5000
+      },
+      "table": "goals",
+      "where": "name = 'CRASHLAB-B3'"
+    }
+  },
+  "fault": {
+    "method": "POST",
+    "mode": "suppress_after_upstream",
+    "occurrence": 1,
+    "route": "**/api/goals"
+  },
+  "id": "kist-goal-lost-ack-v2",
+  "journey": [
+    {
+      "action": "goto",
+      "path": "/#goals"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "#gName"
+    },
+    {
+      "action": "fill",
+      "selector": "#gName",
+      "value": "CRASHLAB-A7"
+    },
+    {
+      "action": "fill",
+      "selector": "#gTarget",
+      "value": "24000"
+    },
+    {
+      "action": "fill",
+      "selector": "#gMonthly",
+      "value": "400"
+    },
+    {
+      "action": "click",
+      "selector": "#gAdd"
+    },
+    {
+      "action": "wait_for_fault"
+    },
+    {
+      "action": "click",
+      "selector": "#gAdd"
+    },
+    {
+      "action": "wait_for_text",
+      "text": "CRASHLAB-A7"
+    },
+    {
+      "action": "wait_for_selector",
+      "selector": "#gList"
+    }
+  ],
+  "recovery": {
+    "identity_headers": [
+      "Idempotency-Key"
+    ],
+    "mode": "retry",
+    "record_id_field": "id",
+    "response_id_path": "id",
+    "success_statuses": [
+      200,
+      201
+    ]
+  },
+  "recovery_campaign": [
+    "before_delivery",
+    "after_commit",
+    "restart_after_commit"
+  ],
+  "state": {
+    "db": "{DATA_DIR}/.finance/finance.db",
+    "expect": 1,
+    "mode": "sqlite",
+    "record_fields": {
+      "currency": "PLN",
+      "name": "CRASHLAB-A7",
+      "target_amount": 24000
+    },
+    "table": "goals",
+    "where": "name = 'CRASHLAB-A7'"
+  }
+}

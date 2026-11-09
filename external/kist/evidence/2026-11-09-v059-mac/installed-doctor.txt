@@ -1,0 +1,6 @@
+Plugin Doctor: 
+/Users/qdee/Documents/Codex/audits/crashlab-2026-11-07/candidate-057-official-ho
+me/plugins/crashlab
+  manifest: crashlab 0.5.9 (standalone)
+  OK: runtime discovery, manifest parsing, import, and registration passed
+  registrations: 14 tool(s), 3 hook(s)

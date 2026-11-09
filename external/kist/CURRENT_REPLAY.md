@@ -1,16 +1,22 @@
-# Replay Kist recovery with CrashLab 0.5.7
+# Replay Kist recovery with CrashLab 0.5.9
 
 Reproduce an interrupted savings-goal create, inspect the saved records, apply a
 retained model repair and rerun the same regression. The
-[current installed-session record](evidence/2026-11-09-native/README.md) includes
-a genuine model-constructed case and repair, followed by a separate Mac/operator
-replay. Savings goals are records, not payments or money movement.
+[historical native model session](evidence/2026-11-09-native/README.md) includes
+a genuine model-constructed case and repair, followed by separate operator
+replays. Savings goals are records, not payments or money movement.
 
-The [portable regression](recovery-regression-v057.json) records evaluator
-`529c22f9c77f6b65b5432c24e9f0aa3b8731cfa4` (0.5.7). Import requires identical
-evaluator hashes. Older 0.5.6 and 0.5.4 bundles remain historical; do not rewrite
+The [portable regression](evidence/2026-11-09-v059-replay/export/regression.json) records evaluator
+`17b8f34944ff9c06bb0d0cd67569605150c90f1d` (0.5.9). Import requires identical
+evaluator hashes. Older 0.5.7, 0.5.6 and 0.5.4 bundles remain historical; do not rewrite
 their hashes to use them with this evaluator. The
-[0.5.6 instructions](REPLAY_V056.md) are preserved separately.
+[0.5.7 instructions](REPLAY_V057.md) are preserved separately.
+
+The [0.5.9 operator replay](evidence/2026-11-09-v059-replay/README.md) preserves
+the published native case, prepares it with the corrected evaluator and earns
+new results. The [official installed Mac replay](evidence/2026-11-09-v059-mac/README.md)
+independently repeats preparation and fresh-checkout import. The retained patch
+is unchanged; these are not additional model repairs.
 
 ## Prepare the disposable application
 
@@ -23,7 +29,7 @@ for the baseline. To run the full application tests as well, install its
 Install the recorded evaluator using Hermes v0.23:
 
 ```bash
-hermes plugins install dolepee/crashlab --ref 529c22f9c77f6b65b5432c24e9f0aa3b8731cfa4 --enable
+hermes plugins install dolepee/crashlab --ref 17b8f34944ff9c06bb0d0cd67569605150c90f1d --enable
 ```
 
 For an intentional replacement of an existing same-source installation, add
@@ -35,15 +41,16 @@ package application or browser dependencies.
 
 ## Import the frozen regression
 
-Save the raw linked [regression JSON](recovery-regression-v057.json) and
+Save the raw linked [regression JSON](evidence/2026-11-09-v059-replay/export/regression.json) and
 [model repair](evidence/2026-11-09-native/model-repair.patch) as separate local
-files. These evidence files were added after the recorded code pin, so that
-pinned installation does not contain their new filenames. Verify the downloads
+files. The new bundle was produced after the recorded code pin;
+download it from this documentation rather than expecting that older checkout
+to contain it. Verify the downloads
 are JSON/patch data, not GitHub HTML pages:
 
 | File | SHA-256 |
 | --- | --- |
-| Regression JSON | `4a4a3e2008c2585c2c5c5cc1d5dae879261428a65c2609768efb2f34b11606de` |
+| Regression JSON | `09ce8c60fcc005abe83858c54923b1e003d36c4da0cd4ec3fdf86a7302e8b6f4` |
 | Model repair | `f86a44ad078529136c45ca11ea1fea7958900130bfeabb77ee9626337da1dfa3` |
 
 Create a bindings JSON file containing only your local project root and absolute
@@ -61,7 +68,7 @@ editable application and import:
 
 ```bash
 export CRASHLAB_DATA_DIR=/absolute/path/to/new-crashlab-evidence
-python crashlab_replay.py import --bundle /absolute/path/to/recovery-regression-v057.json --bindings /absolute/path/to/bindings.json
+python crashlab_replay.py import --bundle /absolute/path/to/regression.json --bindings /absolute/path/to/bindings.json
 ```
 
 Import starts **PREPARED**. No prior VERIFIED status transfers. Paths bind the
