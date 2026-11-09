@@ -734,8 +734,11 @@ def _contained_evidence_dir(contract: dict, contract_dir: Path, data: Path, mana
     if not isinstance(raw, str) or not raw.strip():
         raise ValueError("evidence.screenshot_dir must be a non-empty string")
     expanded = _expand_start(raw, contract_dir=contract_dir, data=data, port=0)
-    path = Path(expanded).expanduser().resolve()
     root = (data if managed else contract_dir).resolve()
+    candidate = Path(expanded).expanduser()
+    if not candidate.is_absolute():
+        candidate = root / candidate
+    path = candidate.resolve()
     if not path.is_relative_to(root):
         raise ValueError("evidence.screenshot_dir must stay inside the disposable run directory")
     evidence["screenshot_dir"] = str(path)

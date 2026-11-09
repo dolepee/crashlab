@@ -289,7 +289,7 @@ def classify_legacy(run):
     return "PASS" if passed else "FAIL"
 
 
-def run_legacy(contract, contract_dir, legacy_root):
+def run_legacy(contract, contract_dir, legacy_root, artifact_dir=None):
     import tempfile
     spec = importlib.util.spec_from_file_location("legacy_crashlab_core", Path(legacy_root) / "crashlab_core.py")
     module = importlib.util.module_from_spec(spec)
@@ -299,10 +299,24 @@ def run_legacy(contract, contract_dir, legacy_root):
     for state in (contract.get("state"), (contract.get("control") or {}).get("state")):
         if state and state.get("mode") == "sqlite":
             state["db"] = str((Path(contract_dir) / state["db"]).resolve())
-    with tempfile.TemporaryDirectory(prefix="crashlab-legacy-") as temp:
-        path = Path(temp) / "contract.json"
-        path.write_text(json.dumps(contract))
-        run = module.run_contract(path, timeout=60)
+    holder = None
+    temporary = None
+    try:
+        if artifact_dir is None:
+            temporary = tempfile.TemporaryDirectory(prefix="crashlab-legacy-")
+            holder = Path(temporary.name) / "contract.json"
+        else:
+            # The legacy runner's contract directory is its owned root. Keep the
+            # temporary contract and its screenshot directory under the same
+            # campaign output tree so the evidence guard can accept both.
+            holder = Path(artifact_dir) / f".legacy-contract-{uuid.uuid4().hex}.json"
+        holder.write_text(json.dumps(contract))
+        run = module.run_contract(holder, timeout=60)
+    finally:
+        if holder is not None and artifact_dir is not None:
+            holder.unlink(missing_ok=True)
+        if temporary is not None:
+            temporary.cleanup()
     return {"engine": "legacy_browser", "contract": contract["id"],
             "status": classify_legacy(run), "legacy": run}
 
@@ -380,7 +394,7 @@ def run_campaign(manifest_path, output_dir, legacy_root=None):
                 if case["engine"] == "http_concurrency":
                     run = run_http(contract, contract_path.parent, out / f"state-{index}-{repetition}")
                 else:
-                    run = run_legacy(contract, contract_path.parent, legacy_root or ROOT)
+                    run = run_legacy(contract, contract_path.parent, legacy_root or ROOT, out)
                 run.update(source_contract_sha256=hashlib.sha256(raw).hexdigest(),
                            effective_contract_sha256=contract_sha,
                            effective_contract_path=str(effective_path))

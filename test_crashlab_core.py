@@ -520,6 +520,23 @@ class ArtifactSafetyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'stay inside'):
                 core._contained_evidence_dir(contract, root, data, True)
 
+    def test_relative_evidence_resolves_under_the_contract_root(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            contract = {'evidence': {'screenshot_dir': 'evidence'}}
+            core._contained_evidence_dir(contract, root, root / 'data', False)
+            self.assertEqual(contract['evidence']['screenshot_dir'], str((root / 'evidence').resolve()))
+            contract['evidence']['screenshot_dir'] = '../escape'
+            with self.assertRaisesRegex(ValueError, 'stay inside'):
+                core._contained_evidence_dir(contract, root, root / 'data', False)
+
+    def test_bundled_relative_evidence_contracts_are_accepted_from_repo_root(self):
+        for name in ('contracts/checkout-lost-response.json', 'contracts/booking-lost-response.json'):
+            with self.subTest(name=name):
+                contract = core.load_contract(core.ROOT / name)
+                core._contained_evidence_dir(contract, (core.ROOT / name).parent, core.ROOT, False)
+                self.assertTrue(Path(contract['evidence']['screenshot_dir']).is_relative_to(core.ROOT / 'contracts'))
+
     def test_long_case_id_and_generated_artifact_fit_the_filename_budget(self):
         with tempfile.TemporaryDirectory() as temporary:
             with patch.dict(os.environ, {'CRASHLAB_DATA_DIR': temporary}):

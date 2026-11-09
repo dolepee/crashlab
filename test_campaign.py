@@ -297,6 +297,36 @@ class LegacyBridgeTests(unittest.TestCase):
         self.run = {"ok": True, "observed": 1, "expected": 1, "returncode": 0,
                     "scenario": {"valid": True}, "control": {"ok": True, "observed": 2, "expected": 2}}
 
+    def test_legacy_contract_and_evidence_share_the_campaign_output_root(self):
+        import crashlab_core as core
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            legacy = root / 'legacy'
+            legacy.mkdir()
+            (legacy / 'crashlab_core.py').write_text(
+                'import json\n'
+                'from pathlib import Path\n'
+                'def run_contract(path, timeout=60):\n'
+                '    data = json.loads(Path(path).read_text())\n'
+                '    return {"ok": True, "observed": 1, "expected": 1, "returncode": 0, "scenario": {"valid": True}, "contract_path": str(path), "evidence": data.get("evidence")}\n'
+            )
+            out = root / 'campaign'
+            out.mkdir()
+            contracts = root / 'contracts'
+            contracts.mkdir()
+            contract = {
+                'id': 'legacy-layout',
+                'app': {'base_url': 'http://127.0.0.1:1'},
+                'evidence': {'screenshot_dir': str(out / 'screenshots')},
+            }
+            run = campaign.run_legacy(contract, contracts, str(legacy), artifact_dir=out)
+            self.assertEqual(run['status'], 'PASS', run)
+            legacy_run = run['legacy']
+            self.assertEqual(Path(legacy_run['contract_path']).parent, out)
+            self.assertFalse(any(out.glob('.legacy-contract-*')))
+            core._contained_evidence_dir(legacy_run, out, out, False)
+            self.assertEqual(legacy_run['evidence']['screenshot_dir'], str((out / 'screenshots').resolve()))
+
     def test_pass_and_measured_failure(self):
         self.assertEqual(campaign.classify_legacy(self.run), "PASS")
         self.run.update(ok=False, observed=2, returncode=1)
