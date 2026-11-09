@@ -3,10 +3,118 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
+const crypto = require('crypto');
 const { chromium } = require('playwright-core');
 
 function nowId() {
   return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
+const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
+
+// JSON.parse rounds integers above 2^53-1 before any comparison can see them.
+// Reject those literals while the raw text still contains the digits. Decimal
+// strings remain supported; this is deliberately not a bigint adapter.
+function assertSafeJsonNumbers(text, where) {
+  let i = 0;
+  let inString = false;
+  let escaped = false;
+  while (i < text.length) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      i += 1;
+      continue;
+    }
+    if (ch === '"') { inString = true; i += 1; continue; }
+    if (ch === '-' || (ch >= '0' && ch <= '9')) {
+      const start = i;
+      if (ch === '-') i += 1;
+      if (text[i] === '0') i += 1;
+      else while (i < text.length && text[i] >= '0' && text[i] <= '9') i += 1;
+      let fractional = false;
+      let exponent = false;
+      if (text[i] === '.') {
+        fractional = true; i += 1;
+        while (i < text.length && text[i] >= '0' && text[i] <= '9') i += 1;
+      }
+      if (text[i] === 'e' || text[i] === 'E') {
+        exponent = true; i += 1;
+        if (text[i] === '+' || text[i] === '-') i += 1;
+        while (i < text.length && text[i] >= '0' && text[i] <= '9') i += 1;
+      }
+      const literal = text.slice(start, i);
+      if (!fractional && !exponent) {
+        const value = BigInt(literal);
+        if (value > MAX_SAFE_INTEGER || value < -MAX_SAFE_INTEGER) {
+          throw new Error(`${where}: unsafe integer ${literal}; use a decimal string`);
+        }
+      } else {
+        const value = Number(literal);
+        if (!Number.isFinite(value)) {
+          throw new Error(`${where}: non-finite number ${literal}; use a finite number or decimal string`);
+        }
+        if (Number.isInteger(value) && Math.abs(value) > Number.MAX_SAFE_INTEGER) {
+          throw new Error(`${where}: unsafe integer ${literal}; use a decimal string`);
+        }
+      }
+      continue;
+    }
+    i += 1;
+  }
+}
+
+function parseJson(text, where) {
+  if (typeof text !== 'string') throw new Error(`${where}: expected JSON text`);
+  assertSafeJsonNumbers(text, where);
+  try { return JSON.parse(text); }
+  catch (err) { throw new Error(`${where}: invalid JSON (${String(err && err.message ? err.message : err)})`); }
+}
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+function scalarIdentity(value) {
+  if (typeof value === 'string' && value.length) return {key: `string:${value}`, value};
+  if (typeof value === 'number' && Number.isSafeInteger(value)) return {key: `number:${String(value)}`, value};
+  return null;
+}
+
+function identityKey(value) {
+  return scalarIdentity(value)?.key || null;
+}
+
+function identityValue(value) {
+  return scalarIdentity(value)?.value ?? null;
+}
+
+// URL query strings are always text. A safe integer initial intent was sent as
+// a JSON number and is naturally rendered as its exact decimal string on the
+// readback URL; do not use this helper for reply/record identity.
+function queryIdentityKey(value) {
+  if (typeof value === 'number' && Number.isSafeInteger(value)) return `string:${String(value)}`;
+  if (typeof value === 'string' && value.length) return `string:${value}`;
+  return null;
+}
+
+function own(object, key) {
+  return Boolean(object) && Object.prototype.hasOwnProperty.call(object, key);
+}
+
+function pathValue(value, dotted) {
+  return String(dotted).split('.').reduce((current, key) => own(current, key) ? current[key] : undefined, value);
+}
+
+function recordIdentity(row, field) {
+  if (!own(row, field)) return null;
+  return identityValue(row[field]);
+}
+
+function responseIdentityValue(response, path) {
+  return identityValue(pathValue(response, path));
 }
 
 // Only a leading transport cause or a structured error code can prove a
@@ -35,12 +143,13 @@ function recoveryTransportCause(err) {
   return null;
 }
 
+if (require.main === module) {
 (async () => {
   const contractPath = process.argv[2];
   if (!contractPath) throw new Error('contract path required');
   const baseArgIndex = process.argv.indexOf('--base-url');
   const baseOverride = baseArgIndex >= 0 ? process.argv[baseArgIndex + 1] : null;
-  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  const contract = parseJson(fs.readFileSync(contractPath, 'utf8'), 'contract');
   if (baseOverride) contract.app.base_url = baseOverride;
   const base = contract.app.base_url.replace(/\/$/, '');
   const evidenceDir = path.resolve(contract.evidence?.screenshot_dir || 'evidence');
@@ -79,12 +188,75 @@ function recoveryTransportCause(err) {
   let initialRequest = null;
   let faultAbortStarted = false;
   const reconciliations = [];
+  const responseEvents = [];
+  const pendingResponses = [];
+  const retryAttempts = [];
+
+  function identityHeaderEvidence(request) {
+    const names = recoverySpec.identity_headers || [];
+    if (!names.length) return null;
+    const headers = request.headers();
+    return Object.fromEntries(names.map(name => {
+      const key = Object.keys(headers).find(candidate => candidate.toLowerCase() === name.toLowerCase());
+      const value = key === undefined ? null : headers[key];
+      return [name, {
+        present: value !== null && value !== undefined,
+        sha256: value === null || value === undefined ? null : sha256(value),
+        length: value === null || value === undefined ? 0 : String(value).length,
+      }];
+    }));
+  }
+
+  function identityHeadersMatch(left, right) {
+    if (!left && !right) return true;
+    if (!left || !right || Object.keys(left).length !== Object.keys(right).length) return false;
+    return Object.keys(left).every(name => {
+      const a = left[name];
+      const b = right[name];
+      return Boolean(a && b && a.present && b.present && a.sha256 && b.sha256 && a.sha256 === b.sha256);
+    });
+  }
+
+  function sameRequest(left, right) {
+    // Playwright returns the same Request object for the routed retry and its
+    // terminal response/redirect chain. URL, method and frame are not identity:
+    // an unrelated POST to the same endpoint must not be able to satisfy the
+    // recovery proof.
+    return Boolean(left) && left === right;
+  }
+
+  function retryAttemptFor(request) {
+    for (const attempt of retryAttempts) {
+      let current = request;
+      for (let depth = 0; current && depth < 20; depth += 1) {
+        if (sameRequest(current, attempt.request)) return attempt;
+        current = current.redirectedFrom();
+      }
+    }
+    return null;
+  }
 
   function requestEvidence(request) {
+    const raw = request.postData();
     let body = null;
-    try { body = request.postDataJSON(); } catch {}
+    let bodyError = null;
+    if (raw) {
+      const type = String(request.headers()['content-type'] || '');
+      const looksJson = /^\s*[\[{]/.test(raw);
+      if (/json/i.test(type) || looksJson) {
+        // A JSON-looking body must not fall back to form parsing after a
+        // syntax or unsafe-integer failure; that would hide the rejected value.
+        try { body = parseJson(raw, 'request body'); }
+        catch (err) { bodyError = String(err); }
+      } else if (/application\/x-www-form-urlencoded/i.test(type)) {
+        try { body = Object.fromEntries(new URLSearchParams(raw)); }
+        catch (err) { bodyError = String(err); }
+      }
+    }
     return { method: request.method(),
-      url: request.url(), body, raw_body: request.postData(), after_interruption: faultAbortStarted };
+      url: request.url(), body, raw_body: raw, body_error: bodyError,
+      after_interruption: faultAbortStarted,
+      identity_headers: identityHeaderEvidence(request) };
   }
 
   const browser = await chromium.launch({
@@ -99,6 +271,71 @@ function recoveryTransportCause(err) {
   });
   const page = await browser.newPage({ viewport: { width: 1000, height: 760 } });
 
+  page.on('response', (response) => {
+    if (!faultAbortStarted || !initialRequest) return;
+    const request = response.request();
+    const resourceType = request.resourceType();
+    if (!['document', 'xhr', 'fetch'].includes(resourceType)) return;
+    const attempt = retryAttemptFor(request);
+    if (!attempt) return;
+    const redirectedFrom = request.redirectedFrom();
+    const event = recordEvent('response', {
+      status: response.status(),
+      url: response.url(),
+      method: request.method(),
+      resource_type: resourceType,
+      redirected_from: redirectedFrom ? redirectedFrom.url() : null,
+      retry_write_sequence: attempt.event.sequence,
+      retry_chain: true,
+      terminal: response.status() < 300 || response.status() >= 400,
+    });
+    responseEvents.push(event);
+    if (response.status() >= 300 && response.status() < 400) return;
+    if (response.status() === 204 || response.status() === 205) {
+      // No-content statuses. Record the empty body without asking Playwright
+      // for a body it does not expose; 205 is reset-content by definition.
+      event.body_sha256 = sha256('');
+      event.body_length = 0;
+      event.body_complete = true;
+      event.json = null;
+      return;
+    }
+    event.body_complete = false;
+    pendingResponses.push((async () => {
+      try {
+        // response.text() resolves only after the body transport completes and
+        // rejects on a truncated/failed body. Bound it so a broken transport
+        // cannot hold the whole experiment open indefinitely.
+        const text = await Promise.race([
+          response.text(),
+          new Promise((_, reject) => {
+            const timer = setTimeout(
+              () => reject(new Error('terminal response body did not complete within 5000ms')), 5000);
+            timer.unref?.();
+          }),
+        ]);
+        event.body_complete = true;
+        event.body_sha256 = sha256(text);
+        event.body_length = text.length;
+        const contentType = String(response.headers()['content-type'] || '');
+        if (text.length === 0) {
+          // Parse only a body that exists. An absent body is not invalid JSON,
+          // regardless of a JSON content-type header; a configured reply-ID
+          // predicate still fails because there is no ID to match.
+          event.json = null;
+        } else if (/json/i.test(contentType)) {
+          try { event.json = parseJson(text, 'terminal response'); }
+          catch (err) { event.json_error = String(err); }
+        } else {
+          event.text_excerpt = text.slice(0, 200);
+        }
+      } catch (err) {
+        event.body_complete = false;
+        event.body_error = String(err);
+      }
+    })());
+  });
+
   if (contract.fault && recoverySpec.mode === 'reconcile') {
     await page.route(recoverySpec.route, async route => {
       const request = route.request();
@@ -107,7 +344,8 @@ function recoveryTransportCause(err) {
       network.push(event);
       const response = await route.fetch();
       event.status = response.status();
-      try { event.response = await response.json(); } catch { event.response = null; }
+      try { event.response = parseJson(await response.text(), 'reconciliation response'); }
+      catch (err) { event.response = null; event.response_error = String(err); }
       reconciliations.push(event);
       await route.fulfill({ response });
     });
@@ -121,16 +359,14 @@ function recoveryTransportCause(err) {
       const spec = phase === 'primary' ? contract.state : contract.control.state;
       const event = recordEvent('write', requestEvidence(route.request()));
       network.push(event);
-      if (spec.request_fields) {
-        try { requests.push(route.request().postDataJSON()); }
-        catch { requests.push(null); }
-      }
+      if (spec.request_fields) requests.push(event.body);
       if (phase !== 'primary') return route.continue();
       if (interrupted) {
         // The retry is the recovery observation. A transport failure here is
         // evidence that recovery did not complete, not a runner failure. Keep
         // the failed request event and let the measured state/control verdict
         // decide the outcome.
+        retryAttempts.push({ request: route.request(), event });
         try {
           const response = await route.fetch({ maxRedirects: 0, timeout: retryFetchTimeoutMs });
           event.status = response.status();
@@ -336,7 +572,7 @@ function recoveryTransportCause(err) {
       const raw = execFileSync(process.env.PYTHON_BINARY || 'python3', [
         probe, path.resolve(path.dirname(contractPath), db), spec.table || 'orders', spec.where || '',
       ], { encoding: 'utf8', timeout: 10000 });
-      const body = JSON.parse(raw);
+      const body = parseJson(raw, 'sqlite state');
       if (body.error) throw new Error(body.error);
       const records = Array.isArray(body.records) ? body.records : [];
       return {
@@ -350,7 +586,7 @@ function recoveryTransportCause(err) {
     }
     const response = await fetch(base + spec.url);
     if (!response.ok) throw new Error(`state endpoint HTTP ${response.status}`);
-    const body = await response.json();
+    const body = parseJson(await response.text(), 'state response');
     const records = spec.path.split('.').reduce((v, key) => v?.[key], body);
     return {
       observed: Array.isArray(records) ? records.length : Number(records),
@@ -365,14 +601,14 @@ function recoveryTransportCause(err) {
     if (state.observed !== state.expected) return false;
     const fields = spec.record_fields || {};
     if (Object.keys(fields).length && state.records.length !== state.observed) return false;
-    if (!state.records.every(row => Object.entries(fields).every(([key, value]) => row[key] === value))) return false;
+    if (!state.records.every(row => Object.entries(fields).every(([key, value]) => own(row, key) && row[key] === value))) return false;
     if (spec.request_fields) {
       if (!requests.length || requests.some(body => !body || typeof body !== 'object')) return false;
       const mapping = Object.entries(spec.request_fields);
-      const expected = requests.map(body => mapping.map(([, key]) => body[key]));
+      const expected = requests.map(body => mapping.map(([, key]) => own(body, key) ? body[key] : undefined));
       if (expected.some(values => values.some(value => value === undefined || value === null || value === ''))) return false;
       const signatures = new Set(expected.map(values => JSON.stringify(values)));
-      const actual = state.records.map(row => JSON.stringify(mapping.map(([column]) => row[column])));
+      const actual = state.records.map(row => JSON.stringify(mapping.map(([column]) => own(row, column) ? row[column] : undefined)));
       if (!allowDuplicates && (actual.length !== signatures.size || new Set(actual).size !== actual.length)) return false;
       if ([...signatures].some(signature => !actual.includes(signature))) return false;
       if (actual.some(signature => !signatures.has(signature))) return false;
@@ -380,9 +616,26 @@ function recoveryTransportCause(err) {
     return true;
   }
 
+  function historiesInvalid(events) {
+    return events.some(event => event.response_error);
+  }
+
   function recoveryEvidence(primary) {
     if (!contract.fault) return { mode: 'none', ok: true };
     const writes = network.filter(event => event.phase === 'primary' && event.kind === 'write');
+    const successStatuses = Array.isArray(recoverySpec.success_statuses)
+      ? recoverySpec.success_statuses : [];
+    // One validity rule for every primary-mode write. A later same-intent
+    // write can carry unsupported numeric data even when the initial request
+    // was safe; reconciliation must not ignore it just because it only needs
+    // the initial intent for the query comparison.
+    const unsafePrimaryRequest = Boolean(initialRequest?.body_error)
+      || writes.some(event => Boolean(event.body_error));
+    if (!successStatuses.length) {
+      return { mode: recoverySpec.mode || 'retry', ok: false,
+        success_statuses: successStatuses,
+        reason: 'No explicit success_statuses configured; CrashLab does not infer business success.' };
+    }
     if (recoverySpec.mode === 'retry') {
       const sameBody = event => {
         if (event.body && initialRequest?.body) {
@@ -390,31 +643,122 @@ function recoveryTransportCause(err) {
         }
         return event.raw_body === initialRequest?.raw_body;
       };
-      const retries = writes.filter(event => event.after_interruption && event !== initialRequest
-        && event.status >= 200 && event.status < 400
-        && event.method === initialRequest?.method && event.url === initialRequest?.url && sameBody(event));
+      const matchingWrites = writes.filter(event => event.after_interruption && event !== initialRequest
+        && event.method === initialRequest?.method && event.url === initialRequest?.url && sameBody(event)
+        && identityHeadersMatch(initialRequest?.identity_headers, event.identity_headers));
+      const retries = matchingWrites.filter(event => event.status !== null && event.status !== undefined
+        && event.failed_recovery_transport !== true);
       const failedTransports = writes.filter(event => event.after_interruption && event !== initialRequest
         && event.failed_recovery_transport === true
-        && event.method === initialRequest?.method && event.url === initialRequest?.url && sameBody(event));
-      return { mode: 'retry', ok: retries.length > 0, matching_retries: retries.length,
+        && event.method === initialRequest?.method && event.url === initialRequest?.url && sameBody(event)
+        && identityHeadersMatch(initialRequest?.identity_headers, event.identity_headers));
+      const matchingSequences = new Set(matchingWrites.map(event => event.sequence));
+      const terminal = responseEvents.filter(event => event.retry_chain && event.terminal
+        && matchingSequences.has(event.retry_write_sequence)).at(-1) || null;
+      const terminalComplete = Boolean(terminal && terminal.body_complete === true && !terminal.body_error);
+      const terminalOK = Boolean(terminal && successStatuses.includes(terminal.status) && terminalComplete);
+      const unsafeResponse = responseEvents.some(event => event.json_error);
+      let responseIdentity = {
+        configured: false,
+        ok: true,
+        reason: 'No response identity predicate configured; terminal status and declared journey/state assertions are the boundary.',
+      };
+      if (recoverySpec.response_id_path && recoverySpec.record_id_field) {
+        const ids = primary.records.map(row => recordIdentity(row, recoverySpec.record_id_field));
+        const rawReplyId = responseIdentityValue(terminal?.json, recoverySpec.response_id_path);
+        const replyId = identityKey(rawReplyId);
+        const ok = Boolean(terminal?.json && replyId !== null && ids.length === 1
+          && identityKey(ids[0]) !== null && identityKey(ids[0]) === replyId);
+        responseIdentity = {
+          configured: true,
+          ok,
+          response_id_path: recoverySpec.response_id_path,
+          record_id_field: recoverySpec.record_id_field,
+          response_id: rawReplyId === undefined || rawReplyId === null ? null : rawReplyId,
+          record_ids: ids,
+          reason: ok
+            ? 'The terminal JSON reply ID matched the single observed record ID.'
+            : 'The terminal JSON reply ID did not match exactly one observed record ID.',
+        };
+      }
+      let reason;
+      if (unsafePrimaryRequest) {
+        reason = 'A configured request identity contained an unsafe integer; CrashLab rejects it before it can be rounded.';
+      } else if (unsafeResponse) {
+        reason = 'An observed JSON response contained an unsafe integer; CrashLab rejects it before it can be rounded.';
+      } else if (!matchingWrites.length) {
+        reason = failedTransports.length
+          ? 'A matching recovery write was attempted but its transport failed before a response; recovery is not observed.'
+          : 'No matching recovery write occurred after interruption. A local success message is insufficient.';
+      } else if (!terminal) {
+        reason = 'A matching recovery write was observed but no terminal response was observed; an intermediate redirect or status is not recovery.';
+      } else if (!terminalComplete) {
+        reason = terminal.body_error
+          ? `The terminal response transport did not complete: ${terminal.body_error}`
+          : 'The terminal response body was not fully observed; received headers/status alone are not recovery.';
+      } else if (!successStatuses.includes(terminal.status)) {
+        reason = `Terminal response ${terminal.status} was not in the configured success statuses.`;
+      } else if (!responseIdentity.ok) {
+        reason = responseIdentity.reason;
+      } else {
+        reason = responseIdentity.configured
+          ? 'Observed a repeated write with the original request identity and payload, a terminal success, and the configured reply/record identity match.'
+          : 'Observed a repeated write with the original request identity and payload plus a terminal success; no response identity predicate was configured.';
+      }
+      return { mode: 'retry', ok: !unsafePrimaryRequest && !unsafeResponse
+          && matchingWrites.length > 0 && terminalOK && responseIdentity.ok,
+        invalid_measurement: unsafePrimaryRequest || unsafeResponse,
+        terminal_transport_complete: terminalComplete,
+        matching_retries: retries.length,
         failed_recovery_transports: failedTransports.length,
-        write_requests: writes.length, initial_request: initialRequest,
-        reason: retries.length ? 'Observed a repeated write with the original request identity and payload.'
-          : failedTransports.length ? 'A matching recovery write was attempted but its transport failed before a response; recovery is not observed.'
-            : 'No matching recovery write occurred after interruption. A local success message is insufficient.' };
+        success_statuses: successStatuses,
+        identity_headers: initialRequest?.identity_headers || null,
+        identity_headers_match: Boolean(initialRequest?.identity_headers)
+          ? identityHeadersMatch(initialRequest.identity_headers, matchingWrites[0]?.identity_headers)
+          : null,
+        response_identity: responseIdentity,
+        terminal_response: terminal ? {
+          status: terminal.status,
+          url: terminal.url,
+          redirected_from: terminal.redirected_from,
+          body_complete: terminal.body_complete === true,
+          body_error: terminal.body_error || null,
+          body_sha256: terminal.body_sha256 || null,
+          json: terminal.json === undefined ? null : terminal.json,
+          json_error: terminal.json_error || null,
+        } : null,
+        write_requests: writes.length,
+        initial_request: initialRequest,
+        reason };
     }
-    const initialIdentity = initialRequest?.body?.[recoverySpec.initial_field];
-    const ids = primary.records.map(row => row[recoverySpec.record_id_field]);
+    const initialIdentityValue = own(initialRequest?.body, recoverySpec.initial_field)
+      ? initialRequest.body[recoverySpec.initial_field] : null;
+    const initialIdentity = queryIdentityKey(initialIdentityValue);
+    const ids = primary.records.map(row => recordIdentity(row, recoverySpec.record_id_field));
     const confirmations = reconciliations.filter(event => {
-      const identity = new URL(event.url).searchParams.get(recoverySpec.query_parameter);
-      const id = recoverySpec.response_id_path.split('.').reduce((v, key) => v?.[key], event.response);
-      return initialIdentity !== undefined && initialIdentity !== null && initialIdentity !== ''
-        && identity === String(initialIdentity) && event.status >= 200 && event.status < 300
-        && id !== undefined && id !== null && ids.length === 1 && ids[0] === id;
+      const identityText = new URL(event.url).searchParams.get(recoverySpec.query_parameter);
+      const identity = queryIdentityKey(identityText);
+      const id = identityKey(responseIdentityValue(event.response, recoverySpec.response_id_path));
+      return initialIdentity !== null && identity !== null && identity === initialIdentity
+        && successStatuses.includes(event.status)
+        && id !== null && ids.length === 1 && identityKey(ids[0]) !== null && identityKey(ids[0]) === id;
     });
-    return { mode: 'reconcile', ok: confirmations.length > 0, confirmations: confirmations.length,
-      initial_request: initialRequest, responses: reconciliations,
-      reason: confirmations.length ? 'Server readback confirmed the original intent and independently observed record ID.' : 'No successful server readback linked the original intent to the observed record ID.' };
+    const unsafeReconciliation = historiesInvalid(reconciliations);
+    const ok = confirmations.length > 0 && !unsafePrimaryRequest && !unsafeReconciliation;
+    let reason;
+    if (unsafePrimaryRequest) {
+      reason = 'A configured request identity contained an unsafe integer; CrashLab rejects it before it can be rounded.';
+    } else if (unsafeReconciliation) {
+      reason = 'An observed reconciliation response contained an unsupported value; CrashLab rejects it before it can be rounded.';
+    } else {
+      reason = confirmations.length
+        ? 'Server readback confirmed the original intent and independently observed record ID with a configured success status.'
+        : 'No successful server readback linked the original intent to the observed record ID.';
+    }
+    return { mode: 'reconcile', ok, confirmations: confirmations.length,
+      invalid_measurement: unsafePrimaryRequest || unsafeReconciliation,
+      success_statuses: successStatuses,
+      initial_request: initialRequest, responses: reconciliations, reason };
   }
 
   try {
@@ -424,6 +768,8 @@ function recoveryTransportCause(err) {
     if (contract.fault && baseline.observed !== 0) throw new Error("INVALID: fault experiment requires an empty scoped baseline");
     await run(contract.journey);
     if (retryError) throw retryError;
+    await page.waitForTimeout(50);
+    await Promise.allSettled(pendingResponses);
     // Keep interception for request identity capture; fault only fires once.
     const primary = await readState(contract.state);
     recordEvent('final_state', { state: primary });
@@ -444,6 +790,10 @@ function recoveryTransportCause(err) {
                   && Number.isFinite(faultState?.observed) && faultState.observed >= 1 && faultContentsValid),
           }
         : { matched: true, valid: true };
+    if (recovery.invalid_measurement === true) {
+      scenario.valid = false;
+      scenario.invalid_reason = recovery.reason;
+    }
     let control = null;
     if (contract.control) {
       await reset();
@@ -453,9 +803,25 @@ function recoveryTransportCause(err) {
       recordEvent('baseline', { state: controlBaseline });
       if (contract.fault && controlBaseline.observed !== 0) throw new Error('INVALID: control requires an empty scoped baseline');
       await run(contract.control.journey);
+      await page.waitForTimeout(50);
+      await Promise.allSettled(pendingResponses);
       const checked = await readState(contract.control.state);
       recordEvent('final_state', { state: checked });
-      control = { ...checked, ok: matches(checked, contract.control.state) };
+      // A control that carries unsupported numeric data has not measured a
+      // legitimate-use boundary, whatever its count/content assertions say.
+      // Every control write is captured by the fault-route handler, so the
+      // parsing error is available after the journey has finished.
+      const controlWrites = network.filter(event => event.phase === 'control' && event.kind === 'write');
+      const controlUnsafeRequest = controlWrites.some(event => Boolean(event.body_error));
+      control = { ...checked, ok: matches(checked, contract.control.state),
+        write_requests: controlWrites.length,
+        unsafe_request: controlUnsafeRequest,
+        invalid_measurement: controlUnsafeRequest };
+      if (controlUnsafeRequest) {
+        control.reason = 'A control request contained unsupported numeric data; CrashLab rejects it before it can be rounded.';
+        scenario.valid = false;
+        scenario.invalid_reason = control.reason;
+      }
     }
     const result = {
       contract: contract.id,
@@ -494,3 +860,6 @@ function recoveryTransportCause(err) {
   console.log(JSON.stringify({ ok: false, status: 'ERROR', error: 'Browser runner startup failed: ' + String(err) + '. Check Node dependencies, local Chrome/Chromium and CHROME_PATH.' }, null, 2));
   process.exit(3);
 });
+}
+
+module.exports = { parseJson, assertSafeJsonNumbers };

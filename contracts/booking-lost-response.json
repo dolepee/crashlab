@@ -92,5 +92,13 @@
       "where": "intent_key <> ''",
       "expect": 2
     }
+  },
+  "recovery": {
+    "mode": "retry",
+    "success_statuses": [
+      200
+    ],
+    "response_id_path": "id",
+    "record_id_field": "id"
   }
 }

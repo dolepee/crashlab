@@ -53,7 +53,19 @@ Preserve existing database compatibility when repairing schema. If migration is
 not implemented and tested, explicitly limit the result to fresh databases. Run
 available app regression tests and report unavailable dependencies accurately.
 
-A recovery check is required, not just a final row count. Default retry needs a successful repeated write after interruption with the same request identity/payload. For server reconciliation, declare recovery mode reconcile plus route, initial_field, query_parameter, response_id_path and record_id_field; the GET must confirm the original intent and observed record ID. Never repair a retry by merely showing local success. Count waits default to at least one element; max-only waits have an implicit minimum of zero.
+A recovery check is required, not just a final row count. Every fault case must
+declare `recovery.success_statuses` with terminal 2xx values (202 and 3xx are
+rejected). Retry needs a successful repeated write after interruption with the
+same request identity/payload and an actual terminal response. Use
+`recovery.identity_headers` to select headers that must match; values are retained
+only as digests. For a JSON reply, pair `response_id_path` and `record_id_field`.
+For HTML redirects, omit that pair and rely on the actual terminal response plus
+journey/state assertions; the result labels that boundary. For server
+reconciliation, declare recovery mode reconcile plus route, initial_field,
+query_parameter, response_id_path and record_id_field; the GET must confirm the
+original intent and observed record ID. Never repair a retry by merely showing
+local success. Count waits default to at least one element; max-only waits have an
+implicit minimum of zero.
 
 
 ## Recovery campaigns and reusable regressions

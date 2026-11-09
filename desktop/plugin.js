@@ -1,5 +1,5 @@
 import { host, PALETTE_AREA } from '@hermes/plugin-sdk'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { jsx, jsxs } from 'react/jsx-runtime'
 
 function verdict(run) {
@@ -48,24 +48,6 @@ function EvidencePane({ ctx }) {
   const [data, setData] = useState(null)
   const [cases, setCases] = useState([])
   const [selected, setSelected] = useState('')
-  const [busy, setBusy] = useState(false)
-  const focusReturn = useRef(null)
-
-  function rememberFocus() {
-    focusReturn.current = document.activeElement
-  }
-
-  function restoreFocus() {
-    const target = focusReturn.current
-    focusReturn.current = null
-    requestAnimationFrame(() => {
-      if (!target || !target.isConnected) return
-      const active = document.activeElement
-      if (!active || active === document.body || active === document.documentElement) {
-        target.focus({ preventScroll: true })
-      }
-    })
-  }
   const [error, setError] = useState(null)
 
   const refresh = () => Promise.all([ctx.rest('/overview'), ctx.rest('/contracts')])
@@ -90,22 +72,6 @@ function EvidencePane({ ctx }) {
     return () => { alive = false }
   }, [ctx])
 
-  const startRun = async () => {
-    if (!selected) return
-    rememberFocus()
-    setBusy(true)
-    setError(null)
-    try {
-      const result = await ctx.rest('/run', { method: 'POST', body: { contract_path: selected } })
-      setData((current) => ({ ...(current || {}), latest_run: result }))
-    } catch (err) {
-      setError(String(err))
-    } finally {
-      setBusy(false)
-      restoreFocus()
-    }
-  }
-
   if (!data && !error) return jsx('div', { className: 'p-3 text-sm text-(--ui-text-tertiary)', children: 'Loading evidence…' })
 
   const selectedCase = cases.find(item => item.path === selected)
@@ -123,7 +89,7 @@ function EvidencePane({ ctx }) {
     items.push(jsx('div', {
       key: 'empty',
       className: 'text-xs text-(--ui-text-tertiary)',
-      children: 'No saved result yet. Select a case and run it.'
+      children: 'No saved result yet. Start a new approved run with the crashlab_run tool or dashboard; this pane only inspects saved evidence.'
     }))
   }
   if (latest) {
@@ -161,10 +127,10 @@ function EvidencePane({ ctx }) {
   return jsxs('div', {
     className: 'flex h-full flex-col gap-3 overflow-auto p-3 text-sm',
     children: [
-      jsx('div', { className: 'font-medium', children: 'Test a saved journey' }),
+      jsx('div', { className: 'font-medium', children: 'Inspect a saved journey' }),
       jsx('div', {
         className: 'text-xs text-(--ui-text-tertiary)',
-        children: 'Run a case on a disposable local app and inspect what was saved.'
+        children: 'Viewing only. Run cases through the Hermes crashlab_run tool or dashboard, where the approval gate can show the exact case, command and path.'
       }),
       jsxs('div', {
         className: 'flex items-center gap-2',
@@ -173,25 +139,23 @@ function EvidencePane({ ctx }) {
             'aria-label': 'Saved case',
             value: selected,
             onChange: (event) => setSelected(event.target.value),
-            disabled: busy || caseOptions.length === 0,
+            disabled: caseOptions.length === 0,
             className: 'min-h-11 min-w-0 flex-1 rounded border border-(--ui-stroke-secondary) bg-transparent px-2 py-1 text-xs',
             children: caseOptions.length ? caseOptions : [jsx('option', { value: '', children: 'No cases available' })]
           }),
-          jsx('button', {
-            onClick: startRun,
-            disabled: busy || !selected,
-            className: 'min-h-11 rounded border border-(--ui-stroke-secondary) px-2 py-1 text-xs',
-            children: busy ? 'Running…' : 'Run case'
+          jsx('div', {
+            className: 'min-h-11 rounded border border-(--ui-stroke-secondary) px-2 py-1 text-xs text-(--ui-text-tertiary)',
+            children: 'View only'
           })
         ]
       }),
       selectedCase?.setup_required ? jsx('div', { role: 'status', children: selectedCase.setup_required }) : null,
       error ? jsx('div', { role: 'alert', className: 'text-sm text-(--ui-danger)', children: error }) : null,
-      jsx('button', { onClick: refresh, disabled: busy, className: 'min-h-11 self-start rounded border px-3', children: 'Refresh cases and results' }),
+      jsx('button', { onClick: refresh, className: 'min-h-11 self-start rounded border px-3', children: 'Refresh cases and results' }),
       jsx('div', { 'aria-live': 'polite', className: 'flex flex-col gap-3', children: items }),
       jsx('div', {
         className: 'text-xs text-(--ui-text-tertiary)',
-        children: 'Results cover configured assertions. HTTP observers are supplied by the app; SQLite observers read its database directly.'
+        children: 'Results cover configured assertions. This pane never starts an execution. HTTP observers are supplied by the app; SQLite observers read its database directly.'
       })
     ]
   })

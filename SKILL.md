@@ -13,7 +13,7 @@ state after a failure or retry.
 3. For a repair, run `crashlab_compare` with the original and repaired URLs.
 4. Read the records, not the success banner.
 
-A failed check is the finding. An inconclusive run is not a pass. The control
+A failed check is the finding. An inconclusive run is not a pass. Fault cases require explicit terminal `recovery.success_statuses`; selected identity headers and optional JSON reply/record ID pairs are checked when declared. The control
 journey must still pass; a repair that blocks all later purchases is not a fix.
 
 The current evidence includes a real Hermes edit to the checkout fixture, but

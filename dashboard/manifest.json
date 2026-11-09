@@ -3,7 +3,7 @@
   "label": "CrashLab",
   "description": "Test recovery boundaries, inspect measured records, and replay frozen regressions.",
   "icon": "FlaskConical",
-  "version": "0.5.0",
+  "version": "0.5.7",
   "tab": {
     "path": "/crashlab",
     "position": "after:skills"

@@ -69,7 +69,8 @@ class BrowserIntegrity(unittest.TestCase):
     def test_declared_reconciliation_requires_original_intent_and_observed_record_id(self):
         case=copy.deepcopy(self.case)
         case['recovery']={'mode':'reconcile','route':'**/receipt?*','initial_field':'intent_key',
-                          'query_parameter':'intent_key','response_id_path':'order.id','record_id_field':'id'}
+                          'query_parameter':'intent_key','response_id_path':'order.id','record_id_field':'id',
+                          'success_statuses':[200]}
         case['app']['start']['env']['BUGGY']='1'
         source=self.source.replace('import sqlite3', 'import sqlite3\nfrom urllib.parse import urlparse, parse_qs')
         source=source.replace('elif self.path == "/state":', '''elif self.path.startswith('/receipt?'):
@@ -278,6 +279,8 @@ class BrowserIntegrity(unittest.TestCase):
                 case['app']['start']['command']=['{PYTHON}',str(core.ROOT/'native_form_fixture.py')]
                 case['app']['start']['env']['BUGGY']=buggy
                 case['fault']['route']='**/create'
+                case['recovery'].pop('response_id_path', None)
+                case['recovery'].pop('record_id_field', None)
                 case['journey']=[{'action':'goto','path':'/'},{'action':'fill','selector':'#item','value':'primary'},{'action':'click','selector':'#submit'},{'action':'wait_for_fault'},{'action':'reload'},{'action':'wait_for_url','pattern':'**/done'}]
                 case['state'].update(where="item='primary'",record_fields={'item':'primary'})
                 create=[{'action':'goto','path':'/'},{'action':'fill','selector':'#item','value':'control'},{'action':'click','selector':'#submit'},{'action':'wait_for_url','pattern':'**/done'}]

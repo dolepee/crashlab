@@ -87,19 +87,29 @@ behavior and assertions, reproduce a failure, repair the application, then rerun
 the same experiment ID. The dashboard shows whether that evidence is current and
 lets you rerun the case or enable completion reminders.
 
-A passing fault case must exercise recovery. The default `recovery.mode: "retry"`
-requires a successful repeated write after interruption, using the original
-method, URL and complete request payload (JSON object key order is ignored).
-A changed intent token is rejected even when the database mapping omits that key. Changing Retry to display a local success message fails.
-Redirecting native POSTs remain supported.
+A passing fault case must explicitly exercise recovery. A fault case must
+declare `recovery.success_statuses`: terminal 2xx statuses only, with 202 and
+3xx rejected. The default retry mode requires a repeated write after
+interruption using the original method, URL and complete request payload (JSON
+object key order is ignored), plus a terminal response in those statuses. A
+changed intent token is rejected even when the database mapping omits that key.
+Changing Retry to display a local success message fails. Selected
+`recovery.identity_headers` are compared and retained only as digests. Native
+POST redirects remain supported: the redirect is followed by the browser and
+the actual terminal response is observed, rather than manufacturing a terminal
+page at the original POST URL.
 
 For an application that recovers by reading back its result, declare
 `recovery.mode: "reconcile"`, a GET `route`, the original `initial_field` and
 readback `query_parameter`, plus `response_id_path` and `record_id_field`.
 The captured successful response must match both the original intent and the
 independently observed record ID. A query for an unrelated intent or a wrong ID
-fails. Results include the measured request sequence and recovery decision;
-these are configured behavior checks, not a security boundary against the app.
+fails. For a JSON retry, pairing `response_id_path` and `record_id_field` adds
+the same reply-ID check. Omit the pair for HTML redirects: those rely on the
+actual terminal response and declared journey/state assertions, and the result
+labels the missing response predicate explicitly. Results include the measured
+request sequence and recovery decision; these are configured behavior checks,
+not a security boundary against the app.
 
 For a bundled first run, use `cases/checkout-local.json` to see the duplicate and
 `cases/checkout-local-fixed.json` to see the passing implementation. These cases
@@ -267,12 +277,16 @@ hermes plugins validate "${HERMES_HOME:-$HOME/.hermes}/plugins/crashlab" --insta
 hermes plugins doctor "${HERMES_HOME:-$HOME/.hermes}/plugins/crashlab"
 ```
 
-The Desktop half is opt-in and appears in **Capabilities → Plugins**. It reads
-`CRASHLAB_DATA_DIR` (default `~/.local/share/crashlab`) and scans the bundled
-`contracts/` plus `CRASHLAB_CASE_DIR` (default `cases/`). Select a case and press
-**Run case**; the run starts the app when the case has an `app.start` block and
-persists `latest-run.json` for the pane. Historical measured evidence is available from
-`/crashlab`, `/crashlab runs` and `/crashlab run <case.json>` in a Hermes chat.
+The Desktop half is opt-in and appears in **Capabilities → Plugins**. It is
+**view-only**: it reads `CRASHLAB_DATA_DIR` (default `~/.local/share/crashlab`),
+scans the bundled `contracts/` plus `CRASHLAB_CASE_DIR` (default `cases/`), and
+shows saved results. It never starts an execution. Run a case through the
+`crashlab_run` tool or the dashboard, where the approval gate can show the exact
+case, command and path. Status, history and historical measured evidence are
+available from `/crashlab` and `/crashlab runs`. `/crashlab run <case.json>` only
+consumes an approval grant that already exists; it cannot acquire one.
+Use the `crashlab_run` tool or the dashboard for a new approved execution — the
+slash path directs you there when no grant exists.
 Quote paths containing spaces: `/crashlab run "/my project/case.json"`.
 `crashlab_list` includes self-starting cases and setup requirements. A template
 marked `setup_required` reports its instructions before launching anything;
@@ -324,6 +338,18 @@ A contract has:
   `/state` endpoint and is not independent of the application under repair.
 - `control` — a separate journey and state expectation used to catch an
   over-restrictive repair.
+
+Recovery is explicit. A fault case must include `recovery.success_statuses`, a
+non-empty list of terminal 2xx statuses (202 and 3xx are rejected). Redirects are
+observed at their actual terminal response, not by manufacturing a terminal page
+at the original POST URL. `recovery.identity_headers` selects the request headers
+that must match between the original and retry; values are retained only as
+digests. Pair `recovery.response_id_path` with `recovery.record_id_field` to check
+a terminal JSON reply ID against the single observed record. Omit both for HTML
+redirects: those rely on terminal success plus the declared journey/state
+assertions, and the result says that no response identity predicate was
+configured. Decimal-string IDs remain valid; unsafe JSON integer literals are
+rejected rather than rounded.
 
 The runner exits non-zero when the primary or control assertion fails, or when
 the configured fault did not match and commit a write. A failed check is

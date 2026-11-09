@@ -6,6 +6,7 @@ import copy
 import hashlib
 import math
 import os
+import re
 import shlex
 import signal
 import socket
@@ -21,6 +22,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 RUNNER = ROOT / "crashlab_runner.js"
+MAX_SAFE_INTEGER = 9_007_199_254_740_991
 
 def _data_dir() -> Path:
     return Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local" / "share" / "crashlab"))
@@ -32,7 +34,8 @@ def explain_run(result: dict) -> str:
         return f"Run failed before a verdict: {result['error']}"
     scenario = result.get("scenario") or {}
     if scenario.get("valid") is False:
-        return "The configured fault boundary was not established, so this run is not evidence."
+        return scenario.get("invalid_reason") or (
+            "The configured fault boundary was not established, so this run is not evidence.")
     if (result.get('recovery') or {}).get('ok') is False:
         return 'Recovery was not established: ' + result['recovery'].get('reason', 'Inspect the captured requests.')
     observed, expected = result.get("observed"), result.get("expected")
@@ -228,6 +231,31 @@ def _validate_journey(journey: list, where: str) -> None:
             raise ValueError(f"{name}.path must be a string")
 
 
+def _reject_unsafe_integers(value: Any, where: str = "value") -> None:
+    """Reject integer identities before JavaScript can round them.
+
+    Decimal strings remain valid inputs. This is intentionally a rejection,
+    not a lossless bigint adapter: an unsafe JSON number is ambiguous once it
+    has been parsed by JavaScript, so it must never become a comparison input.
+    """
+    if isinstance(value, bool):
+        return
+    if isinstance(value, int):
+        if abs(value) > MAX_SAFE_INTEGER:
+            raise ValueError(f"{where} is outside the safe integer range; use a decimal string")
+        return
+    if isinstance(value, float):
+        if math.isfinite(value) and value.is_integer() and abs(value) > MAX_SAFE_INTEGER:
+            raise ValueError(f"{where} is outside the safe integer range; use a decimal string")
+        return
+    if isinstance(value, dict):
+        for key, child in value.items():
+            _reject_unsafe_integers(child, f"{where}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            _reject_unsafe_integers(child, f"{where}[{index}]")
+
+
 def validate_contract(contract: dict) -> dict:
     if not isinstance(contract, dict):
         raise ValueError("contract must be an object")
@@ -261,15 +289,53 @@ def validate_contract(contract: dict) -> dict:
         if fault.get("occurrence", 1) != 1:
             raise ValueError("only fault.occurrence=1 is supported")
     recovery = contract.get('recovery')
+    if fault is not None and recovery is None:
+        raise ValueError('fault cases require recovery.success_statuses so success is explicit')
     if recovery is not None:
         if not fault or not isinstance(recovery, dict) or recovery.get('mode') not in ('retry', 'reconcile'):
             raise ValueError('recovery requires a fault and mode retry or reconcile')
+        allowed = {'mode', 'route', 'initial_field', 'query_parameter', 'response_id_path',
+                   'record_id_field', 'success_statuses', 'identity_headers'}
+        unknown = sorted(set(recovery) - allowed)
+        if unknown:
+            raise ValueError(f"recovery has unsupported fields: {', '.join(unknown)}")
+        statuses = recovery.get('success_statuses')
+        if not isinstance(statuses, list) or not statuses:
+            raise ValueError('recovery.success_statuses must be a non-empty list')
+        if any(type(status) is not int or not 200 <= status <= 299 or status == 202 for status in statuses):
+            raise ValueError('recovery.success_statuses must be terminal 2xx statuses, excluding 202')
+        if len(set(statuses)) != len(statuses):
+            raise ValueError('recovery.success_statuses must not repeat')
+        headers = recovery.get('identity_headers')
+        if 'identity_headers' in recovery and headers is not None and not isinstance(headers, list):
+            raise ValueError('recovery.identity_headers must be a non-empty list')
+        if headers is not None:
+            if not isinstance(headers, list) or not headers:
+                raise ValueError('recovery.identity_headers must be a non-empty list')
+            if any(not isinstance(name, str) or not name or not re.fullmatch(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+", name)
+                   for name in headers):
+                raise ValueError('recovery.identity_headers must contain valid HTTP header names')
+            if len({name.lower() for name in headers}) != len(headers):
+                raise ValueError('recovery.identity_headers must not repeat names')
         if recovery['mode'] == 'reconcile':
             for field in ('route', 'initial_field', 'query_parameter', 'response_id_path', 'record_id_field'):
                 if not isinstance(recovery.get(field), str) or not recovery[field]:
                     raise ValueError(f'recovery.{field} is required for reconciliation')
             if recovery['route'] == fault['route']:
                 raise ValueError('recovery.route must differ from the interrupted write route')
+            if headers is not None:
+                raise ValueError('recovery.identity_headers is only supported for retry recovery')
+        else:
+            response_path = recovery.get('response_id_path')
+            record_field = recovery.get('record_id_field')
+            if ('response_id_path' in recovery and not isinstance(response_path, str)) or (
+                    'record_id_field' in recovery and not isinstance(record_field, str)):
+                raise ValueError('recovery.response_id_path and recovery.record_id_field must be non-empty strings')
+            if (response_path is None) != (record_field is None):
+                raise ValueError('recovery.response_id_path and recovery.record_id_field must be provided together')
+            for field, value in (('response_id_path', response_path), ('record_id_field', record_field)):
+                if value is not None and (not isinstance(value, str) or not value):
+                    raise ValueError(f'recovery.{field} must be a non-empty string')
     campaign = contract.get('recovery_campaign')
     if campaign is not None:
         if not contract.get('control'):
@@ -304,6 +370,7 @@ def validate_contract(contract: dict) -> dict:
     specs = [contract["state"]] + ([control["state"]] if control else [])
     if not fault and any(spec.get("request_fields") for spec in specs):
         raise ValueError("request_fields requires a fault route for request capture")
+    _reject_unsafe_integers(contract, 'contract')
     return contract
 
 

@@ -97,6 +97,12 @@ def contract_for(app: Path, python: str) -> dict:
                 "record_fields": {"target_amount": 1000, "current_amount": 100, "status": "active"},
             },
         },
+        "recovery": {
+            "mode": "retry",
+            "success_statuses": [201],
+            "response_id_path": "id",
+            "record_id_field": "id",
+        },
     }
 
 

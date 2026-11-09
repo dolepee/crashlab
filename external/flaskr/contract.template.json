@@ -169,5 +169,11 @@
       }
     }
   },
+  "recovery": {
+    "mode": "retry",
+    "success_statuses": [
+      200
+    ]
+  },
   "setup_required": "Clone the pinned Pallets Flask source and install the tutorial dependencies. Set app.start.cwd and app.start.python to that checkout and interpreter, then remove this field."
 }
