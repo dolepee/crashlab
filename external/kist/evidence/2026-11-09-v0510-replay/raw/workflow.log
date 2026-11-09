@@ -1,0 +1,155 @@
+HEAD is now at 7a196af Barometer: normalise Google Trends by a basket of other tech job titles; from the week of 2026-09-27 Trends cut every job query by 60-80% at once (weather and recipes unchanged), so the raw series showed a market collapse that never happened
+hint: Using 'master' as the name for the initial branch. This default branch name
+hint: is subject to change. To configure the initial branch name to use in all
+hint: of your new repositories, which will suppress this warning, call:
+hint:
+hint: 	git config --global init.defaultBranch <name>
+hint:
+hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+hint: 'development'. The just-created branch can be renamed via this command:
+hint:
+hint: 	git branch -m <name>
+{
+  "step": "prepared",
+  "experiment_id": "e4f60e43b7a741be957e8440f8190949",
+  "case": "/workspace/tmp/kist-0510-data/experiments/e4f60e43b7a741be957e8440f8190949/case.json"
+}
+{
+  "step": "baseline",
+  "experiment_id": "e4f60e43b7a741be957e8440f8190949",
+  "status": "REPRODUCED",
+  "runs": [
+    {
+      "workflow_status": "REPRODUCED",
+      "result": {
+        "status": "FAIL",
+        "observed": 1,
+        "expected": 1,
+        "diagnosis": "Recovery was not established: Inspect each recorded recovery boundary.",
+        "error": null,
+        "evidence_path": "/workspace/tmp/kist-0510-data/runs/run-1794252720122-cfd73a60.json",
+        "control": {
+          "ok": true,
+          "observed": 6,
+          "expected": 6
+        }
+      }
+    }
+  ]
+}
+{
+  "step": "repair",
+  "experiment_id": "e4f60e43b7a741be957e8440f8190949",
+  "status": "VERIFIED",
+  "runs": [
+    {
+      "workflow_status": "REPRODUCED",
+      "result": {
+        "status": "FAIL",
+        "observed": 1,
+        "expected": 1,
+        "diagnosis": "Recovery was not established: Inspect each recorded recovery boundary.",
+        "error": null,
+        "evidence_path": "/workspace/tmp/kist-0510-data/runs/run-1794252720122-cfd73a60.json",
+        "control": {
+          "ok": true,
+          "observed": 6,
+          "expected": 6
+        }
+      }
+    },
+    {
+      "workflow_status": "VERIFIED",
+      "result": {
+        "status": "PASS",
+        "observed": 1,
+        "expected": 1,
+        "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+        "error": null,
+        "evidence_path": "/workspace/tmp/kist-0510-data/runs/run-1794252725926-2f290ae1.json",
+        "control": {
+          "ok": true,
+          "observed": 6,
+          "expected": 6
+        }
+      }
+    }
+  ]
+}
+{
+  "step": "export",
+  "bundle_path": "/workspace/tmp/kist-0510-data/exports/e4f60e43b7a741be957e8440f8190949/regression.json",
+  "bindings_example_path": "/workspace/tmp/kist-0510-data/exports/e4f60e43b7a741be957e8440f8190949/bindings.example.json",
+  "behavior_sha256": "a4468f6e76728d2ba6f2433e5eefe856ca25c088b50ae6c9db92265c6985376c",
+  "source_pin": "83992f22a4a5ef168636a3b4676244b353968073",
+  "next_action": "Use the same evaluator release, import with project_path and app_python, then run the new experiment. A new checkout starts PREPARED; no prior verification is inherited."
+}
+{
+  "step": "import_baseline",
+  "experiment_id": "22a181a6953e4a7d925eb30d152cc642",
+  "status": "REPRODUCED",
+  "runs": [
+    {
+      "workflow_status": "REPRODUCED",
+      "result": {
+        "status": "FAIL",
+        "observed": 1,
+        "expected": 1,
+        "diagnosis": "Recovery was not established: Inspect each recorded recovery boundary.",
+        "error": null,
+        "evidence_path": "/workspace/tmp/kist-0510-data/runs/run-1794252731962-6385b04e.json",
+        "control": {
+          "ok": true,
+          "observed": 6,
+          "expected": 6
+        }
+      }
+    }
+  ]
+}
+{
+  "step": "import_repair",
+  "experiment_id": "22a181a6953e4a7d925eb30d152cc642",
+  "status": "VERIFIED",
+  "runs": [
+    {
+      "workflow_status": "REPRODUCED",
+      "result": {
+        "status": "FAIL",
+        "observed": 1,
+        "expected": 1,
+        "diagnosis": "Recovery was not established: Inspect each recorded recovery boundary.",
+        "error": null,
+        "evidence_path": "/workspace/tmp/kist-0510-data/runs/run-1794252731962-6385b04e.json",
+        "control": {
+          "ok": true,
+          "observed": 6,
+          "expected": 6
+        }
+      }
+    },
+    {
+      "workflow_status": "VERIFIED",
+      "result": {
+        "status": "PASS",
+        "observed": 1,
+        "expected": 1,
+        "diagnosis": "Persisted state is correct (1/1) and the control passed.",
+        "error": null,
+        "evidence_path": "/workspace/tmp/kist-0510-data/runs/run-1794252737830-dd62d630.json",
+        "control": {
+          "ok": true,
+          "observed": 6,
+          "expected": 6
+        }
+      }
+    }
+  ]
+}
+{
+  "ok": true,
+  "experiment_id": "e4f60e43b7a741be957e8440f8190949",
+  "import_experiment_id": "22a181a6953e4a7d925eb30d152cc642",
+  "bundle_path": "/workspace/tmp/kist-0510-data/exports/e4f60e43b7a741be957e8440f8190949/regression.json",
+  "behavior_sha256": "a4468f6e76728d2ba6f2433e5eefe856ca25c088b50ae6c9db92265c6985376c"
+}

@@ -13,9 +13,9 @@
     "crashlab_core.py": "4523750745b5173d66c7e375651bcb16cab7819030b2f315cd8c4ae452f9e107",
     "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
     "crashlab_replay.py": "2784b2d5e54579b82a1f6248e467ea3dea9724a787d21758ffd0ee211455efd4",
-    "crashlab_runner.js": "caeeb5b77cfce3200014a35f7cff2da3779c108a689938e7b9330596c416c6fc",
+    "crashlab_runner.js": "ea8fbedaa0df22f714fc2b5f176d4c27f559a27e0c18477457ee3ec1d3d599b5",
     "plugin.py": "2813cf9d25ddcf41eb3707ffff98eaa24e60d0ef3fe6c995e23e7beaa5d65572",
-    "plugin.yaml": "72b8637bd105d02ed4d546304ca238ab5887abf071109ec7b253a87075e67b75",
+    "plugin.yaml": "e3adbc0eff34e2792f650c620a6984c26d18a11c7fbf47af6e3df59ff92879b0",
     "repair_workflow.py": "3f91a4ee3fac1d8fb7d29afe5dc2c51e794d482376486faf2744a8d1b05f241f",
     "skills/crashlab/SKILL.md": "69303a120c8a07f58f3c63f77c6ef594ce6622716b9c1a31aa7512852cff8b2d"
   },

@@ -100,6 +100,20 @@ function queryIdentityKey(value) {
   return null;
 }
 
+// Reconciliation compares one declared original field with one selected
+// readback query parameter. Repeated values make that comparison depend on
+// which parser wins (last for form objects, first for URLSearchParams), so
+// reject the measurement rather than silently choosing one.
+function selectedInitialValues(request, field) {
+  if (Array.isArray(request?.form_pairs)) {
+    return request.form_pairs.filter(([name]) => name === field).map(([, value]) => value);
+  }
+  if (own(request?.body, field) && !Array.isArray(request.body[field])) {
+    return [request.body[field]];
+  }
+  return [];
+}
+
 function own(object, key) {
   return Boolean(object) && Object.prototype.hasOwnProperty.call(object, key);
 }
@@ -783,32 +797,45 @@ if (require.main === module) {
         initial_request: initialRequest,
         reason };
     }
-    const initialIdentityValue = own(initialRequest?.body, recoverySpec.initial_field)
-      ? initialRequest.body[recoverySpec.initial_field] : null;
+    const initialValues = selectedInitialValues(initialRequest, recoverySpec.initial_field);
+    const initialAmbiguous = initialValues.length !== 1;
+    const initialIdentityValue = initialAmbiguous ? null : initialValues[0];
     const initialIdentity = queryIdentityKey(initialIdentityValue);
     const ids = primary.records.map(row => recordIdentity(row, recoverySpec.record_id_field));
+    let queryAmbiguous = false;
     const confirmations = reconciliations.filter(event => {
-      const identityText = new URL(event.url).searchParams.get(recoverySpec.query_parameter);
-      const identity = queryIdentityKey(identityText);
+      const values = new URL(event.url).searchParams.getAll(recoverySpec.query_parameter);
+      if (values.length !== 1) {
+        queryAmbiguous = true;
+        return false;
+      }
+      const identity = queryIdentityKey(values[0]);
       const id = identityKey(responseIdentityValue(event.response, recoverySpec.response_id_path));
       return initialIdentity !== null && identity !== null && identity === initialIdentity
         && successStatuses.includes(event.status)
         && id !== null && ids.length === 1 && identityKey(ids[0]) !== null && identityKey(ids[0]) === id;
     });
     const unsafeReconciliation = historiesInvalid(reconciliations);
-    const ok = confirmations.length > 0 && !unsafePrimaryRequest && !unsafeReconciliation;
+    const ambiguous = initialAmbiguous || queryAmbiguous;
+    const ok = confirmations.length > 0 && !unsafePrimaryRequest && !unsafeReconciliation && !ambiguous;
     let reason;
     if (unsafePrimaryRequest) {
       reason = 'A configured request identity contained an unsafe integer; CrashLab rejects it before it can be rounded.';
     } else if (unsafeReconciliation) {
       reason = 'An observed reconciliation response contained an unsupported value; CrashLab rejects it before it can be rounded.';
+    } else if (initialAmbiguous) {
+      reason = 'The selected original request identity is missing or repeated; reconciliation is ambiguous.';
+    } else if (queryAmbiguous) {
+      reason = 'A selected readback query parameter is missing or repeated; reconciliation is ambiguous.';
     } else {
       reason = confirmations.length
         ? 'Server readback confirmed the original intent and independently observed record ID with a configured success status.'
         : 'No successful server readback linked the original intent to the observed record ID.';
     }
     return { mode: 'reconcile', ok, confirmations: confirmations.length,
-      invalid_measurement: unsafePrimaryRequest || unsafeReconciliation,
+      ambiguous_initial_identity: initialAmbiguous,
+      ambiguous_query_identity: queryAmbiguous,
+      invalid_measurement: unsafePrimaryRequest || unsafeReconciliation || ambiguous,
       success_statuses: successStatuses,
       initial_request: initialRequest, responses: reconciliations, reason };
   }

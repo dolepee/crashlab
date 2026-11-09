@@ -1,0 +1,85 @@
+{
+  "format": "crashlab-evidence-v1",
+  "candidate_head": "83992f22a4a5ef168636a3b4676244b353968073",
+  "reviewed_head": null,
+  "source": "source/source.json",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2316,
+      "sha256": "922a23b05939523b9f1949ed835886b9dd6738e07d399a5e3fd2584e38ef26eb"
+    },
+    {
+      "path": "case/contract.json",
+      "bytes": 3558,
+      "sha256": "44165c488bcd73d76e0c5dcee4ca772d770014aa2a60079c78e40137d93ec2ef"
+    },
+    {
+      "path": "case/import-contract.json",
+      "bytes": 3617,
+      "sha256": "24927e48bf5dd0d97ed32468ae6b38f789d728e5a1ec1acd4c8481f58fde2728"
+    },
+    {
+      "path": "export/bindings.example.json",
+      "bytes": 109,
+      "sha256": "1f885301dddd6bb3724e4cc587d20432c7ea6afe5cac47cf9d7ef421a116a4fb"
+    },
+    {
+      "path": "export/regression.json",
+      "bytes": 5078,
+      "sha256": "2f28329f71649d89830cccab5d77e196b7317d6c5bd688c6b6067b8a5d5b2b5e"
+    },
+    {
+      "path": "patch/model-repair.patch",
+      "bytes": 11600,
+      "sha256": "f86a44ad078529136c45ca11ea1fea7958900130bfeabb77ee9626337da1dfa3"
+    },
+    {
+      "path": "raw/experiments/22a181a6953e4a7d925eb30d152cc642.json",
+      "bytes": 150275,
+      "sha256": "baad09091e77f265d09c91817b071dec00125699454500b3e40206d4e42e78f1"
+    },
+    {
+      "path": "raw/experiments/e4f60e43b7a741be957e8440f8190949.json",
+      "bytes": 149770,
+      "sha256": "43bbf6448ff66e0cc6ee491249b4e05f9665e917ef5fca0c85f3abcd10069bbd"
+    },
+    {
+      "path": "raw/runs/run-1794252720122-cfd73a60.json",
+      "bytes": 56007,
+      "sha256": "3f12bb94ac10772a0860fad3ac5704a25583fa256831efd3a51c3e89957de3a4"
+    },
+    {
+      "path": "raw/runs/run-1794252725926-2f290ae1.json",
+      "bytes": 58979,
+      "sha256": "0612e8be91f08499f56fb1e27e5000a8a7ad2f606da084ed25bf8b157051c3e2"
+    },
+    {
+      "path": "raw/runs/run-1794252731962-6385b04e.json",
+      "bytes": 56005,
+      "sha256": "3b7a38def878c532232b508830a2293143101aab485b42071477287d3790cdf4"
+    },
+    {
+      "path": "raw/runs/run-1794252737830-dd62d630.json",
+      "bytes": 58979,
+      "sha256": "b26888a4f0a9ea1efae20380af6be4a05188f1715d3b158b7465e25f711f76f3"
+    },
+    {
+      "path": "raw/workflow.log",
+      "bytes": 5099,
+      "sha256": "4819bb7db4d2faccde8254e19a6956defcf1ebec894e0f53d374f08b4c8415f3"
+    },
+    {
+      "path": "source/frozen-case.json",
+      "bytes": 3558,
+      "sha256": "44165c488bcd73d76e0c5dcee4ca772d770014aa2a60079c78e40137d93ec2ef"
+    },
+    {
+      "path": "source/source.json",
+      "bytes": 3872,
+      "sha256": "4250110c5a4cdad01d5b2aaace547d864589b807a6a41b70631f946f9ae312bd"
+    }
+  ],
+  "archive_sha256": null,
+  "note": "Branch evidence for 0.5.10 candidate; no archive digest. Exact-head review and installed replay are owner-owned."
+}

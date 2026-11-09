@@ -457,6 +457,56 @@ class BrowserIntegrity(unittest.TestCase):
                 self.assertTrue(result['scenario']['valid'],result)
                 self.assertTrue(result['control']['ok'],result)
 
+    FORM_RECON_APP = r'''import json, os
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlparse
+ORDERS = []
+NEXT_ID = [1]
+HTML = """<!doctype html><html><body>
+<button id="send">Send</button><button id="readback">Read back</button><div id="status">ready</div>
+<script>
+async function send(body) {
+  const status = document.getElementById('status');
+  try {
+    const r = await fetch('/create', {method:'POST', headers:{'content-type':'application/x-www-form-urlencoded'}, body});
+    status.textContent = r.ok ? 'saved' : 'failed';
+  } catch (e) { status.textContent = 'failed'; }
+}
+document.getElementById('send').onclick = () => send('BODY_INITIAL');
+document.getElementById('readback').onclick = async () => {
+  const r = await fetch('/receipt?QUERY');
+  document.getElementById('status').textContent = r.ok ? 'read' : 'error';
+};
+</script></body></html>"""
+class H(BaseHTTPRequestHandler):
+    def _send(self, code, data):
+        raw = json.dumps(data).encode(); self.send_response(code)
+        self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(raw)))
+        self.end_headers(); self.wfile.write(raw)
+    def do_GET(self):
+        if self.path == '/':
+            raw = HTML.encode(); self.send_response(200)
+            self.send_header('Content-Type', 'text/html'); self.send_header('Content-Length', str(len(raw)))
+            self.end_headers(); self.wfile.write(raw)
+        elif self.path == '/state':
+            self._send(200, {'orders': ORDERS})
+        elif self.path.startswith('/receipt?'):
+            key = parse_qs(urlparse(self.path).query).get('intent_key', [''])[0]
+            row = next((item for item in ORDERS if item['intent_key'] == key), None)
+            self._send(200, {'order': {'id': row['id'] if row else None}})
+        else:
+            self.send_response(404); self.end_headers()
+    def do_POST(self):
+        if self.path != '/create': self.send_response(404); self.end_headers(); return
+        fields = parse_qs(self.rfile.read(int(self.headers.get('Content-Length', '0'))).decode())
+        row = {'id': NEXT_ID[0], 'intent_key': (fields.get('intent_key') or [''])[0],
+               'item': (fields.get('item') or [''])[0]}
+        NEXT_ID[0] += 1; ORDERS.append(row)
+        self._send(200, {'id': row['id']})
+    def log_message(self, *args): pass
+ThreadingHTTPServer(('127.0.0.1', int(os.environ['PORT'])), H).serve_forever()
+'''
+
     FORM_APP = r'''import json, os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs
@@ -498,6 +548,56 @@ class H(BaseHTTPRequestHandler):
     def log_message(self, *args): pass
 ThreadingHTTPServer(('127.0.0.1', int(os.environ['PORT'])), H).serve_forever()
 '''
+
+    def reconcile_form_case(self, source, initial, query, expected='one'):
+        app = self.root / 'app.py'
+        app.write_text(source.replace('BODY_INITIAL', initial).replace('QUERY', query))
+        return {
+            'id': 'reconcile-form-identity',
+            'app': {'base_url': 'http://127.0.0.1:{PORT}', 'start': {
+                'command': ['{PYTHON}', 'app.py'], 'python': '{PYTHON}', 'cwd': str(self.root),
+                'base_url': 'http://127.0.0.1:{PORT}', 'health_path': '/', 'ready_timeout': 10,
+            }},
+            'journey': [
+                {'action': 'goto', 'path': '/'},
+                {'action': 'click', 'selector': '#send'},
+                {'action': 'wait_for_fault'},
+                {'action': 'click', 'selector': '#readback'},
+                {'action': 'wait_for_text', 'text': 'read'},
+            ],
+            'fault': {'route': '**/create', 'method': 'POST', 'mode': 'suppress_after_upstream', 'occurrence': 1},
+            'recovery': {'mode': 'reconcile', 'route': '**/receipt?*', 'initial_field': 'intent_key',
+                         'query_parameter': 'intent_key', 'response_id_path': 'order.id',
+                         'record_id_field': 'id', 'success_statuses': [200]},
+            'state': {'mode': 'http', 'url': '/state', 'path': 'orders', 'expect': 1,
+                      'record_fields': {'intent_key': expected}},
+        }
+
+    def test_reconcile_accepts_unique_selected_form_and_query_identity(self):
+        result = self.run_case(None, self.reconcile_form_case(self.FORM_RECON_APP, 'intent_key=one&item=x', 'intent_key=one'))
+        self.assertTrue(result['ok'], result)
+        self.assertTrue(result['recovery']['ok'], result)
+        self.assertFalse(result['recovery']['ambiguous_initial_identity'], result)
+        self.assertFalse(result['recovery']['ambiguous_query_identity'], result)
+
+    def test_reconcile_rejects_repeated_selected_original_form_identity(self):
+        result = self.run_case(None, self.reconcile_form_case(self.FORM_RECON_APP, 'intent_key=one&intent_key=shadow&item=x', 'intent_key=shadow'))
+        self.assertFalse(result['ok'], result)
+        self.assertEqual(result['status'], 'INVALID', result)
+        self.assertTrue(result['recovery']['ambiguous_initial_identity'], result)
+        self.assertFalse(result['recovery']['ok'], result)
+
+    def test_reconcile_rejects_repeated_selected_readback_query_value(self):
+        result = self.run_case(None, self.reconcile_form_case(self.FORM_RECON_APP, 'intent_key=one&item=x', 'intent_key=one&intent_key=shadow'))
+        self.assertFalse(result['ok'], result)
+        self.assertEqual(result['status'], 'INVALID', result)
+        self.assertTrue(result['recovery']['ambiguous_query_identity'], result)
+        self.assertFalse(result['recovery']['ok'], result)
+
+    def test_reconcile_allows_unrelated_repeated_fields(self):
+        result = self.run_case(None, self.reconcile_form_case(self.FORM_RECON_APP, 'intent_key=one&item=x&item=y', 'intent_key=one&noise=a&noise=b'))
+        self.assertTrue(result['ok'], result)
+        self.assertTrue(result['recovery']['ok'], result)
 
     def form_case(self, initial, retry, expected):
         return {

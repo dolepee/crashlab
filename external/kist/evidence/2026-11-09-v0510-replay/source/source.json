@@ -1,0 +1,99 @@
+{
+  "candidate_head": "83992f22a4a5ef168636a3b4676244b353968073",
+  "reviewed_head": null,
+  "merge_sha": null,
+  "candidate_branch": "fix/0.5.10-reconcile-identity",
+  "version": "0.5.10",
+  "pr": "https://github.com/dolepee/crashlab/pull/28",
+  "review_receipt": null,
+  "ci": [
+    {
+      "name": "verify",
+      "run": "https://github.com/dolepee/crashlab/actions/runs/42684216331",
+      "job": "https://github.com/dolepee/crashlab/actions/runs/42684216331/job/129386565788",
+      "conclusion": "success",
+      "duration": "4m6s"
+    },
+    {
+      "name": "verify",
+      "run": "https://github.com/dolepee/crashlab/actions/runs/42684207895",
+      "job": "https://github.com/dolepee/crashlab/actions/runs/42684207895/job/129386530510",
+      "conclusion": "success",
+      "duration": "4m33s"
+    }
+  ],
+  "tests": {
+    "unit": {
+      "count": 291,
+      "skipped": 81
+    },
+    "browser_recovery": {
+      "count": 85,
+      "skipped": 0
+    },
+    "targeted_reconciliation": {
+      "count": 5,
+      "skipped": 0
+    }
+  },
+  "app": {
+    "base_commit": "7a196af9550378d24d196e666ac0a0f6dd37cb48",
+    "baseline_project_sha256": "5a1c4a2896bcbb11f7f41429f3f78927ab4843e28fc9301b7537476d9cb2ebaa",
+    "repaired_project_sha256": "d01191f03244d64aa10d7ef692134c9195e3b064bf9e20b54e69f6d8a423b230",
+    "patch": "patch/model-repair.patch",
+    "patch_sha256": "f86a44ad078529136c45ca11ea1fea7958900130bfeabb77ee9626337da1dfa3"
+  },
+  "case": {
+    "published_frozen": "source/frozen-case.json",
+    "published_frozen_sha256": "44165c488bcd73d76e0c5dcee4ca772d770014aa2a60079c78e40137d93ec2ef",
+    "saved_experiment": "e4f60e43b7a741be957e8440f8190949",
+    "file": "case/contract.json",
+    "sha256": "44165c488bcd73d76e0c5dcee4ca772d770014aa2a60079c78e40137d93ec2ef",
+    "contract_canonical_sha256": "51771858c168a80c4d2d6d81641a73820b104893e62536daadcf6cf8738a6968",
+    "recovery_campaign": [
+      "before_delivery",
+      "after_commit",
+      "restart_after_commit"
+    ],
+    "import_case": "case/import-contract.json",
+    "import_case_sha256": "24927e48bf5dd0d97ed32468ae6b38f789d728e5a1ec1acd4c8481f58fde2728"
+  },
+  "export": {
+    "file": "export/regression.json",
+    "bundle_sha256": "2f28329f71649d89830cccab5d77e196b7317d6c5bd688c6b6067b8a5d5b2b5e",
+    "behavior_sha256": "a4468f6e76728d2ba6f2433e5eefe856ca25c088b50ae6c9db92265c6985376c",
+    "launch_sha256": "23eec9d813d66fd43d1ee16fd6e216db5067d231e2535fe0deb3fcb3f64a7f04",
+    "bindings": "export/bindings.example.json"
+  },
+  "evaluator_sha256": {
+    "crashlab_core.py": "4523750745b5173d66c7e375651bcb16cab7819030b2f315cd8c4ae452f9e107",
+    "crashlab_runner.js": "ea8fbedaa0df22f714fc2b5f176d4c27f559a27e0c18477457ee3ec1d3d599b5",
+    "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
+    "repair_workflow.py": "3f91a4ee3fac1d8fb7d29afe5dc2c51e794d482376486faf2744a8d1b05f241f"
+  },
+  "experiments": {
+    "primary": "e4f60e43b7a741be957e8440f8190949",
+    "import": "22a181a6953e4a7d925eb30d152cc642"
+  },
+  "statuses": {
+    "primary_baseline": "REPRODUCED",
+    "primary_repair": "VERIFIED",
+    "import_baseline": "REPRODUCED",
+    "import_repair": "VERIFIED"
+  },
+  "boundaries": {
+    "before_delivery": {
+      "baseline": "FAIL 1/1 observed expected",
+      "repair": "PASS 1/1"
+    },
+    "after_commit": {
+      "baseline": "FAIL 2/1 observed expected",
+      "repair": "PASS 1/1"
+    },
+    "restart_after_commit": {
+      "baseline": "FAIL 2/1 observed expected",
+      "repair": "PASS 1/1"
+    }
+  },
+  "scope": "Candidate operator replay of the published native Kist frozen case through a new supported prepare with local bindings and CrashLab 0.5.10. This is not a new model repair. Exact-head review, official Mac install/replay, catalog parity and recording are not claimed. Old evidence, bundles and pins are untouched."
+}
