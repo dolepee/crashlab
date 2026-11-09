@@ -76,7 +76,7 @@ class Handler(BaseHTTPRequestHandler):
                 rows = con.execute('SELECT id,intent_key,item FROM orders ORDER BY id').fetchall()
             self._json(200, {'orders': [dict(zip(('id', 'intent_key', 'item'), row)) for row in rows]})
         elif parsed.path == '/recovery':
-            body = b'Recovered'
+            body = b'Order confirmed by the server.'
             self.send_response(200)
             self.send_header('Content-Type', 'text/html')
             self.send_header('Content-Length', str(len(body)))
@@ -199,6 +199,7 @@ class TerminalTransportTests(unittest.TestCase):
         self.assertEqual(terminal['status'], 200)
         self.assertTrue(terminal['body_complete'], terminal)
         self.assertIsNone(terminal['body_error'])
+        self.assertEqual(result['observations']['recovery_ui'], 'Order confirmed')
 
     def test_truncated_html_terminal_response_is_rejected(self):
         result = self.run_case('truncated')
@@ -210,6 +211,7 @@ class TerminalTransportTests(unittest.TestCase):
         self.assertFalse(terminal['body_complete'], terminal)
         self.assertTrue(terminal['body_error'], terminal)
         self.assertIn('transport did not complete', result['recovery']['reason'])
+        self.assertEqual(result['observations']['recovery_ui'], 'Could not confirm')
         self.assertFalse(core._completed_assertion(result, passed=True), result)
 
 
