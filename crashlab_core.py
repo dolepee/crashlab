@@ -23,6 +23,49 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent
 RUNNER = ROOT / "crashlab_runner.js"
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
+SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
+SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,219}\Z")
+SAFE_ARTIFACT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,239}\Z")
+SAFE_SCREENSHOT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}\Z")
+
+
+def _safe_id(value: Any, field: str = "id") -> str:
+    """Reject names that can escape a persisted artifact path or filename."""
+    if not isinstance(value, str) or not SAFE_ID.fullmatch(value):
+        raise ValueError(f"{field} must be a safe identifier: letters, digits, dot, dash or underscore")
+    return value
+
+
+def _safe_run_id(value: Any) -> str:
+    if not isinstance(value, str) or not SAFE_RUN_ID.fullmatch(value):
+        raise ValueError("run_id must be a safe identifier within the generated run budget")
+    return value
+
+
+def _artifact_path(directory: Path, name: str) -> Path:
+    """Resolve a persisted artifact name and keep it directly inside directory."""
+    if not isinstance(name, str) or not SAFE_ARTIFACT.fullmatch(name):
+        raise ValueError("artifact name must fit the bounded filename budget")
+    root = directory.resolve()
+    path = (root / name).resolve()
+    if path.parent != root:
+        raise ValueError("artifact path escapes its configured directory")
+    return path
+
+
+def _campaign_case_id(base: str, boundary: str) -> str:
+    """Derive a campaign case ID without exceeding the case-ID budget."""
+    _safe_id(base, "contract.id")
+    _safe_id(boundary, "recovery_campaign boundary")
+    suffix = "-" + boundary
+    if len(base) + len(suffix) <= 128:
+        return base + suffix
+    if len(suffix) > 96:
+        raise ValueError("recovery_campaign boundary name is too long for a case ID")
+    digest = hashlib.sha256(base.encode("utf-8")).hexdigest()[:8]
+    prefix = base[:128 - len(suffix) - 9]
+    return f"{prefix}-{digest}{suffix}"
+
 
 def _data_dir() -> Path:
     return Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local" / "share" / "crashlab"))
@@ -68,13 +111,14 @@ def explain_comparison(result: dict) -> str:
 
 def persist_run(result: dict) -> dict:
     """Save one completed run outside the plugin directory for the Desktop pane."""
-    run_id = str(result.get("run_id") or f"run-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}")
+    run_id = result.get("run_id") or f"run-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}"
+    run_id = _safe_run_id(run_id)
     result["run_id"] = run_id
     data = _data_dir()
     runs = data / "runs"
     runs.mkdir(parents=True, exist_ok=True)
     result["diagnosis"] = explain_run(result)
-    path = runs / f"{run_id}.json"
+    path = _artifact_path(runs, f"{run_id}.json")
     result["evidence_path"] = str(path)
     raw = json.dumps(result, indent=2, default=str) + "\n"
     path.write_text(raw, encoding="utf-8")
@@ -85,13 +129,14 @@ def persist_run(result: dict) -> dict:
 
 def _persist(result: dict) -> dict:
     """Save a completed comparison outside the plugin directory and expose its id."""
-    run_id = str(result.get("run_id") or f"compare-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}")
+    run_id = result.get("run_id") or f"compare-{int(time.time() * 1000)}-{uuid.uuid4().hex[:8]}"
+    run_id = _safe_run_id(run_id)
     result["run_id"] = run_id
     data = _data_dir()
     runs = data / "runs"
     runs.mkdir(parents=True, exist_ok=True)
     result["diagnosis"] = explain_comparison(result)
-    path = runs / f"{run_id}.json"
+    path = _artifact_path(runs, f"{run_id}.json")
     result["evidence_path"] = str(path)
     path.write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
     (data / "latest.json").write_text(json.dumps(result, indent=2, default=str) + "\n", encoding="utf-8")
@@ -227,6 +272,9 @@ def _validate_journey(journey: list, where: str) -> None:
             ms = step.get("ms")
             if type(ms) is not int or not 0 <= ms <= 60000:
                 raise ValueError(f"{name}.ms must be an integer from 0 to 60000")
+        if action == "screenshot" and "as" in step:
+            if not isinstance(step["as"], str) or not SAFE_SCREENSHOT.fullmatch(step["as"]):
+                raise ValueError(f"{name}.as must be a bounded screenshot slug")
         if action == "goto" and step.get("path") is not None and not isinstance(step["path"], str):
             raise ValueError(f"{name}.path must be a string")
 
@@ -245,7 +293,9 @@ def _reject_unsafe_integers(value: Any, where: str = "value") -> None:
             raise ValueError(f"{where} is outside the safe integer range; use a decimal string")
         return
     if isinstance(value, float):
-        if math.isfinite(value) and value.is_integer() and abs(value) > MAX_SAFE_INTEGER:
+        if not math.isfinite(value):
+            raise ValueError(f"{where} must be a finite number")
+        if value.is_integer() and abs(value) > MAX_SAFE_INTEGER:
             raise ValueError(f"{where} is outside the safe integer range; use a decimal string")
         return
     if isinstance(value, dict):
@@ -262,6 +312,7 @@ def validate_contract(contract: dict) -> dict:
     for key in ("id", "app", "journey", "state"):
         if key not in contract:
             raise ValueError(f"contract missing {key}")
+    _safe_id(contract["id"], "contract.id")
     if not isinstance(contract["app"], dict):
         raise ValueError("app must be an object")
     if "setup_required" in contract and not isinstance(contract["setup_required"], str):
@@ -655,14 +706,48 @@ def _run_with_restart(argv, env, timeout, restart):
                         pending.write_text(json.dumps(reply))
                         pending.replace(directory / 'restart.reply.json')
         finally:
-            if runner.poll() is None:
-                _stop_process(runner)
-            runner.communicate()
+            # Reap the owned group even when its leader has already exited: a
+            # child that inherited the pipes would otherwise keep the drain
+            # below blocked and the helper would never unwind. The group id is
+            # captured at spawn, so this reaches children that outlived the
+            # leader, as the ordinary runner route does.
+            _stop_process(runner)
+            try:
+                runner.communicate(timeout=5)
+            except subprocess.TimeoutExpired:
+                runner.kill()
+                try:
+                    runner.communicate(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
+
+
+def _contained_evidence_dir(contract: dict, contract_dir: Path, data: Path, managed: bool) -> None:
+    """Keep screenshot output inside the disposable run directory or case directory."""
+    evidence = contract.get("evidence")
+    if not isinstance(evidence, dict):
+        evidence = {}
+        contract["evidence"] = evidence
+    raw = evidence.get("screenshot_dir")
+    if raw is None:
+        raw = str(data / "shots") if managed else str(contract_dir / "evidence")
+    if not isinstance(raw, str) or not raw.strip():
+        raise ValueError("evidence.screenshot_dir must be a non-empty string")
+    expanded = _expand_start(raw, contract_dir=contract_dir, data=data, port=0)
+    root = (data if managed else contract_dir).resolve()
+    candidate = Path(expanded).expanduser()
+    if not candidate.is_absolute():
+        candidate = root / candidate
+    path = candidate.resolve()
+    if not path.is_relative_to(root):
+        raise ValueError("evidence.screenshot_dir must stay inside the disposable run directory")
+    evidence["screenshot_dir"] = str(path)
 
 
 def run_contract(contract_path: str | Path, base_url: str | None = None,
                  timeout: int = 120, *, frozen_contract: dict | None = None) -> dict:
     contract = copy.deepcopy(frozen_contract) if frozen_contract is not None else load_contract(contract_path)
+    validate_contract(contract)
     if contract.get('recovery_campaign'):
         return run_recovery_campaign(contract_path, contract, base_url=base_url, timeout=timeout)
     if contract.get("setup_required"):
@@ -687,11 +772,9 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
                 if not db.is_absolute():
                     db = (contract_dir / db).resolve()
                 state["db"] = str(db)
-        evidence = contract.get("evidence")
-        if started is not None and isinstance(evidence, dict) and evidence.get("screenshot_dir"):
-            evidence["screenshot_dir"] = _expand_start(
-                evidence["screenshot_dir"], contract_dir=contract_dir,
-                data=app_data, port=0)
+        _contained_evidence_dir(
+            contract, contract_dir, app_data if started is not None else contract_dir,
+            started is not None)
         fd, temp_path = tempfile.mkstemp(prefix="crashlab-contract-", suffix=".json")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
@@ -717,8 +800,18 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
                     return event
                 proc = _run_with_restart(argv, env, timeout, restart)
             else:
-                proc = subprocess.run(argv, cwd=ROOT, capture_output=True, text=True,
-                                      timeout=timeout, env=env)
+                runner = subprocess.Popen(
+                    argv, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                    text=True, env=env, start_new_session=(os.name == "posix"))
+                if os.name == "posix":
+                    runner._crashlab_pgid = runner.pid
+                try:
+                    stdout, stderr = runner.communicate(timeout=timeout)
+                finally:
+                    # Reap the owned group even when the direct runner exits
+                    # first and leaves a browser child behind.
+                    _stop_process(runner)
+                proc = subprocess.CompletedProcess(argv, runner.returncode, stdout, stderr)
         finally:
             Path(temp_path).unlink(missing_ok=True)
     finally:
@@ -811,7 +904,7 @@ def run_recovery_campaign(contract_path, frozen, *, base_url=None, timeout=120):
     for name in frozen['recovery_campaign']:
         case = copy.deepcopy(frozen)
         case.pop('recovery_campaign')
-        case['id'] = frozen['id'] + '-' + name
+        case['id'] = _campaign_case_id(frozen['id'], name)
         case['fault']['mode'] = 'prevent_before_delivery' if name == 'before_delivery' else 'suppress_after_upstream'
         if name == 'restart_after_commit':
             boundary = next(i for i, step in enumerate(case['journey']) if step['action']=='wait_for_fault')

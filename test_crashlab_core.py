@@ -2,8 +2,10 @@
 import copy
 import json
 import os
+import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -323,6 +325,49 @@ with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as 
         self.assertTrue(result["ok"], result)
         self.wait_gone()
 
+    def wait_pid_gone(self, pid_file):
+        pid = int(pid_file.read_text(encoding="utf-8"))
+        for _ in range(100):
+            try:
+                os.kill(pid, 0)
+            except ProcessLookupError:
+                return
+            time.sleep(0.05)
+        self.fail(f"child process {pid} survived runner timeout")
+
+    def test_runner_exit_without_child_cleanup_is_stopped(self):
+        child = self._script("exit-child.py", self.CHILD)
+        child_pid = self.tmp / "exit-child.pid"
+        runner = self._script(
+            "exit-runner.py",
+            "import os, subprocess, sys, time\n"
+            f"subprocess.Popen([sys.executable, {str(child)!r}, {str(child_pid)!r}, '0'], "
+            "stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+            f"while not os.path.exists({str(child_pid)!r}): time.sleep(0.01)\n",
+        )
+        contract_path = self.tmp / "case.json"
+        contract_path.write_text(json.dumps(self.start()), encoding="utf-8")
+        with patch.object(core, "RUNNER", runner), patch.object(core, "_node", lambda: sys.executable):
+            result = core.run_contract(contract_path)
+        self.assertEqual(result["status"], "ERROR", result)
+        self.wait_pid_gone(child_pid)
+
+    def test_runner_timeout_stops_spawned_child(self):
+        child = self._script("timeout-child.py", self.CHILD)
+        child_pid = self.tmp / "child.pid"
+        runner = self._script(
+            "timeout-runner.py",
+            "import subprocess, sys, time\n"
+            f"subprocess.Popen([sys.executable, {str(child)!r}, {str(child_pid)!r}, '0'])\n"
+            "time.sleep(60)\n",
+        )
+        contract_path = self.tmp / "case.json"
+        contract_path.write_text(json.dumps(self.start()), encoding="utf-8")
+        with patch.object(core, "RUNNER", runner), patch.object(core, "_node", lambda: sys.executable):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                core.run_contract(contract_path, timeout=1)
+        self.wait_pid_gone(child_pid)
+
     CHILD = """\
 import os, signal, sys, time
 signal.signal(signal.SIGTERM, signal.SIG_IGN if sys.argv[2] == "1" else signal.SIG_DFL)
@@ -381,6 +426,30 @@ with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as 
             handle.close()
         self.wait_gone()
 
+    def test_managed_restart_reaps_group_after_runner_exits(self):
+        child = self._script("restart-child.py", self.CHILD)
+        child_pid = self.tmp / "restart-child.pid"
+        runner = self._script(
+            "restart-runner.py",
+            "import os, subprocess, sys, time\n"
+            f"subprocess.Popen([sys.executable, {str(child)!r}, {str(child_pid)!r}, '0'])\n"
+            f"while not os.path.exists({str(child_pid)!r}): time.sleep(0.01)\n",
+        )
+        outcome = {}
+
+        def call():
+            try:
+                core._run_with_restart([sys.executable, str(runner)], dict(os.environ), 0.2, lambda: {})
+            except BaseException as exc:  # recorded so a regression cannot hang the suite
+                outcome["error"] = exc
+
+        worker = threading.Thread(target=call, daemon=True)
+        worker.start()
+        worker.join(10)
+        self.assertFalse(worker.is_alive(), "managed restart helper did not unwind after its leader exited")
+        self.assertIsInstance(outcome.get("error"), subprocess.TimeoutExpired)
+        self.wait_pid_gone(child_pid)
+
     def test_cleanup_without_children_is_fast(self):
         start = self.start()
         proc, base, log, handle, data = core._start_app(start, self.tmp)
@@ -407,3 +476,115 @@ class ControlIdentityValidationTests(unittest.TestCase):
         # A cardinality/content control without per-intent identity remains explicit and valid.
         case['control']['state'].pop('request_fields')
         core.validate_contract(case)
+
+
+class ArtifactSafetyTests(unittest.TestCase):
+    def base_case(self):
+        return json.loads((core.ROOT / 'cases/checkout-local-fixed.json').read_text())
+
+    def test_contract_id_rejects_traversal_and_non_strings(self):
+        for value in ('../escaped-case', 'bad/name', 'bad\\name', 123, [], None):
+            with self.subTest(value=value):
+                case = self.base_case()
+                case['id'] = value
+                with self.assertRaises(ValueError):
+                    core.validate_contract(case)
+
+    def test_persisted_run_ids_cannot_escape_runs_directory(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {'CRASHLAB_DATA_DIR': temporary}):
+                for value in ('../escaped-evidence', 'bad/name', 'bad\\name', 123):
+                    with self.subTest(value=value):
+                        with self.assertRaises(ValueError):
+                            core.persist_run({'run_id': value, 'contract': 'x', 'ok': True})
+                with self.assertRaises(ValueError):
+                    core._persist({'run_id': '../escaped-comparison', 'ok': True})
+                self.assertFalse((Path(temporary) / 'escaped-evidence.json').exists())
+                self.assertFalse((Path(temporary) / 'escaped-comparison.json').exists())
+
+    def test_evidence_directory_must_stay_inside_the_run_root(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data = root / 'run'
+            data.mkdir()
+            contract = {'evidence': {'screenshot_dir': str(root / 'outside')}}
+            with self.assertRaisesRegex(ValueError, 'stay inside'):
+                core._contained_evidence_dir(contract, root, data, True)
+            inside = data / 'shots'
+            contract['evidence']['screenshot_dir'] = str(inside)
+            core._contained_evidence_dir(contract, root, data, True)
+            self.assertEqual(contract['evidence']['screenshot_dir'], str(inside.resolve()))
+            alias = data / 'alias'
+            alias.symlink_to(root / 'outside', target_is_directory=True)
+            contract['evidence']['screenshot_dir'] = str(alias)
+            with self.assertRaisesRegex(ValueError, 'stay inside'):
+                core._contained_evidence_dir(contract, root, data, True)
+
+    def test_relative_evidence_resolves_under_the_contract_root(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            contract = {'evidence': {'screenshot_dir': 'evidence'}}
+            core._contained_evidence_dir(contract, root, root / 'data', False)
+            self.assertEqual(contract['evidence']['screenshot_dir'], str((root / 'evidence').resolve()))
+            contract['evidence']['screenshot_dir'] = '../escape'
+            with self.assertRaisesRegex(ValueError, 'stay inside'):
+                core._contained_evidence_dir(contract, root, root / 'data', False)
+
+    def test_bundled_relative_evidence_contracts_are_accepted_from_repo_root(self):
+        for name in ('contracts/checkout-lost-response.json', 'contracts/booking-lost-response.json'):
+            with self.subTest(name=name):
+                contract = core.load_contract(core.ROOT / name)
+                core._contained_evidence_dir(contract, (core.ROOT / name).parent, core.ROOT, False)
+                self.assertTrue(Path(contract['evidence']['screenshot_dir']).is_relative_to(core.ROOT / 'contracts'))
+
+    def test_long_case_id_and_generated_artifact_fit_the_filename_budget(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {'CRASHLAB_DATA_DIR': temporary}):
+                for length in (96, 98, 99, 104, 128):
+                    with self.subTest(length=length):
+                        case = self.base_case()
+                        case['id'] = 'a' * length
+                        core.validate_contract(case)
+                        generated = f"{case['id']}-2026-11-09T16-09-12-168Z"
+                        core.persist_run({'run_id': generated, 'contract': case['id'], 'ok': True})
+                        self.assertTrue((Path(temporary) / 'runs' / (generated + '.json')).exists())
+                        self.assertLessEqual(len(f"{generated}-{'x' * 32}.png"), 240)
+
+    def test_reported_99_character_case_id_persists_its_run(self):
+        case = 'c' * 99
+        run_id = f"{case}-2026-11-09T16-09-12-168Z"
+        self.assertGreater(len(run_id + '.json'), 128)
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {'CRASHLAB_DATA_DIR': temporary}):
+                saved = core.persist_run({'run_id': run_id, 'contract': case, 'ok': True})
+                self.assertTrue(Path(saved['evidence_path']).exists())
+                self.assertEqual(Path(saved['evidence_path']).parent,
+                                 (Path(temporary) / 'runs').resolve())
+
+    def test_run_and_artifact_budgets_are_explicit(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with patch.dict(os.environ, {'CRASHLAB_DATA_DIR': temporary}):
+                core.persist_run({'run_id': 'r' * 220, 'contract': 'x', 'ok': True})
+                self.assertTrue((Path(temporary) / 'runs' / ('r' * 220 + '.json')).exists())
+        with self.assertRaisesRegex(ValueError, 'run_id'):
+            core.persist_run({'run_id': 'r' * 221, 'contract': 'x', 'ok': True})
+
+    def test_campaign_ids_stay_bounded_after_boundary_suffixes(self):
+        base = 'a' * 128
+        names = ('before_delivery', 'after_commit', 'restart_after_commit')
+        ids = [core._campaign_case_id(base, name) for name in names]
+        self.assertEqual(len(ids), len(set(ids)))
+        for value in ids:
+            self.assertLessEqual(len(value), 128)
+            core._safe_id(value, 'campaign case id')
+        self.assertEqual(core._campaign_case_id('short', 'after_commit'), 'short-after_commit')
+
+    def test_screenshot_slug_is_bounded_and_cannot_escape(self):
+        case = self.base_case()
+        case['journey'].append({'action': 'screenshot', 'as': 'ok_shot'})
+        core.validate_contract(case)
+        for value in ('../escape', 'a' * 33, 'bad/name'):
+            with self.subTest(value=value):
+                case['journey'][-1]['as'] = value
+                with self.assertRaisesRegex(ValueError, 'screenshot slug'):
+                    core.validate_contract(case)

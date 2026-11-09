@@ -409,6 +409,8 @@ class RecoveryContractTests(unittest.TestCase):
         result = self.run_case(headers=['Idempotency-Key'], change=True)
         self.assertFalse(result['ok'], result)
         self.assertFalse(result['recovery']['identity_headers_match'], result)
+        self.assertTrue(result['recovery']['identity_header_mismatch'], result)
+        self.assertIn('required identity header', result['recovery']['reason'])
 
     def test_unsafe_primary_response_is_rejected(self):
         result = self.run_case(mode='unsafe')
@@ -688,6 +690,14 @@ class SafeIntegerValidationTests(unittest.TestCase):
         value['state']['record_fields'] = {'id': 9007199254740993}
         with self.assertRaisesRegex(ValueError, 'outside the safe integer range'):
             core.validate_contract(value)
+
+    def test_non_finite_case_numbers_are_rejected(self):
+        for value in (float('nan'), float('inf'), float('-inf')):
+            with self.subTest(value=value):
+                case = self.case()
+                case['state']['record_fields'] = {'id': value}
+                with self.assertRaisesRegex(ValueError, 'finite number'):
+                    core.validate_contract(case)
 
     def test_decimal_string_identity_is_supported(self):
         value = self.case()

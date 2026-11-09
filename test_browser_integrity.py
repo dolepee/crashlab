@@ -3,6 +3,7 @@ import copy
 import json
 import os
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -93,6 +94,143 @@ class BrowserIntegrity(unittest.TestCase):
         result=self.run_case(source,case)
         self.assertTrue(result['ok'],result)
         self.assertTrue(result['recovery']['ok'],result)
+
+    def test_evidence_directory_outside_the_run_root_is_rejected(self):
+        case = copy.deepcopy(self.case)
+        case['evidence']['screenshot_dir'] = str(self.root / 'outside')
+        with self.assertRaisesRegex(ValueError, 'stay inside'):
+            self.run_case(case=case)
+        self.assertFalse((self.root / 'outside').exists())
+
+    def test_screenshot_alias_cannot_escape_the_evidence_root(self):
+        case = copy.deepcopy(self.case)
+        base = self.root / 'runs'
+        case['evidence']['screenshot_dir'] = str(base / 'shots')
+        case['journey'].append({'action': 'screenshot', 'as': '../../../../escape-run'})
+        with self.assertRaisesRegex(ValueError, 'screenshot slug'):
+            self.run_case(case=case)
+        self.assertEqual(list(self.root.glob('**/escape-run*')), [])
+
+    def test_standalone_runner_rejects_escaping_screenshot_alias(self):
+        case = copy.deepcopy(self.case)
+        base = self.root / 'runs'
+        case['evidence']['screenshot_dir'] = str(base / 'shots')
+        case['journey'].append({'action': 'screenshot', 'as': '../../../escape-shots'})
+        proc, url, _log, handle, _data = core._start_app(case, core.ROOT)
+        try:
+            case['app']['base_url'] = url
+            case['app']['start']['env']['CRASHLAB_DB'] = str(_data / 'orders.db')
+            for state in (case['state'], case['control']['state']):
+                state['db'] = str(_data / 'orders.db')
+            path = self.root / 'standalone.json'
+            path.write_text(json.dumps(case))
+            completed = subprocess.run(
+                [core._node(), str(core.RUNNER), str(path)],
+                capture_output=True, text=True, timeout=180)
+        finally:
+            core._stop_process(proc)
+            handle.close()
+        self.assertEqual(completed.returncode, 2, completed.stdout + completed.stderr)
+        self.assertIn('bounded screenshot slug', completed.stdout)
+        self.assertEqual(list(self.root.glob('**/escape-shots*')), [])
+
+    def test_long_case_id_keeps_generated_run_and_screenshots_within_budget(self):
+        case = copy.deepcopy(self.case)
+        case['id'] = 'a' * 128
+        result = self.run_case(case=case)
+        self.assertTrue(result['ok'], result)
+        self.assertGreater(len(result['run_id']), 128)
+        screenshots = result.get('screenshots') or []
+        self.assertTrue(screenshots, result)
+        for path in screenshots:
+            self.assertLessEqual(len(Path(path).name), 240)
+
+    def _serve_screenshot_page(self):
+        import http.server
+        import socketserver
+        import threading
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                if self.path == '/state':
+                    body = b'{"orders": []}'
+                    self.send_header('content-type', 'application/json')
+                else:
+                    body = b'<html><body>shot</body></html>'
+                    self.send_header('content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(body)
+            def log_message(self, *args):
+                pass
+
+        server = socketserver.TCPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.addCleanup(thread.join, 2)
+        return f'http://127.0.0.1:{server.server_address[1]}'
+
+    def _screenshot_case(self, base_url, case_id='leaf-symlink'):
+        return {
+            'id': case_id,
+            'app': {'base_url': base_url},
+            'journey': [
+                {'action': 'goto', 'path': '/'},
+                {'action': 'screenshot', 'as': 'shot'},
+            ],
+            'state': {'mode': 'http', 'url': '/state', 'path': 'orders', 'expect': 0},
+            'evidence': {'screenshot_dir': str(self.root / 'shots')},
+        }
+
+    def test_existing_screenshot_leaf_symlink_fails_closed(self):
+        base_url = self._serve_screenshot_page()
+        shots = self.root / 'shots'
+        shots.mkdir()
+        outside = self.root / 'outside.png'
+        outside.write_bytes(b'outside')
+        fixed = '2026-11-09T17-00-00-000Z'
+        link = shots / f'leaf-symlink-{fixed}-shot.png'
+        link.symlink_to(outside)
+        preload = self.root / 'fixed-date.js'
+        preload.write_text(
+            "Date.prototype.toISOString = function(){ return '2026-11-09T17:00:00.000Z'; };\n",
+            encoding='utf-8',
+        )
+        case = self._screenshot_case(base_url)
+        with patch.dict(os.environ, {'NODE_OPTIONS': f'--require {preload}'}):
+            result = self.run_case(case=case)
+        self.assertEqual(result['status'], 'ERROR', result)
+        self.assertIn('EEXIST', result.get('error', ''), result)
+        self.assertEqual(outside.read_bytes(), b'outside')
+
+    def test_normal_screenshot_capture_still_succeeds(self):
+        base_url = self._serve_screenshot_page()
+        case = self._screenshot_case(base_url, 'normal-shot')
+        result = self.run_case(case=case)
+        self.assertTrue(result.get('screenshots'), result)
+        self.assertTrue(Path(result['screenshots'][0]).is_file(), result)
+
+    def test_requested_directory_symlink_resolves_inside_root(self):
+        base_url = self._serve_screenshot_page()
+        shots = self.root / 'shots'
+        shots.mkdir()
+        alias = self.root / 'shots-alias'
+        alias.symlink_to(shots, target_is_directory=True)
+        case = self._screenshot_case(base_url, 'alias-shot')
+        case['evidence']['screenshot_dir'] = str(alias)
+        result = self.run_case(case=case)
+        self.assertTrue(result.get('screenshots'), result)
+        self.assertEqual(Path(result['screenshots'][0]).parent, shots.resolve())
+
+    def test_screenshot_slug_cannot_traverse_from_the_evidence_directory(self):
+        for value in ('../../../../escape-run', '../../../escape-shots', 'bad/name'):
+            with self.subTest(value=value):
+                case = copy.deepcopy(self.case)
+                case['journey'].append({'action': 'screenshot', 'as': value})
+                with self.assertRaisesRegex(ValueError, 'screenshot slug'):
+                    self.run_case(case=case)
 
     def test_browser_launch_error_is_actionable(self):
         with patch.dict(os.environ,CHROME_PATH=str(self.root/'missing-chrome')):
@@ -291,6 +429,94 @@ class BrowserIntegrity(unittest.TestCase):
                 self.assertIs(result['ok'],ok,result)
                 self.assertTrue(result['scenario']['valid'],result)
                 self.assertTrue(result['control']['ok'],result)
+
+    FORM_APP = r'''import json, os
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs
+ORDERS = []
+HTML = """<!doctype html><html><body>
+<button id="send">Send</button><div id="status">ready</div>
+<script>
+async function send(body) {
+  const status = document.getElementById('status');
+  try {
+    const r = await fetch('/create', {method:'POST', headers:{'content-type':'application/x-www-form-urlencoded'}, body});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    status.textContent = 'saved';
+  } catch (e) {
+    status.innerHTML = '<button id="retry">retry</button>';
+    document.getElementById('retry').onclick = () => send('BODY_RETRY');
+  }
+}
+document.getElementById('send').onclick = () => send('BODY_INITIAL');
+</script></body></html>"""
+class H(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/':
+            raw = HTML.encode(); self.send_response(200)
+            self.send_header('Content-Type', 'text/html'); self.send_header('Content-Length', str(len(raw)))
+            self.end_headers(); self.wfile.write(raw)
+        elif self.path == '/state':
+            raw = json.dumps({'orders': ORDERS}).encode(); self.send_response(200)
+            self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(raw)))
+            self.end_headers(); self.wfile.write(raw)
+        else: self.send_response(404); self.end_headers()
+    def do_POST(self):
+        if self.path != '/create': self.send_response(404); self.end_headers(); return
+        fields = parse_qs(self.rfile.read(int(self.headers.get('Content-Length', '0'))).decode())
+        ORDERS.append({'id': 1, 'item': (fields.get('item') or [''])[0]})
+        raw = b'{"ok":true}'; self.send_response(200)
+        self.send_header('Content-Type', 'application/json'); self.send_header('Content-Length', str(len(raw)))
+        self.end_headers(); self.wfile.write(raw)
+    def log_message(self, *args): pass
+ThreadingHTTPServer(('127.0.0.1', int(os.environ['PORT'])), H).serve_forever()
+'''
+
+    def form_case(self, initial, retry, expected):
+        return {
+            'id': 'repeated-form',
+            'app': {'base_url': 'http://127.0.0.1:{PORT}', 'start': {
+                'command': ['{PYTHON}', 'app.py'], 'python': '{PYTHON}', 'cwd': str(self.root),
+                'base_url': 'http://127.0.0.1:{PORT}', 'health_path': '/', 'ready_timeout': 10,
+            }},
+            'journey': [
+                {'action': 'goto', 'path': '/'},
+                {'action': 'click', 'selector': '#send'},
+                {'action': 'wait_for_fault'},
+                {'action': 'click', 'selector': '#retry'},
+                {'action': 'wait_for_text', 'text': 'saved'},
+            ],
+            'fault': {'route': '**/create', 'method': 'POST', 'mode': 'prevent_before_delivery', 'occurrence': 1},
+            'recovery': {'mode': 'retry', 'success_statuses': [200]},
+            'state': {'mode': 'http', 'url': '/state', 'path': 'orders', 'expect': 1,
+                      'record_fields': {'item': expected}},
+        }
+
+    def test_repeated_form_fields_are_compared_as_a_multiset(self):
+        source = self.FORM_APP.replace('BODY_INITIAL', 'intent_key=stable&item=one&item=two')
+        changed = source.replace('BODY_RETRY', 'intent_key=stable&item=three&item=two')
+        result = self.run_case(changed, self.form_case('', '', 'three'))
+        self.assertFalse(result['ok'], result)
+        self.assertFalse(result['recovery']['ok'], result)
+        self.assertEqual(result['observed'], 1, result)
+
+        unchanged = source.replace('BODY_RETRY', 'intent_key=stable&item=one&item=two')
+        result = self.run_case(unchanged, self.form_case('', '', 'one'))
+        self.assertTrue(result['ok'], result)
+        self.assertTrue(result['recovery']['ok'], result)
+
+        reordered = source.replace('BODY_RETRY', 'intent_key=stable&item=two&item=one')
+        result = self.run_case(reordered, self.form_case('', '', 'two'))
+        self.assertFalse(result['ok'], result)
+        self.assertFalse(result['recovery']['ok'], result)
+
+    def test_repeated_form_mapping_is_rejected_when_ambiguous(self):
+        source = self.FORM_APP.replace('BODY_INITIAL', 'intent_key=stable&item=one&item=two')
+        source = source.replace('BODY_RETRY', 'intent_key=stable&item=one&item=two')
+        case = self.form_case('', '', 'one')
+        case['state']['request_fields'] = {'item': 'item'}
+        result = self.run_case(source, case)
+        self.assertFalse(result['ok'], result)
 
 if __name__ == '__main__':
     unittest.main()
