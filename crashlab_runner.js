@@ -583,7 +583,8 @@ if (require.main === module) {
       } else if (step.action === 'text') {
         observations[step.as || 'text'] = await page.textContent(step.selector);
       } else if (step.action === 'screenshot') {
-        const file = path.resolve(evidenceDir, `${runId}-${safeScreenshotName(step.as || 'shot')}.png`);
+        const captureIndex = screenshots.length + 1;
+        const file = path.resolve(evidenceDir, `${runId}-${safeScreenshotName(step.as || 'shot')}-${captureIndex}.png`);
         if (path.dirname(file) !== evidenceDir) {
           throw new Error('screenshot path escapes the evidence directory');
         }

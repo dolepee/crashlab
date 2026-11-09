@@ -172,11 +172,11 @@ class BrowserIntegrity(unittest.TestCase):
         self.addCleanup(thread.join, 2)
         return f'http://127.0.0.1:{server.server_address[1]}'
 
-    def _screenshot_case(self, base_url, case_id='leaf-symlink'):
+    def _screenshot_case(self, base_url, case_id='leaf-symlink', journey=None):
         return {
             'id': case_id,
             'app': {'base_url': base_url},
-            'journey': [
+            'journey': journey or [
                 {'action': 'goto', 'path': '/'},
                 {'action': 'screenshot', 'as': 'shot'},
             ],
@@ -191,7 +191,7 @@ class BrowserIntegrity(unittest.TestCase):
         outside = self.root / 'outside.png'
         outside.write_bytes(b'outside')
         fixed = '2026-11-09T17-00-00-000Z'
-        link = shots / f'leaf-symlink-{fixed}-shot.png'
+        link = shots / f'leaf-symlink-{fixed}-shot-1.png'
         link.symlink_to(outside)
         preload = self.root / 'fixed-date.js'
         preload.write_text(
@@ -211,6 +211,33 @@ class BrowserIntegrity(unittest.TestCase):
         result = self.run_case(case=case)
         self.assertTrue(result.get('screenshots'), result)
         self.assertTrue(Path(result['screenshots'][0]).is_file(), result)
+        self.assertTrue(Path(result['screenshots'][0]).name.endswith('-shot-1.png'), result)
+
+    def test_unnamed_screenshots_get_unique_filenames(self):
+        base_url = self._serve_screenshot_page()
+        case = self._screenshot_case(base_url, 'unnamed-shots', [
+            {'action': 'goto', 'path': '/'},
+            {'action': 'screenshot'},
+            {'action': 'screenshot'},
+        ])
+        result = self.run_case(case=case)
+        self.assertTrue(result.get('screenshots'), result)
+        self.assertEqual(len(result['screenshots']), 2, result)
+        self.assertEqual(len(set(result['screenshots'])), 2, result)
+        self.assertTrue(all(Path(path).is_file() for path in result['screenshots']), result)
+
+    def test_repeated_alias_screenshots_get_unique_filenames(self):
+        base_url = self._serve_screenshot_page()
+        case = self._screenshot_case(base_url, 'repeated-alias', [
+            {'action': 'goto', 'path': '/'},
+            {'action': 'screenshot', 'as': 'duplicate'},
+            {'action': 'screenshot', 'as': 'duplicate'},
+        ])
+        result = self.run_case(case=case)
+        self.assertTrue(result.get('screenshots'), result)
+        self.assertEqual(len(result['screenshots']), 2, result)
+        self.assertEqual(len(set(result['screenshots'])), 2, result)
+        self.assertTrue(all(Path(path).is_file() for path in result['screenshots']), result)
 
     def test_requested_directory_symlink_resolves_inside_root(self):
         base_url = self._serve_screenshot_page()
