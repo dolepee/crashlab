@@ -4,6 +4,11 @@ For developers repairing web apps with Hermes, CrashLab checks that a repair
 preserves the intended saved result when a submission is interrupted or the app
 restarts. Keep the same regression for the next edit, conversation or checkout.
 
+**Start here:** [Install](#install), then [try a bundled case in Hermes](docs/FIRST_RUN.md#try-a-bundled-case-in-hermes)
+or [test your own application](docs/FIRST_RUN.md#your-own-application).
+[See the measured external-app repair](external/kist/evidence/2026-11-09-native/README.md)
+for a complete example.
+
 Prevent delivery, lose an acknowledgement after commit, or restart the app before
 retry; inspect what was actually saved, repair the app and rerun the same frozen
 behavior.
@@ -325,6 +330,11 @@ remove that field after configuring the external application. Setup errors are
 saved as `ERROR`, separately from measured assertion failures (`FAIL`).
 
 ## Run a fixture
+
+For a first run through Hermes with its normal approval flow, use the
+[bundled-case prompt](docs/FIRST_RUN.md#try-a-bundled-case-in-hermes).
+The commands below are a manual runner example for developers inspecting the
+sidecar; they do not demonstrate a Hermes-led repair.
 
 Start the buggy and repaired checkout servers:
 
