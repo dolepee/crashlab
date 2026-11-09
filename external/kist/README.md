@@ -4,6 +4,27 @@ This example targets unmodified `grzella/kist-finance` at
 `7a196af9550378d24d196e666ac0a0f6dd37cb48`. Kist stores savings-goal records;
 this is not a payment or money-movement experiment.
 
+## Current 0.5.7 installed workflow
+
+Follow the [current replay instructions](CURRENT_REPLAY.md) and use
+[`recovery-regression-v057.json`](recovery-regression-v057.json). The
+[November 9 native record](evidence/2026-11-09-native/README.md) starts with a
+pristine app path, intended behavior and runtime bindings: Hermes constructs
+its own case, establishes a valid baseline, edits the application and verifies
+the same frozen experiment with normal approvals. It also records an initial
+control-wait correction before that baseline.
+
+Acknowledgement loss and server restart produce two goals before repair and one
+afterward, with each deliberate-use control at 2/2. The before-delivery baseline
+saves one goal but fails the configured Idempotency-Key requirement; do not
+interpret that as duplicate state. A separate Mac/operator replays the portable
+regression on new bindings. The native session's own clean-checkout reuse occurs
+inside the same conversation. The actual new model patch passes 274 application
+tests independently, including the quality module. Earlier patches have their
+own test counts and verifier identities.
+
+The remaining sections preserve older executions and reproduction examples.
+
 ## November 7, 2026 execution
 
 A fresh Hermes Agent v0.23.0 session using `gpt-6.1-sol` called the installed
@@ -88,8 +109,8 @@ patch and evidence above are explicitly named to keep those releases distinct.
 
 ## Recovery campaign and fresh-session regression
 
-For the reviewed 0.5.6 evaluator, follow the
-[current replay instructions](CURRENT_REPLAY.md) and use
+For the historical reviewed 0.5.6 evaluator, follow the
+[0.5.6 replay instructions](REPLAY_V056.md) and use
 [`recovery-regression-v056.json`](recovery-regression-v056.json). Its separate
 process import, pristine baseline and retained-patch verification were measured
 with that evaluator. The older bundle below remains historical and may be
