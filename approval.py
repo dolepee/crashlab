@@ -27,7 +27,6 @@ import json
 import os
 import re
 import shlex
-import sys
 import threading
 import time
 from pathlib import Path
@@ -115,6 +114,18 @@ def _clean_summary(value: Any, limit: int = 1200) -> str:
     return text
 
 
+def _expand_python(text: Any, app_python: str | None) -> str:
+    """Show the executable ``{PYTHON}`` expands to, not the template.
+
+    Other placeholders ({PORT}, {DATA_DIR}, {APP_DIR}, {HOME}) are chosen when
+    the app starts, but the interpreter is bound now and must be visible.
+    """
+    value = str(text if text is not None else "")
+    if app_python:
+        value = value.replace("{PYTHON}", app_python)
+    return value
+
+
 def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
     """Describe the complete material execution plan, or fail closed.
 
@@ -150,10 +161,13 @@ def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
         parts.append("case=" + _clean_summary(plan["contract_path"], 100000))
     if plan.get("experiment_id"):
         parts.append("experiment=" + _clean_summary(plan["experiment_id"], 100000))
+    app_python = None
     if start:
-        app_python = str(start.get("python") or sys.executable)
-        if app_python == "{PYTHON}":
-            app_python = sys.executable
+        try:
+            from . import crashlab_core as core
+        except ImportError:
+            import crashlab_core as core
+        app_python = core.resolve_app_python(start)
         parts.append("python=" + _clean_summary(app_python, 100000))
     command = start.get("command")
     if isinstance(command, list):
@@ -162,9 +176,9 @@ def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
         except (TypeError, ValueError):
             argv = " ".join(str(item) for item in command)
         if argv:
-            parts.append("argv=" + _clean_summary(argv, 100000))
+            parts.append("argv=" + _clean_summary(_expand_python(argv, app_python), 100000))
     elif command:
-        parts.append("argv=" + _clean_summary(command, 100000))
+        parts.append("argv=" + _clean_summary(_expand_python(command, app_python), 100000))
     if start.get("cwd"):
         parts.append("cwd=" + _clean_summary(start["cwd"], 100000))
     summary = _clean_summary(" · ".join(parts), 100000)

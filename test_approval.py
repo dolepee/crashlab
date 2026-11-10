@@ -682,23 +682,51 @@ class ApprovalPolicyTests(unittest.TestCase):
                          'http://127.0.0.1:3999/state')
 
     def test_approval_discloses_the_python_binding(self):
-        base = {
+        case = json.loads(CASE.read_text())
+        case['app']['start']['command'] = ['{PYTHON}', 'server.py']
+        case['app']['start']['python'] = '/usr/bin/python3'
+        with tempfile.TemporaryDirectory() as temporary:
+            first_path = Path(temporary) / 'first.json'
+            first_path.write_text(json.dumps(case))
+            second = copy.deepcopy(case)
+            second['app']['start']['python'] = '/tmp/model-authored-launcher'
+            second_path = Path(temporary) / 'second.json'
+            second_path.write_text(json.dumps(second))
+            first = approval.pre_tool_call(
+                'crashlab_run', {'contract_path': str(first_path)},
+                tool_call_id='call-1', session_id='session-1')
+            other = approval.pre_tool_call(
+                'crashlab_run', {'contract_path': str(second_path)},
+                tool_call_id='call-2', session_id='session-2')
+        # A different interpreter binding is a different plan and is disclosed.
+        self.assertEqual(first['action'], 'approve')
+        self.assertEqual(other['action'], 'approve')
+        self.assertIn('python=/usr/bin/python3', first['message'])
+        self.assertIn('python=/tmp/model-authored-launcher', other['message'])
+        self.assertNotEqual(first['message'], other['message'])
+        self.assertNotEqual(first['rule_key'], other['rule_key'])
+        # The disclosure names the executable {PYTHON} really expands to.
+        for binding in ('/usr/bin/python3', '/tmp/model-authored-launcher'):
+            start = {'command': ['{PYTHON}', 'server.py'], 'python': binding}
+            resolved = core.resolve_app_python(start)
+            self.assertEqual(resolved, binding)
+            self.assertEqual(
+                core._expand_start('{PYTHON}', contract_dir=Path('/tmp'), data=Path('/tmp'),
+                                   port=3999, python=resolved),
+                binding)
+            self.assertIn('python=' + binding, approval._approval_summary(
+                'crashlab_run', {'contract_path': '/tmp/case.json', 'app_start': start}))
+        # The documented placeholder value and a missing field resolve to the
+        # interpreter that actually runs, never the literal template.
+        prepared = approval._approval_summary('crashlab_run', {
             'contract_path': '/tmp/case.json',
-            'app_start': {'command': ['{PYTHON}', 'app.py'], 'cwd': '/tmp', 'python': '/usr/bin/python3'},
-            'target': 'http://127.0.0.1:3999', 'base_url': None, 'reset_url': '/reset',
-        }
-        first = approval._approval_summary('crashlab_run', base)
-        second = approval._approval_summary('crashlab_run', {
-            **base, 'app_start': {**base['app_start'], 'python': '/tmp/model-authored-launcher'},
+            'app_start': {'command': ['{PYTHON}', 'server.py'], 'python': '{PYTHON}'},
         })
-        self.assertIn('python=/usr/bin/python3', first)
-        self.assertIn('python=/tmp/model-authored-launcher', second)
-        self.assertNotEqual(first, second)
-        resolved = approval._approval_summary('crashlab_run', {
-            **base, 'app_start': {**base['app_start'], 'python': '{PYTHON}'},
-        })
-        self.assertIn('python=', resolved)
-        self.assertNotIn('python={PYTHON}', resolved)
+        self.assertIn('python=' + core.resolve_app_python({}), prepared)
+        self.assertNotIn('{PYTHON}', prepared)
+        self.assertIn('python=' + core.resolve_app_python({}), approval._approval_summary(
+            'crashlab_run', {'contract_path': '/tmp/case.json',
+                             'app_start': {'command': ['{PYTHON}', 'server.py']}}))
 
 
 if __name__ == '__main__':

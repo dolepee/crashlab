@@ -530,6 +530,20 @@ def _free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+def resolve_app_python(start: dict | None) -> str:
+    """The interpreter ``{PYTHON}`` expands to for a managed app.
+
+    Single source of truth for the launch and for the approval disclosure: a
+    human cannot approve an interpreter binding they cannot see.
+    """
+    if not isinstance(start, dict):
+        return sys.executable
+    app_python = str(start.get("python") or sys.executable)
+    if app_python == "{PYTHON}":
+        return sys.executable
+    return app_python
+
+
 def _expand_start(value: Any, *, contract_dir: Path, data: Path, port: int, python: str | None = None) -> Any:
     """Expand the small, documented local-app placeholders."""
     if isinstance(value, str):
@@ -695,9 +709,7 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
         command = shlex.split(command)
     if not isinstance(command, list) or not all(isinstance(item, str) and item for item in command):
         raise ValueError("app.start.command must be a non-empty string list")
-    app_python = str(start.get("python") or sys.executable)
-    if app_python == "{PYTHON}":
-        app_python = sys.executable
+    app_python = resolve_app_python(start)
     port = port_override if port_override is not None else start.get("port")
     if port is None:
         port = _free_port()
