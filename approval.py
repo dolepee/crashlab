@@ -145,8 +145,12 @@ def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
         parts.append("fixed=" + _clean_summary(plan["fixed_url"], 240))
     if plan.get("target"):
         parts.append("target=" + _clean_summary(plan["target"], 240))
-    if plan.get("targets") and not plan.get("target"):
+    elif plan.get("targets"):
         parts.append("targets=" + ", ".join(_clean_summary(item, 180) for item in plan["targets"][:4]))
+    else:
+        parts.append("target=unresolved; the managed app target is determined only when the app starts")
+    if "base_url" in plan:
+        parts.append("base_url=" + (_clean_summary(plan["base_url"], 240) if plan.get("base_url") else "none"))
     if plan.get("reset_url"):
         parts.append("reset=" + _clean_summary(plan["reset_url"], 240))
     elif plan.get("reset_urls"):
@@ -168,6 +172,9 @@ def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
         import crashlab_core as core
     override = args.get("base_url") if tool == "crashlab_run" else None
     target = core.effective_base_url(contract, override)
+    for candidate in (target, args.get("base_url"), args.get("buggy_url"), args.get("fixed_url")):
+        if candidate:
+            core.valid_base(candidate)
     plan: dict[str, Any] = {
         "tool": tool,
         "contract_path": str(path),

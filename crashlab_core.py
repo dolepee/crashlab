@@ -32,13 +32,23 @@ FIXED_RUN_STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\Z")
 
 
 def valid_base(value):
-    """Only loopback HTTP origins may be used as execution targets."""
-    if not isinstance(value, str):
-        raise ValueError("base URL must be a string")
+    """Only loopback HTTP origins may be used as execution targets.
+
+    Reject parser-differential spellings explicitly: a backslash, percent
+    escape, whitespace, userinfo or control character can make one URL parser
+    see a local host while a browser resolves another authority.
+    """
+    if not isinstance(value, str) or not value or any(ch in value for ch in ("\\", "%", "@")) or re.search(r"[\x00-\x20\x7f]", value):
+        raise ValueError("prototype targets must be loopback HTTP origins without credentials")
     parsed = urllib.parse.urlparse(re.sub(r"\{[A-Z_]+\}", "1", value))
+    try:
+        port_ok = parsed.port is None or 1 <= parsed.port <= 65535
+    except ValueError:
+        port_ok = False
     if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1", "[::1]")
             or parsed.username or parsed.password or parsed.query or parsed.fragment
-            or parsed.path not in ("", "/")):
+            or parsed.path not in ("", "/") or not port_ok
+            or "\\" in parsed.netloc or "%" in parsed.netloc or "@" in parsed.netloc):
         raise ValueError("prototype targets must be loopback HTTP origins without credentials")
     return value.rstrip("/")
 

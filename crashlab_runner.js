@@ -11,7 +11,7 @@ function nowId() {
 }
 
 function loopbackBase(value) {
-  if (typeof value !== 'string') throw new Error('base URL must be a string');
+  if (typeof value !== 'string' || !value || /[\\%@\s\x00-\x1f]/.test(value)) throw new Error('prototype targets must be a loopback HTTP origin');
   let parsed;
   try { parsed = new URL(value); } catch { throw new Error('prototype targets must be a loopback HTTP origin'); }
   const host = parsed.hostname;

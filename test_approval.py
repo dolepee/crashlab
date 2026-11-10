@@ -543,9 +543,6 @@ class ApprovalPolicyTests(unittest.TestCase):
         self.assertIn('  - post_approval_response', declared)
 
 
-if __name__ == '__main__':
-    unittest.main()
-
     def test_approval_message_shows_the_bounded_execution_plan(self):
         case = json.loads(CASE.read_text())
         case['app'] = {
@@ -583,3 +580,41 @@ if __name__ == '__main__':
         self.assertNotIn('\n', summary)
         self.assertNotIn('\x00', summary)
         self.assertNotIn('\x07', summary)
+
+    def test_valid_base_rejects_parser_differential_paths(self):
+        for value in (
+            'http://127.0.0.1:8000\\evil.com',
+            'http://127.0.0.1:8000%5c@evil.com',
+            'http://127.0.0.1:8000\\@evil.com',
+            'http://127.0.0.1:8000/%2f%2fevil.com',
+        ):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                core.valid_base(value)
+        for value in ('http://127.0.0.1:8000', 'http://localhost:8000', 'http://[::1]:8000'):
+            self.assertEqual(core.valid_base(value), value)
+
+    def test_approval_summary_never_hides_an_unresolved_target(self):
+        summary = approval._approval_summary('crashlab_run', {
+            'contract_path': '/tmp/case.json',
+            'app_start': {'command': ['python3', 'server.py'], 'cwd': '/tmp'},
+            'target': None,
+            'base_url': None,
+        })
+        self.assertIn('target=unresolved', summary)
+        self.assertIn('base_url=none', summary)
+        self.assertNotIn('\n', summary)
+
+    def test_crafted_target_is_blocked_before_approval(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            path.write_text(CASE.read_text())
+            directive = approval.pre_tool_call(
+                'crashlab_run',
+                {'contract_path': str(path), 'base_url': 'http://127.0.0.1:8000\\@evil.com'},
+                tool_call_id='call-1', session_id='session-1')
+        self.assertEqual(directive['action'], 'block')
+        self.assertIn('loopback', directive['message'])
+
+
+if __name__ == '__main__':
+    unittest.main()
