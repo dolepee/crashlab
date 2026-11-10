@@ -22,6 +22,14 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_NO_REDIRECT = urllib.request.build_opener(_NoRedirect())
+
+
 RUNNER = ROOT / "crashlab_runner.js"
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
@@ -740,7 +748,7 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
                 text = log.read_text(encoding="utf-8", errors="replace")
                 raise RuntimeError(f"app exited before readiness ({proc.returncode}): {text[-2000:]}")
             try:
-                with urllib.request.urlopen(health_url, timeout=0.5) as response:
+                with _NO_REDIRECT.open(health_url, timeout=0.5) as response:
                     if response.status < 500:
                         for step in start.get("setup", []) if initialize else []:
                             if not isinstance(step, dict) or not isinstance(step.get("path"), str):
@@ -758,7 +766,7 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
                                 setup_url, data=payload,
                                 headers=headers, method=str(step.get("method", "POST")),
                             )
-                            with urllib.request.urlopen(request, timeout=5) as setup:
+                            with _NO_REDIRECT.open(request, timeout=5) as setup:
                                 if not 200 <= setup.status < 300:
                                     raise RuntimeError(f"app setup returned {setup.status}")
                         return proc, base, log, log_handle, data

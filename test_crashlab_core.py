@@ -253,6 +253,25 @@ class ContractValidationTests(unittest.TestCase):
 class AppCleanupTests(unittest.TestCase):
     """The app process must not survive a malformed setup or a completed run."""
 
+    REDIRECT_APP = """\
+import http.server, os, socketserver
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(302)
+        self.send_header("Location", "http://example.invalid/")
+        self.end_headers()
+    def do_POST(self):
+        self.do_GET()
+    def log_message(self, *args):
+        pass
+
+with open(os.environ["PID_FILE"], "w", encoding="utf-8") as handle:
+    handle.write(str(os.getpid()))
+with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as server:
+    server.serve_forever()
+"""
+
     APP = """\
 import http.server, os, socketserver
 
@@ -305,6 +324,12 @@ with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as 
                 return
             time.sleep(0.05)
         self.fail(f"app process {pid} survived cleanup")
+
+    def test_managed_startup_does_not_follow_redirects(self):
+        self.script.write_text(self.REDIRECT_APP, encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "did not become ready"):
+            core._start_app(self.start({"ready_timeout": 1}), self.tmp)
+        self.wait_gone()
 
     def test_malformed_setup_stops_the_started_app(self):
         with self.assertRaises(ValueError):

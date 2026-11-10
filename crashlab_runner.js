@@ -10,6 +10,15 @@ function nowId() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+async function localFetch(url, options = {}) {
+  try {
+    return await fetch(url, { ...options, redirect: 'error' });
+  } catch (error) {
+    throw new Error(`loopback request failed or redirected: ${error.message}`);
+  }
+}
+
+
 function safeJoin(base, relative) {
   if (typeof relative !== 'string' || !relative.startsWith('/') || relative.startsWith('//')
       || /[\\%@\s\x00-\x1f]/.test(relative)) {
@@ -525,7 +534,7 @@ if (require.main === module) {
 
   async function reset() {
     if (!contract.app.reset_url) return;
-    const response = await fetch(safeJoin(base, contract.app.reset_url), { method: 'POST' });
+    const response = await localFetch(safeJoin(base, contract.app.reset_url), { method: 'POST' });
     if (!response.ok) throw new Error(`reset endpoint HTTP ${response.status}`);
   }
 
@@ -666,7 +675,7 @@ if (require.main === module) {
         db: path.resolve(path.dirname(contractPath), db),
       };
     }
-    const response = await fetch(safeJoin(base, spec.url));
+    const response = await localFetch(safeJoin(base, spec.url));
     if (!response.ok) throw new Error(`state endpoint HTTP ${response.status}`);
     const body = parseJson(await response.text(), 'state response');
     const records = spec.path.split('.').reduce((v, key) => v?.[key], body);

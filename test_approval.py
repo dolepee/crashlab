@@ -622,19 +622,16 @@ class ApprovalPolicyTests(unittest.TestCase):
         for value in ('/reset', '/reset?case=one'):
             self.assertEqual(core.valid_reset_url(value), value)
 
-    def test_long_environment_names_do_not_hide_target_or_reset(self):
-        summary = approval._approval_summary('crashlab_run', {
-            'contract_path': '/tmp/case.json',
-            'app_start': {'command': ['python3', 'server.py'], 'cwd': '/tmp',
-                          'env': {f'ENV_NAME_{i:03d}': 'v' for i in range(80)}},
-            'target': 'http://127.0.0.1:3999',
-            'base_url': None,
-            'reset_url': '/reset',
-        })
-        self.assertIn('target=http://127.0.0.1:3999', summary)
-        self.assertIn('reset=/reset', summary)
-        self.assertIn('+76 more', summary)
-        self.assertLessEqual(len(summary), 1200)
+    def test_incomplete_disclosure_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, 'complete approval plan'):
+            approval._approval_summary('crashlab_run', {
+                'contract_path': '/tmp/case.json',
+                'app_start': {'command': ['python3', 'server.py'], 'cwd': '/tmp',
+                              'env': {f'ENV_NAME_{i:03d}_' + 'x' * 60: 'v' for i in range(20)}},
+                'target': 'http://127.0.0.1:3999',
+                'base_url': None,
+                'reset_url': '/reset',
+            })
 
     def test_reset_path_cannot_escape_the_approved_case(self):
         case = json.loads(CASE.read_text())
@@ -645,18 +642,34 @@ class ApprovalPolicyTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 approval.plan_digest('crashlab_run', {'contract_path': str(path)})
 
-    def test_long_fields_keep_every_approval_section(self):
-        summary = approval._approval_summary('crashlab_run', {
-            'contract_path': '/' + 'a' * 400,
-            'app_start': {'command': ['python3'] + ['x' * 100] * 20, 'cwd': '/' + 'c' * 400,
-                          'env': {f'ENV_{i:03d}': 'v' for i in range(80)}},
-            'target': 'http://127.0.0.1:3999',
-            'base_url': None,
-            'reset_url': '/reset',
+    def test_long_command_tail_is_disclosed_and_distinguishes_plans(self):
+        prefix = 'x' * 180
+        first = approval._approval_summary('crashlab_run', {
+            'contract_path': '/tmp/case.json',
+            'app_start': {'command': ['python3', '-c', prefix + 'print("first")'], 'cwd': '/tmp'},
+            'target': 'http://127.0.0.1:3999', 'base_url': None, 'reset_url': '/reset',
         })
-        for section in ('target=', 'reset=', 'env=', 'case=', 'argv=', 'cwd='):
-            self.assertIn(section, summary)
-        self.assertLessEqual(len(summary), 1200)
+        second = approval._approval_summary('crashlab_run', {
+            'contract_path': '/tmp/case.json',
+            'app_start': {'command': ['python3', '-c', prefix + 'print("second")'], 'cwd': '/tmp'},
+            'target': 'http://127.0.0.1:3999', 'base_url': None, 'reset_url': '/reset',
+        })
+        self.assertNotEqual(first, second)
+        self.assertIn('first', first)
+        self.assertIn('second', second)
+        self.assertLessEqual(len(first), 1200)
+
+    def test_pre_hook_blocks_a_plan_that_cannot_be_fully_disclosed(self):
+        case = json.loads(CASE.read_text())
+        case['app']['start']['env'] = {f'ENV_NAME_{i:03d}_' + 'x' * 60: 'v' for i in range(20)}
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            path.write_text(json.dumps(case))
+            directive = approval.pre_tool_call(
+                'crashlab_run', {'contract_path': str(path)},
+                tool_call_id='call-1', session_id='session-1')
+        self.assertEqual(directive['action'], 'block')
+        self.assertIn('complete disclosure', directive['message'])
 
     def test_state_and_journey_paths_cannot_escape_the_origin(self):
         for value in ('.example.com/state', 'example.com/state', '//evil.com/state', 'http://evil.com/state'):

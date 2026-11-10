@@ -115,43 +115,40 @@ def _clean_summary(value: Any, limit: int = 1200) -> str:
 
 
 def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
-    """Describe only what the human is being asked to authorize.
+    """Describe the complete material execution plan, or fail closed.
 
-    Every section is bounded separately. Targets, reset paths and the
-    environment section are emitted before long command/path details so no
-    single field can evict the sections the operator must inspect.
+    A human cannot approve a command, environment or target they cannot see.
+    Fields are therefore shown in full (after control-character sanitising).
+    If the complete plan does not fit the bounded prompt, raise instead of
+    approving a truncated prefix.
     """
     plan = plan if isinstance(plan, dict) else {}
     start = plan.get("app_start")
     start = start if isinstance(start, dict) else {}
     parts = [f"CrashLab will execute {tool_name} for this frozen plan."]
     if plan.get("buggy_url"):
-        parts.append("buggy=" + _clean_summary(plan["buggy_url"], 120))
+        parts.append("buggy=" + _clean_summary(plan["buggy_url"], 100000))
     if plan.get("fixed_url"):
-        parts.append("fixed=" + _clean_summary(plan["fixed_url"], 120))
+        parts.append("fixed=" + _clean_summary(plan["fixed_url"], 100000))
     if plan.get("target"):
-        parts.append("target=" + _clean_summary(plan["target"], 140))
+        parts.append("target=" + _clean_summary(plan["target"], 100000))
     elif plan.get("targets"):
-        parts.append("targets=" + ", ".join(_clean_summary(item, 100) for item in plan["targets"][:3]))
+        parts.append("targets=" + ", ".join(_clean_summary(item, 100000) for item in plan["targets"]))
     else:
         parts.append("target=unresolved; determined when the app starts")
     if "base_url" in plan:
-        parts.append("base_url=" + (_clean_summary(plan["base_url"], 120) if plan.get("base_url") else "none"))
+        parts.append("base_url=" + (_clean_summary(plan["base_url"], 100000) if plan.get("base_url") else "none"))
     if plan.get("reset_url"):
-        parts.append("reset=" + _clean_summary(plan["reset_url"], 120))
+        parts.append("reset=" + _clean_summary(plan["reset_url"], 100000))
     elif plan.get("reset_urls"):
-        parts.append("reset=" + ", ".join(_clean_summary(item, 100) for item in plan["reset_urls"][:3]))
+        parts.append("reset=" + ", ".join(_clean_summary(item, 100000) for item in plan["reset_urls"]))
     env = start.get("env")
     if isinstance(env, dict):
-        names = sorted(_clean_summary(key, 60) for key in env)
-        shown = names[:4]
-        if len(names) > len(shown):
-            shown.append(f"+{len(names) - len(shown)} more")
-        parts.append("env=" + (", ".join(shown) or "(none)"))
+        parts.append("env=" + (", ".join(sorted(_clean_summary(key, 100000) for key in env)) or "(none)"))
     if plan.get("contract_path"):
-        parts.append("case=" + _clean_summary(plan["contract_path"], 160))
+        parts.append("case=" + _clean_summary(plan["contract_path"], 100000))
     if plan.get("experiment_id"):
-        parts.append("experiment=" + _clean_summary(plan["experiment_id"], 60))
+        parts.append("experiment=" + _clean_summary(plan["experiment_id"], 100000))
     command = start.get("command")
     if isinstance(command, list):
         try:
@@ -159,12 +156,15 @@ def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
         except (TypeError, ValueError):
             argv = " ".join(str(item) for item in command)
         if argv:
-            parts.append("argv=" + _clean_summary(argv, 180))
+            parts.append("argv=" + _clean_summary(argv, 100000))
     elif command:
-        parts.append("argv=" + _clean_summary(command, 180))
+        parts.append("argv=" + _clean_summary(command, 100000))
     if start.get("cwd"):
-        parts.append("cwd=" + _clean_summary(start["cwd"], 90))
-    return _clean_summary(" · ".join(parts), 1200)
+        parts.append("cwd=" + _clean_summary(start["cwd"], 100000))
+    summary = _clean_summary(" · ".join(parts), 100000)
+    if len(summary) > 1200:
+        raise ValueError("the complete approval plan exceeds the 1,200-character prompt; split or shorten the command, environment or paths before requesting approval")
+    return summary
 
 def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
                contract: dict | None = None) -> dict[str, Any]:
@@ -550,9 +550,14 @@ def pre_tool_call(tool_name: str, args: dict[str, Any] | None, *,
         return None
     with _LOCK:
         _REQUESTS[(digest, tool_call_id or "")] = time.time()
+    try:
+        message = _approval_summary(tool_name, snapshot.get("plan", snapshot))
+    except Exception as exc:
+        return {"action": "block",
+                "message": f"CrashLab cannot approve this execution plan without complete disclosure: {exc}"}
     return {
         "action": "approve",
-        "message": _approval_summary(tool_name, snapshot.get("plan", snapshot)),
+        "message": message,
         "rule_key": _rule_key(tool_name, digest),
     }
 
