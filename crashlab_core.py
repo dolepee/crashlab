@@ -15,6 +15,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
@@ -27,6 +28,28 @@ SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,219}\Z")
 SAFE_ARTIFACT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,239}\Z")
 SAFE_SCREENSHOT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}\Z")
+
+
+def valid_base(value):
+    """Only loopback HTTP origins may be used as execution targets."""
+    if not isinstance(value, str):
+        raise ValueError("base URL must be a string")
+    parsed = urllib.parse.urlparse(re.sub(r"\{[A-Z_]+\}", "1", value))
+    if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1", "[::1]")
+            or parsed.username or parsed.password or parsed.query or parsed.fragment
+            or parsed.path not in ("", "/")):
+        raise ValueError("prototype targets must be loopback HTTP origins without credentials")
+    return value.rstrip("/")
+
+
+def _runner_env():
+    """The runner gets only the small environment it needs; never the agent's secrets."""
+    keys = ("PATH", "HOME", "LANG", "LC_ALL", "TZ", "SYSTEMROOT", "PATHEXT",
+            "TMPDIR", "TEMP", "TMP", "CHROME_PATH", "CRASHLAB_RETRY_FETCH_TIMEOUT_MS")
+    env = {key: os.environ[key] for key in keys if key in os.environ}
+    env.setdefault("HOME", str(Path.home()))
+    env["PYTHON_BINARY"] = sys.executable
+    return env
 
 
 def _safe_id(value: Any, field: str = "id") -> str:
@@ -321,8 +344,10 @@ def validate_contract(contract: dict) -> dict:
     start = contract["app"].get("start")
     if base is None and start is None:
         raise ValueError("app.base_url or app.start is required")
-    if base is not None and (not isinstance(base, str) or not base.startswith(("http://", "https://"))):
-        raise ValueError("app.base_url must be an http(s) URL")
+    if base is not None:
+        if not isinstance(base, str) or not base.startswith(("http://", "https://")):
+            raise ValueError("app.base_url must be an http(s) URL")
+        valid_base(base)
     if start is not None and not isinstance(start, dict):
         raise ValueError("app.start must be an object")
     _validate_journey(contract["journey"], "journey")
@@ -608,6 +633,9 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
     command = [_expand_start(item, contract_dir=contract_dir, data=data, port=port, python=app_python)
                for item in command]
     cwd = Path(_expand_start(start.get("cwd", "."), contract_dir=contract_dir, data=data, port=port)).expanduser()
+    raw_start_base = start.get("base_url")
+    if raw_start_base and "{" not in str(raw_start_base):
+        valid_base(str(raw_start_base))
     # Local apps get a small, explicit environment. In particular, do not pass
     # the agent's provider/API credentials through to app.start commands.
     env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL", "TZ",
@@ -636,6 +664,7 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
             contract, contract_dir=contract_dir, data=data, port=port)
         if base is None:
             raise ValueError("app.start has no usable base URL")
+        base = valid_base(base)
         health = str(start.get("health_path", "/"))
         timeout_s = float(start.get("ready_timeout", 30))
         deadline = time.monotonic() + timeout_s
@@ -757,8 +786,11 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
     lifecycle = []
     try:
         if base_url:
+            valid_base(base_url)
             contract["app"]["base_url"] = base_url
-        elif contract["app"].get("start"):
+        elif contract["app"].get("base_url"):
+            valid_base(contract["app"]["base_url"])
+        if not base_url and contract["app"].get("start"):
             started, contract["app"]["base_url"], log_path, log_handle, app_data = _start_app(contract, contract_dir)
         # The runner receives a temporary contract; make sqlite observer paths
         # relative to the contract the caller supplied, not to /tmp.
@@ -780,7 +812,7 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 json.dump(contract, fh)
             argv = [_node(), str(RUNNER), temp_path]
-            env = {**os.environ, "PYTHON_BINARY": sys.executable}
+            env = _runner_env()
             if any(s['action']=='restart_app' for s in contract['journey']):
                 if started is None:
                     raise ValueError('Restart requires the app to be started and owned by CrashLab')

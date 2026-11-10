@@ -1,7 +1,7 @@
 {
   "files": {
     "__init__.py": "b34fac56f3bd5f6a3a384f3685dcb934cf7289840559c8a785e0d1fc9d1b1adb",
-    "approval.py": "63ceae45e8ba5ef0e740a4f0f1a8442208af67f3d71d0aa98420a7592b36ff16",
+    "approval.py": "fd35478bcd27a238ceaaca39f06a04385298c759c70ccbad328ae68e214dbb5e",
     "campaign.py": "f97bc3fd224d34d9639c987ae935b2b07ab23f69236b71650d5465789a61ee6e",
     "campaign_contracts/inventory-contention.json": "da8651ddd5ae8450dac7537c8aa720a68d2cbb72b2826fac6441e3d1549e1247",
     "campaign_plugin.py": "1dcfaf1c144b75c6ba3f4b4559db88f50682f2b12b16612d186685d11bc99524",
@@ -10,11 +10,11 @@
     "completion_reminder.py": "9a3fcf82751d1eaee6d16744f8e594acb4c3f5d64f13e36a655d31f22f572794",
     "contracts/booking-lost-response.json": "abda3add7413bd43fbc0c5513f780d7dbef6d4aa8fd08cc964b92b7707c1158f",
     "contracts/checkout-lost-response.json": "0b5487d355dea5191a1866bd9efd1d8e466efa55e8cad7050ec08c27768028e1",
-    "crashlab_core.py": "4523750745b5173d66c7e375651bcb16cab7819030b2f315cd8c4ae452f9e107",
+    "crashlab_core.py": "221f2a2e1bcf983b2db20be030bd2b876e2c635c408c6e72c765c3244e9529fa",
     "crashlab_probe.py": "8d1005f184cf446722f4527d067783696556f558a560b103944274b03bcdf050",
     "crashlab_replay.py": "2784b2d5e54579b82a1f6248e467ea3dea9724a787d21758ffd0ee211455efd4",
-    "crashlab_runner.js": "ea8fbedaa0df22f714fc2b5f176d4c27f559a27e0c18477457ee3ec1d3d599b5",
-    "plugin.py": "2813cf9d25ddcf41eb3707ffff98eaa24e60d0ef3fe6c995e23e7beaa5d65572",
+    "crashlab_runner.js": "e06e91d2c09eeae9f975dad74f9c3cfa68a6ce503ab0492ad3e7afcc880470d4",
+    "plugin.py": "9d1006f2693eac5da0dd87f189458e791aff1660d80e5b90e6fe00691791143c",
     "plugin.yaml": "e3adbc0eff34e2792f650c620a6984c26d18a11c7fbf47af6e3df59ff92879b0",
     "repair_workflow.py": "3f91a4ee3fac1d8fb7d29afe5dc2c51e794d482376486faf2744a8d1b05f241f",
     "skills/crashlab/SKILL.md": "69303a120c8a07f58f3c63f77c6ef594ce6622716b9c1a31aa7512852cff8b2d"

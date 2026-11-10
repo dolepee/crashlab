@@ -588,3 +588,42 @@ class ArtifactSafetyTests(unittest.TestCase):
                 case['journey'][-1]['as'] = value
                 with self.assertRaisesRegex(ValueError, 'screenshot slug'):
                     core.validate_contract(case)
+
+    def test_runner_environment_is_explicit_and_excludes_provider_secrets(self):
+        contract = self.base_case()
+        contract['app']['base_url'] = 'http://127.0.0.1:1'
+        with patch.dict(os.environ, {
+            'API_TOKEN': 'secret', 'CHROME_PATH': '/opt/chrome',
+            'CRASHLAB_RETRY_FETCH_TIMEOUT_MS': '2500', 'LANG': 'C.UTF-8',
+        }, clear=True):
+            env = core._runner_env()
+        self.assertEqual(env['PYTHON_BINARY'], sys.executable)
+        self.assertEqual(env['CHROME_PATH'], '/opt/chrome')
+        self.assertEqual(env['CRASHLAB_RETRY_FETCH_TIMEOUT_MS'], '2500')
+        self.assertEqual(env['LANG'], 'C.UTF-8')
+        self.assertIn('HOME', env)
+        self.assertNotIn('API_TOKEN', env)
+
+    def test_rejects_non_loopback_contract_targets(self):
+        for value in ('http://example.com', 'https://127.0.0.1:1',
+                      'http://user:pass@127.0.0.1:1', 'http://127.0.0.1:1/path'):
+            with self.subTest(value=value):
+                contract = self.base_case(); contract['app']['base_url'] = value
+                with self.assertRaises(ValueError):
+                    core.validate_contract(contract)
+
+    def test_rejects_non_loopback_run_override_before_execution(self):
+        contract = self.base_case()
+        with self.assertRaises(ValueError):
+            core.run_contract('case.json', base_url='https://example.com',
+                              frozen_contract=contract)
+
+    def test_rejects_non_loopback_start_target_before_launch(self):
+        contract = self.base_case()
+        del contract['app']['base_url']
+        contract['app']['start'] = {
+            'command': ['/bin/true'], 'cwd': '/tmp',
+            'base_url': 'http://example.com',
+        }
+        with self.assertRaises(ValueError):
+            core.run_contract('case.json', frozen_contract=contract)

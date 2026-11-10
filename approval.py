@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import threading
 import time
 from pathlib import Path
@@ -101,6 +102,56 @@ def _read_json(path: Path) -> Any:
 
 def _data_dir() -> Path:
     return Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local/share/crashlab")).expanduser().resolve()
+
+
+def _clean_summary(value: Any, limit: int = 1200) -> str:
+    """Keep an approval prompt on one bounded line without env values."""
+    text = str(value if value is not None else "")
+    text = re.sub(r"[\x00-\x1f\x7f]+", " ", text.replace("\r", " ").replace("\n", " "))
+    text = " ".join(text.split())
+    if len(text) > limit:
+        text = text[: limit - 3].rstrip() + "..."
+    return text
+
+
+def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
+    """Describe only what the human is being asked to authorize."""
+    plan = plan if isinstance(plan, dict) else {}
+    start = plan.get("app_start")
+    start = start if isinstance(start, dict) else {}
+    parts = [f"CrashLab will execute {tool_name} for this frozen plan."]
+    if plan.get("contract_path"):
+        parts.append("case=" + _clean_summary(plan["contract_path"], 260))
+    if plan.get("experiment_id"):
+        parts.append("experiment=" + _clean_summary(plan["experiment_id"], 80))
+    command = start.get("command")
+    if isinstance(command, list):
+        try:
+            argv = shlex.join(str(item) for item in command)
+        except (TypeError, ValueError):
+            argv = " ".join(str(item) for item in command)
+        if argv:
+            parts.append("argv=" + _clean_summary(argv, 420))
+    elif command:
+        parts.append("argv=" + _clean_summary(command, 420))
+    if start.get("cwd"):
+        parts.append("cwd=" + _clean_summary(start["cwd"], 220))
+    env = start.get("env")
+    if isinstance(env, dict):
+        parts.append("env=" + (", ".join(sorted(_clean_summary(key, 80) for key in env)) or "(none)"))
+    if plan.get("buggy_url"):
+        parts.append("buggy=" + _clean_summary(plan["buggy_url"], 240))
+    if plan.get("fixed_url"):
+        parts.append("fixed=" + _clean_summary(plan["fixed_url"], 240))
+    if plan.get("target"):
+        parts.append("target=" + _clean_summary(plan["target"], 240))
+    if plan.get("targets") and not plan.get("target"):
+        parts.append("targets=" + ", ".join(_clean_summary(item, 180) for item in plan["targets"][:4]))
+    if plan.get("reset_url"):
+        parts.append("reset=" + _clean_summary(plan["reset_url"], 240))
+    elif plan.get("reset_urls"):
+        parts.append("reset=" + ", ".join(_clean_summary(item, 180) for item in plan["reset_urls"][:4]))
+    return _clean_summary(" · ".join(parts), 1200)
 
 
 def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
@@ -486,7 +537,7 @@ def pre_tool_call(tool_name: str, args: dict[str, Any] | None, *,
         _REQUESTS[(digest, tool_call_id or "")] = time.time()
     return {
         "action": "approve",
-        "message": f"CrashLab will execute {tool_name} for this exact frozen plan.",
+        "message": _approval_summary(tool_name, snapshot.get("plan", snapshot)),
         "rule_key": _rule_key(tool_name, digest),
     }
 

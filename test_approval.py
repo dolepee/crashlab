@@ -545,3 +545,41 @@ class ApprovalPolicyTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+    def test_approval_message_shows_the_bounded_execution_plan(self):
+        case = json.loads(CASE.read_text())
+        case['app'] = {
+            'base_url': 'http://127.0.0.1:3999',
+            'start': {
+                'command': ['python3', 'server.py', '--label', 'ok\nnext'],
+                'cwd': '/tmp/demo case',
+                'env': {'API_TOKEN': 'secret-value', 'SAFE_SETTING': 'visible-only-as-name'},
+                'base_url': 'http://127.0.0.1:4011',
+            },
+            'reset_url': '/reset',
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            path.write_text(json.dumps(case))
+            directive = approval.pre_tool_call(
+                'crashlab_run', {'contract_path': str(path)},
+                tool_call_id='call-1', session_id='session-1')
+        message = directive['message']
+        self.assertTrue(message.startswith('CrashLab will execute crashlab_run'))
+        for expected in ('server.py', '/tmp/demo case', 'API_TOKEN', 'SAFE_SETTING',
+                         'http://127.0.0.1:4011', '/reset'):
+            self.assertIn(expected, message)
+        self.assertNotIn('secret-value', message)
+        self.assertNotIn('visible-only-as-name', message)
+        self.assertNotIn('\n', message)
+        self.assertLessEqual(len(message), 1200)
+
+    def test_approval_summary_strips_control_characters(self):
+        summary = approval._approval_summary('crashlab_run', {
+            'contract_path': '/tmp/a\nb\x00c',
+            'app_start': {'command': ['python', 'x\ny'], 'cwd': '/tmp/z\x07'},
+            'target': 'http://127.0.0.1:1', 'reset_url': '/reset\n',
+        })
+        self.assertNotIn('\n', summary)
+        self.assertNotIn('\x00', summary)
+        self.assertNotIn('\x07', summary)

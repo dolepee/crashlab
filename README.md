@@ -329,8 +329,9 @@ The Desktop half is opt-in and appears in **Capabilities → Plugins**. It is
 **view-only**: it reads `CRASHLAB_DATA_DIR` (default `~/.local/share/crashlab`),
 scans the bundled `contracts/` plus `CRASHLAB_CASE_DIR` (default `cases/`), and
 shows saved results. It never starts an execution. Run a case through the
-`crashlab_run` tool or the dashboard, where the approval gate can show the exact
-case, command and path. Status, history and historical measured evidence are
+`crashlab_run` tool or the dashboard, where the approval gate shows a bounded
+summary of the case, command, working directory, environment variable names and
+targets before you decide. Status, history and historical measured evidence are
 available from `/crashlab` and `/crashlab runs`. `/crashlab run <case.json>` only
 consumes an approval grant that already exists; it cannot acquire one.
 Use the `crashlab_run` tool or the dashboard for a new approved execution — the

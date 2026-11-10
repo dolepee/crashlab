@@ -10,6 +10,19 @@ function nowId() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+function loopbackBase(value) {
+  if (typeof value !== 'string') throw new Error('base URL must be a string');
+  let parsed;
+  try { parsed = new URL(value); } catch { throw new Error('prototype targets must be a loopback HTTP origin'); }
+  const host = parsed.hostname;
+  if (parsed.protocol !== 'http:' || !['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host)
+      || parsed.username || parsed.password || parsed.search || parsed.hash
+      || !['', '/'].includes(parsed.pathname)) {
+    throw new Error('prototype targets must be loopback HTTP origins without credentials');
+  }
+  return value.replace(/\/$/, '');
+}
+
 const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
 
 // JSON.parse rounds integers above 2^53-1 before any comparison can see them.
@@ -168,7 +181,7 @@ if (require.main === module) {
     throw new Error('contract.id must be a safe identifier: letters, digits, dot, dash or underscore');
   }
   if (baseOverride) contract.app.base_url = baseOverride;
-  const base = contract.app.base_url.replace(/\/$/, '');
+  const base = loopbackBase(contract.app.base_url);
   const requestedEvidenceDir = path.resolve(contract.evidence?.screenshot_dir || 'evidence');
   fs.mkdirSync(requestedEvidenceDir, { recursive: true });
   const evidenceDir = fs.realpathSync(requestedEvidenceDir);
