@@ -27,6 +27,7 @@ import json
 import os
 import re
 import shlex
+import sys
 import threading
 import time
 from pathlib import Path
@@ -149,6 +150,11 @@ def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
         parts.append("case=" + _clean_summary(plan["contract_path"], 100000))
     if plan.get("experiment_id"):
         parts.append("experiment=" + _clean_summary(plan["experiment_id"], 100000))
+    if start:
+        app_python = str(start.get("python") or sys.executable)
+        if app_python == "{PYTHON}":
+            app_python = sys.executable
+        parts.append("python=" + _clean_summary(app_python, 100000))
     command = start.get("command")
     if isinstance(command, list):
         try:

@@ -681,6 +681,25 @@ class ApprovalPolicyTests(unittest.TestCase):
         self.assertEqual(core.resolved_loopback_url('http://127.0.0.1:3999', '/state'),
                          'http://127.0.0.1:3999/state')
 
+    def test_approval_discloses_the_python_binding(self):
+        base = {
+            'contract_path': '/tmp/case.json',
+            'app_start': {'command': ['{PYTHON}', 'app.py'], 'cwd': '/tmp', 'python': '/usr/bin/python3'},
+            'target': 'http://127.0.0.1:3999', 'base_url': None, 'reset_url': '/reset',
+        }
+        first = approval._approval_summary('crashlab_run', base)
+        second = approval._approval_summary('crashlab_run', {
+            **base, 'app_start': {**base['app_start'], 'python': '/tmp/model-authored-launcher'},
+        })
+        self.assertIn('python=/usr/bin/python3', first)
+        self.assertIn('python=/tmp/model-authored-launcher', second)
+        self.assertNotEqual(first, second)
+        resolved = approval._approval_summary('crashlab_run', {
+            **base, 'app_start': {**base['app_start'], 'python': '{PYTHON}'},
+        })
+        self.assertIn('python=', resolved)
+        self.assertNotIn('python={PYTHON}', resolved)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,7 +1,7 @@
 {
   "files": {
     "__init__.py": "b34fac56f3bd5f6a3a384f3685dcb934cf7289840559c8a785e0d1fc9d1b1adb",
-    "approval.py": "9ad732dd527fe7dc41b80589ba17d503a790a4057f45ef349770ec4c810e5a4c",
+    "approval.py": "238676dbc1433962b64480673389363f3537811519176d3293121ea4e2541912",
     "campaign.py": "7cad838fc431dc7650b4537ce19929d3612e0724c08fb706061ff110ca9953b3",
     "campaign_contracts/inventory-contention.json": "da8651ddd5ae8450dac7537c8aa720a68d2cbb72b2826fac6441e3d1549e1247",
     "campaign_plugin.py": "1dcfaf1c144b75c6ba3f4b4559db88f50682f2b12b16612d186685d11bc99524",
