@@ -402,6 +402,15 @@ def validate_contract(contract: dict) -> dict:
         valid_base(base)
     if start is not None and not isinstance(start, dict):
         raise ValueError("app.start must be an object")
+    reset = contract["app"].get("reset_url")
+    if reset is not None:
+        valid_reset_url(reset)
+    if isinstance(start, dict):
+        health = start.get("health_path", "/")
+        valid_relative_path(health, "app.start.health_path")
+        for setup in start.get("setup", []) if isinstance(start.get("setup", []), list) else []:
+            if isinstance(setup, dict) and setup.get("path") is not None:
+                valid_relative_path(setup["path"], "app.start.setup.path")
     _validate_journey(contract["journey"], "journey")
     _validate_state(contract["state"], "state")
     fault = contract.get("fault")
