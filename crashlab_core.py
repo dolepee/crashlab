@@ -15,18 +15,60 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import uuid
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_NO_REDIRECT = urllib.request.build_opener(_NoRedirect())
+
+
 RUNNER = ROOT / "crashlab_runner.js"
 MAX_SAFE_INTEGER = 9_007_199_254_740_991
 SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,219}\Z")
 SAFE_ARTIFACT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,239}\Z")
 SAFE_SCREENSHOT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}\Z")
+FIXED_RUN_STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\Z")
+
+
+def valid_base(value):
+    """Only loopback HTTP origins may be used as execution targets.
+
+    Reject parser-differential spellings explicitly: a backslash, percent
+    escape, whitespace, userinfo or control character can make one URL parser
+    see a local host while a browser resolves another authority.
+    """
+    if not isinstance(value, str) or not value or any(ch in value for ch in ("\\", "%", "@")) or re.search(r"[\x00-\x20\x7f]", value):
+        raise ValueError("prototype targets must be loopback HTTP origins without credentials")
+    parsed = urllib.parse.urlparse(re.sub(r"\{[A-Z_]+\}", "1", value))
+    try:
+        port_ok = parsed.port is None or 1 <= parsed.port <= 65535
+    except ValueError:
+        port_ok = False
+    if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1", "[::1]")
+            or parsed.username or parsed.password or parsed.query or parsed.fragment
+            or parsed.path not in ("", "/") or not port_ok
+            or "\\" in parsed.netloc or "%" in parsed.netloc or "@" in parsed.netloc):
+        raise ValueError("prototype targets must be loopback HTTP origins without credentials")
+    return value.rstrip("/")
+
+
+def _runner_env():
+    """The runner gets only the small environment it needs; never the agent's secrets."""
+    keys = ("PATH", "HOME", "LANG", "LC_ALL", "TZ", "SYSTEMROOT", "PATHEXT",
+            "TMPDIR", "TEMP", "TMP", "CHROME_PATH", "CRASHLAB_RETRY_FETCH_TIMEOUT_MS")
+    env = {key: os.environ[key] for key in keys if key in os.environ}
+    env.setdefault("HOME", str(Path.home()))
+    env["PYTHON_BINARY"] = sys.executable
+    return env
 
 
 def _safe_id(value: Any, field: str = "id") -> str:
@@ -176,6 +218,44 @@ def load_contract(path: str | Path) -> dict:
     return validate_contract(contract)
 
 
+def valid_relative_path(value: object, label: str = "path") -> str:
+    """A path appended to an approved origin must remain an absolute path there."""
+    if (not isinstance(value, str) or not value.startswith("/") or value.startswith("//")
+            or any(ch in value for ch in ("\\", "%", "@"))
+            or re.search(r"[\x00-\x20\x7f]", value)):
+        raise ValueError(f"{label} must be an absolute local path")
+    parsed = urllib.parse.urlsplit(value)
+    if parsed.scheme or parsed.netloc:
+        raise ValueError(f"{label} must be an absolute local path")
+    return value
+
+
+def valid_state_url(value: object) -> str:
+    """State probes are paths; accept an absolute loopback URL only by normalising it."""
+    if isinstance(value, str) and value.startswith(("http://", "https://")):
+        if any(ch in value for ch in ("\\", "%", "@")) or re.search(r"[\x00-\x20\x7f]", value):
+            raise ValueError("state.url must stay on the loopback origin")
+        parsed = urllib.parse.urlsplit(value)
+        if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1", "[::1]")
+                or parsed.username or parsed.password):
+            raise ValueError("state.url must stay on the loopback origin")
+        path = parsed.path or "/"
+        return path + (("?" + parsed.query) if parsed.query else "") + (("#" + parsed.fragment) if parsed.fragment else "")
+    return valid_relative_path(value, "state.url")
+
+
+def resolved_loopback_url(base: str, path: object, label: str = "path") -> str:
+    """Join a relative path to a loopback origin and verify the final host."""
+    base = valid_base(base)
+    path = valid_relative_path(path, label)
+    resolved = base.rstrip("/") + path
+    parsed = urllib.parse.urlsplit(resolved)
+    if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1", "[::1]")
+            or parsed.username or parsed.password):
+        raise ValueError(f"{label} resolves outside the loopback origin")
+    return resolved
+
+
 def _validate_state(state: dict, where: str) -> None:
     if not isinstance(state, dict):
         raise ValueError(f"{where} must be an object")
@@ -200,6 +280,7 @@ def _validate_state(state: dict, where: str) -> None:
     if mode == "http":
         if not isinstance(state.get("url"), str) or not state["url"]:
             raise ValueError(f"{where}.url is required")
+        state["url"] = valid_state_url(state["url"])
         if not isinstance(state.get("path"), str) or not state["path"]:
             raise ValueError(f"{where}.path is required")
     else:
@@ -275,8 +356,10 @@ def _validate_journey(journey: list, where: str) -> None:
         if action == "screenshot" and "as" in step:
             if not isinstance(step["as"], str) or not SAFE_SCREENSHOT.fullmatch(step["as"]):
                 raise ValueError(f"{name}.as must be a bounded screenshot slug")
-        if action == "goto" and step.get("path") is not None and not isinstance(step["path"], str):
-            raise ValueError(f"{name}.path must be a string")
+        if action == "goto" and step.get("path") is not None:
+            if not isinstance(step["path"], str):
+                raise ValueError(f"{name}.path must be a string")
+            valid_relative_path(step["path"], f"{name}.path")
 
 
 def _reject_unsafe_integers(value: Any, where: str = "value") -> None:
@@ -321,10 +404,21 @@ def validate_contract(contract: dict) -> dict:
     start = contract["app"].get("start")
     if base is None and start is None:
         raise ValueError("app.base_url or app.start is required")
-    if base is not None and (not isinstance(base, str) or not base.startswith(("http://", "https://"))):
-        raise ValueError("app.base_url must be an http(s) URL")
+    if base is not None:
+        if not isinstance(base, str) or not base.startswith(("http://", "https://")):
+            raise ValueError("app.base_url must be an http(s) URL")
+        valid_base(base)
     if start is not None and not isinstance(start, dict):
         raise ValueError("app.start must be an object")
+    reset = contract["app"].get("reset_url")
+    if reset is not None:
+        valid_reset_url(reset)
+    if isinstance(start, dict):
+        health = start.get("health_path", "/")
+        valid_relative_path(health, "app.start.health_path")
+        for setup in start.get("setup", []) if isinstance(start.get("setup", []), list) else []:
+            if isinstance(setup, dict) and setup.get("path") is not None:
+                valid_relative_path(setup["path"], "app.start.setup.path")
     _validate_journey(contract["journey"], "journey")
     _validate_state(contract["state"], "state")
     fault = contract.get("fault")
@@ -434,6 +528,20 @@ def _free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return int(sock.getsockname()[1])
+
+
+def resolve_app_python(start: dict | None) -> str:
+    """The interpreter ``{PYTHON}`` expands to for a managed app.
+
+    Single source of truth for the launch and for the approval disclosure: a
+    human cannot approve an interpreter binding they cannot see.
+    """
+    if not isinstance(start, dict):
+        return sys.executable
+    app_python = str(start.get("python") or sys.executable)
+    if app_python == "{PYTHON}":
+        return sys.executable
+    return app_python
 
 
 def _expand_start(value: Any, *, contract_dir: Path, data: Path, port: int, python: str | None = None) -> Any:
@@ -577,12 +685,17 @@ def effective_base_url(contract: dict, override: str | None = None, *,
     return value
 
 
+def valid_reset_url(value: object) -> str:
+    """A reset target must stay an absolute path on the approved origin."""
+    return valid_relative_path(value, "reset_url")
+
+
 def effective_reset_url(contract: dict) -> str | None:
     """The reset endpoint the browser runner will call, if the contract has one."""
     app = contract.get("app") if isinstance(contract, dict) else None
     app = app if isinstance(app, dict) else {}
     value = app.get("reset_url")
-    return str(value) if value else None
+    return valid_reset_url(value) if value else None
 
 
 def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = None,
@@ -596,9 +709,7 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
         command = shlex.split(command)
     if not isinstance(command, list) or not all(isinstance(item, str) and item for item in command):
         raise ValueError("app.start.command must be a non-empty string list")
-    app_python = str(start.get("python") or sys.executable)
-    if app_python == "{PYTHON}":
-        app_python = sys.executable
+    app_python = resolve_app_python(start)
     port = port_override if port_override is not None else start.get("port")
     if port is None:
         port = _free_port()
@@ -608,6 +719,9 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
     command = [_expand_start(item, contract_dir=contract_dir, data=data, port=port, python=app_python)
                for item in command]
     cwd = Path(_expand_start(start.get("cwd", "."), contract_dir=contract_dir, data=data, port=port)).expanduser()
+    raw_start_base = start.get("base_url")
+    if raw_start_base and "{" not in str(raw_start_base):
+        valid_base(str(raw_start_base))
     # Local apps get a small, explicit environment. In particular, do not pass
     # the agent's provider/API credentials through to app.start commands.
     env = {key: os.environ[key] for key in ("PATH", "LANG", "LC_ALL", "TZ",
@@ -636,7 +750,9 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
             contract, contract_dir=contract_dir, data=data, port=port)
         if base is None:
             raise ValueError("app.start has no usable base URL")
+        base = valid_base(base)
         health = str(start.get("health_path", "/"))
+        health_url = resolved_loopback_url(base, health, "app.start.health_path")
         timeout_s = float(start.get("ready_timeout", 30))
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
@@ -644,11 +760,12 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
                 text = log.read_text(encoding="utf-8", errors="replace")
                 raise RuntimeError(f"app exited before readiness ({proc.returncode}): {text[-2000:]}")
             try:
-                with urllib.request.urlopen(base.rstrip("/") + health, timeout=0.5) as response:
+                with _NO_REDIRECT.open(health_url, timeout=0.5) as response:
                     if response.status < 500:
                         for step in start.get("setup", []) if initialize else []:
                             if not isinstance(step, dict) or not isinstance(step.get("path"), str):
                                 raise ValueError("app.start.setup steps need a path")
+                            valid_relative_path(step["path"], "app.start.setup.path")
                             payload = None
                             headers = {}
                             if "json" in step:
@@ -656,11 +773,12 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
                                 headers["Content-Type"] = "application/json"
                             elif "body" in step:
                                 payload = str(step["body"]).encode("utf-8")
+                            setup_url = resolved_loopback_url(base, step["path"], "app.start.setup.path")
                             request = urllib.request.Request(
-                                base.rstrip("/") + step["path"], data=payload,
+                                setup_url, data=payload,
                                 headers=headers, method=str(step.get("method", "POST")),
                             )
-                            with urllib.request.urlopen(request, timeout=5) as setup:
+                            with _NO_REDIRECT.open(request, timeout=5) as setup:
                                 if not 200 <= setup.status < 300:
                                     raise RuntimeError(f"app setup returned {setup.status}")
                         return proc, base, log, log_handle, data
@@ -731,6 +849,9 @@ def _contained_evidence_dir(contract: dict, contract_dir: Path, data: Path, mana
     raw = evidence.get("screenshot_dir")
     if raw is None:
         raw = str(data / "shots") if managed else str(contract_dir / "evidence")
+    stamp = evidence.get("run_stamp")
+    if stamp is not None and (not isinstance(stamp, str) or not FIXED_RUN_STAMP.match(stamp)):
+        raise ValueError("evidence.run_stamp must be a fixed UTC stamp such as 2026-11-09T17-00-00-000Z")
     if not isinstance(raw, str) or not raw.strip():
         raise ValueError("evidence.screenshot_dir must be a non-empty string")
     expanded = _expand_start(raw, contract_dir=contract_dir, data=data, port=0)
@@ -757,8 +878,11 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
     lifecycle = []
     try:
         if base_url:
+            valid_base(base_url)
             contract["app"]["base_url"] = base_url
-        elif contract["app"].get("start"):
+        elif contract["app"].get("base_url"):
+            valid_base(contract["app"]["base_url"])
+        if not base_url and contract["app"].get("start"):
             started, contract["app"]["base_url"], log_path, log_handle, app_data = _start_app(contract, contract_dir)
         # The runner receives a temporary contract; make sqlite observer paths
         # relative to the contract the caller supplied, not to /tmp.
@@ -780,7 +904,7 @@ def run_contract(contract_path: str | Path, base_url: str | None = None,
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 json.dump(contract, fh)
             argv = [_node(), str(RUNNER), temp_path]
-            env = {**os.environ, "PYTHON_BINARY": sys.executable}
+            env = _runner_env()
             if any(s['action']=='restart_app' for s in contract['journey']):
                 if started is None:
                     raise ValueError('Restart requires the app to be started and owned by CrashLab')

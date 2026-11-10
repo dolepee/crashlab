@@ -10,6 +10,42 @@ function nowId() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+async function localFetch(url, options = {}) {
+  try {
+    return await fetch(url, { ...options, redirect: 'error' });
+  } catch (error) {
+    throw new Error(`loopback request failed or redirected: ${error.message}`);
+  }
+}
+
+
+function safeJoin(base, relative) {
+  if (typeof relative !== 'string' || !relative.startsWith('/') || relative.startsWith('//')
+      || /[\\%@\s\x00-\x1f]/.test(relative)) {
+    throw new Error('paths must stay on the approved loopback origin');
+  }
+  const target = new URL(relative, base);
+  if (target.protocol !== 'http:' || !['127.0.0.1', 'localhost', '::1', '[::1]'].includes(target.hostname)
+      || target.username || target.password) {
+    throw new Error('paths must stay on the approved loopback origin');
+  }
+  return target.href;
+}
+
+
+function loopbackBase(value) {
+  if (typeof value !== 'string' || !value || /[\\%@\s\x00-\x1f]/.test(value)) throw new Error('prototype targets must be a loopback HTTP origin');
+  let parsed;
+  try { parsed = new URL(value); } catch { throw new Error('prototype targets must be a loopback HTTP origin'); }
+  const host = parsed.hostname;
+  if (parsed.protocol !== 'http:' || !['127.0.0.1', 'localhost', '::1', '[::1]'].includes(host)
+      || parsed.username || parsed.password || parsed.search || parsed.hash
+      || !['', '/'].includes(parsed.pathname)) {
+    throw new Error('prototype targets must be loopback HTTP origins without credentials');
+  }
+  return value.replace(/\/$/, '');
+}
+
 const MAX_SAFE_INTEGER = BigInt(Number.MAX_SAFE_INTEGER);
 
 // JSON.parse rounds integers above 2^53-1 before any comparison can see them.
@@ -168,11 +204,18 @@ if (require.main === module) {
     throw new Error('contract.id must be a safe identifier: letters, digits, dot, dash or underscore');
   }
   if (baseOverride) contract.app.base_url = baseOverride;
-  const base = contract.app.base_url.replace(/\/$/, '');
+  const base = loopbackBase(contract.app.base_url);
   const requestedEvidenceDir = path.resolve(contract.evidence?.screenshot_dir || 'evidence');
   fs.mkdirSync(requestedEvidenceDir, { recursive: true });
   const evidenceDir = fs.realpathSync(requestedEvidenceDir);
-  const runId = `${contract.id}-${nowId()}`;
+  const runStamp = value => {
+    if (value === undefined) return nowId();
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(value)) {
+      throw new Error('evidence.run_stamp must be a fixed UTC stamp such as 2026-11-09T17-00-00-000Z');
+    }
+    return value;
+  };
+  const runId = `${contract.id}-${runStamp(contract.evidence?.run_stamp)}`;
   const safeScreenshotName = value => {
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(String(value))) {
       throw new Error('screenshot.as must be a bounded screenshot slug');
@@ -491,7 +534,7 @@ if (require.main === module) {
 
   async function reset() {
     if (!contract.app.reset_url) return;
-    const response = await fetch(base + contract.app.reset_url, { method: 'POST' });
+    const response = await localFetch(safeJoin(base, contract.app.reset_url), { method: 'POST' });
     if (!response.ok) throw new Error(`reset endpoint HTTP ${response.status}`);
   }
 
@@ -528,7 +571,7 @@ if (require.main === module) {
   async function run(steps) {
     for (const step of steps) {
       if (step.action === 'goto') {
-        await page.goto(base + (step.path || '/'), { waitUntil: 'domcontentloaded' });
+        await page.goto(safeJoin(base, step.path || '/'), { waitUntil: 'domcontentloaded' });
       } else if (step.action === 'click') {
         await page.click(step.selector);
       } else if (step.action === 'fill') {
@@ -632,7 +675,7 @@ if (require.main === module) {
         db: path.resolve(path.dirname(contractPath), db),
       };
     }
-    const response = await fetch(base + spec.url);
+    const response = await localFetch(safeJoin(base, spec.url));
     if (!response.ok) throw new Error(`state endpoint HTTP ${response.status}`);
     const body = parseJson(await response.text(), 'state response');
     const records = spec.path.split('.').reduce((v, key) => v?.[key], body);

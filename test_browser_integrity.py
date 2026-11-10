@@ -172,6 +172,77 @@ class BrowserIntegrity(unittest.TestCase):
         self.addCleanup(thread.join, 2)
         return f'http://127.0.0.1:{server.server_address[1]}'
 
+    def _serve_redirecting_state(self):
+        import http.server
+        import socketserver
+        import threading
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                if self.path == '/state':
+                    self.send_response(307)
+                    self.send_header('Location', 'http://example.invalid/state')
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.send_header('content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b'<html><body>redirect test</body></html>')
+            def log_message(self, *args):
+                pass
+
+        server = socketserver.TCPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.addCleanup(thread.join, 2)
+        return f'http://127.0.0.1:{server.server_address[1]}'
+
+    def _serve_redirecting_reset(self):
+        import http.server
+        import socketserver
+        import threading
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header('content-type', 'text/html')
+                self.end_headers()
+                self.wfile.write(b'<html><body>redirect test</body></html>')
+            def do_POST(self):
+                if self.path == '/reset':
+                    self.send_response(307)
+                    self.send_header('Location', 'http://example.invalid/reset')
+                    self.end_headers()
+                    return
+                self.send_response(200)
+                self.end_headers()
+            def log_message(self, *args):
+                pass
+
+        server = socketserver.TCPServer(('127.0.0.1', 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        self.addCleanup(thread.join, 2)
+        return f'http://127.0.0.1:{server.server_address[1]}'
+
+    def test_reset_does_not_follow_external_redirects(self):
+        base_url = self._serve_redirecting_reset()
+        case = self._screenshot_case(base_url, 'reset-redirect')
+        case['app']['reset_url'] = '/reset'
+        result = self.run_case(case=case)
+        self.assertEqual(result['status'], 'ERROR', result)
+        self.assertIn('redirect', str(result.get('error', '')).lower(), result)
+
+    def test_state_fetch_does_not_follow_external_redirects(self):
+        base_url = self._serve_redirecting_state()
+        result = self.run_case(case=self._screenshot_case(base_url, 'state-redirect'))
+        self.assertEqual(result['status'], 'ERROR', result)
+        self.assertIn('redirect', str(result.get('error', '')).lower(), result)
+
     def _screenshot_case(self, base_url, case_id='leaf-symlink', journey=None):
         return {
             'id': case_id,
@@ -193,14 +264,9 @@ class BrowserIntegrity(unittest.TestCase):
         fixed = '2026-11-09T17-00-00-000Z'
         link = shots / f'leaf-symlink-{fixed}-shot-1.png'
         link.symlink_to(outside)
-        preload = self.root / 'fixed-date.js'
-        preload.write_text(
-            "Date.prototype.toISOString = function(){ return '2026-11-09T17:00:00.000Z'; };\n",
-            encoding='utf-8',
-        )
         case = self._screenshot_case(base_url)
-        with patch.dict(os.environ, {'NODE_OPTIONS': f'--require {preload}'}):
-            result = self.run_case(case=case)
+        case['evidence']['run_stamp'] = fixed
+        result = self.run_case(case=case)
         self.assertEqual(result['status'], 'ERROR', result)
         self.assertIn('EEXIST', result.get('error', ''), result)
         self.assertEqual(outside.read_bytes(), b'outside')

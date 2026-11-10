@@ -543,5 +543,191 @@ class ApprovalPolicyTests(unittest.TestCase):
         self.assertIn('  - post_approval_response', declared)
 
 
+    def test_approval_message_shows_the_bounded_execution_plan(self):
+        case = json.loads(CASE.read_text())
+        case['app'] = {
+            'base_url': 'http://127.0.0.1:3999',
+            'start': {
+                'command': ['python3', 'server.py', '--label', 'ok\nnext'],
+                'cwd': '/tmp/demo case',
+                'env': {'API_TOKEN': 'secret-value', 'SAFE_SETTING': 'visible-only-as-name'},
+                'base_url': 'http://127.0.0.1:4011',
+            },
+            'reset_url': '/reset',
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            path.write_text(json.dumps(case))
+            directive = approval.pre_tool_call(
+                'crashlab_run', {'contract_path': str(path)},
+                tool_call_id='call-1', session_id='session-1')
+        message = directive['message']
+        self.assertTrue(message.startswith('CrashLab will execute crashlab_run'))
+        for expected in ('server.py', '/tmp/demo case', 'API_TOKEN', 'SAFE_SETTING',
+                         'http://127.0.0.1:4011', '/reset'):
+            self.assertIn(expected, message)
+        self.assertNotIn('secret-value', message)
+        self.assertNotIn('visible-only-as-name', message)
+        self.assertNotIn('\n', message)
+        self.assertLessEqual(len(message), 1200)
+
+    def test_approval_summary_strips_control_characters(self):
+        summary = approval._approval_summary('crashlab_run', {
+            'contract_path': '/tmp/a\nb\x00c',
+            'app_start': {'command': ['python', 'x\ny'], 'cwd': '/tmp/z\x07'},
+            'target': 'http://127.0.0.1:1', 'reset_url': '/reset\n',
+        })
+        self.assertNotIn('\n', summary)
+        self.assertNotIn('\x00', summary)
+        self.assertNotIn('\x07', summary)
+
+    def test_valid_base_rejects_parser_differential_paths(self):
+        for value in (
+            'http://127.0.0.1:8000\\evil.com',
+            'http://127.0.0.1:8000%5c@evil.com',
+            'http://127.0.0.1:8000\\@evil.com',
+            'http://127.0.0.1:8000/%2f%2fevil.com',
+        ):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                core.valid_base(value)
+        for value in ('http://127.0.0.1:8000', 'http://localhost:8000', 'http://[::1]:8000'):
+            self.assertEqual(core.valid_base(value), value)
+
+    def test_approval_summary_never_hides_an_unresolved_target(self):
+        summary = approval._approval_summary('crashlab_run', {
+            'contract_path': '/tmp/case.json',
+            'app_start': {'command': ['python3', 'server.py'], 'cwd': '/tmp'},
+            'target': None,
+            'base_url': None,
+        })
+        self.assertIn('target=unresolved', summary)
+        self.assertIn('base_url=none', summary)
+        self.assertNotIn('\n', summary)
+
+    def test_crafted_target_is_blocked_before_approval(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            path.write_text(CASE.read_text())
+            directive = approval.pre_tool_call(
+                'crashlab_run',
+                {'contract_path': str(path), 'base_url': 'http://127.0.0.1:8000\\@evil.com'},
+                tool_call_id='call-1', session_id='session-1')
+        self.assertEqual(directive['action'], 'block')
+        self.assertIn('loopback', directive['message'])
+
+    def test_reset_url_cannot_escape_the_approved_origin(self):
+        for value in ('//evil.com', 'http://evil.com', '/\\evil.com', '/%2f%2fevil.com', '.example.com/reset', 'example.com/reset'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                core.valid_reset_url(value)
+        for value in ('/reset', '/reset?case=one'):
+            self.assertEqual(core.valid_reset_url(value), value)
+
+    def test_incomplete_disclosure_fails_closed(self):
+        with self.assertRaisesRegex(ValueError, 'complete approval plan'):
+            approval._approval_summary('crashlab_run', {
+                'contract_path': '/tmp/case.json',
+                'app_start': {'command': ['python3', 'server.py'], 'cwd': '/tmp',
+                              'env': {f'ENV_NAME_{i:03d}_' + 'x' * 60: 'v' for i in range(20)}},
+                'target': 'http://127.0.0.1:3999',
+                'base_url': None,
+                'reset_url': '/reset',
+            })
+
+    def test_reset_path_cannot_escape_the_approved_case(self):
+        case = json.loads(CASE.read_text())
+        case['app'] = {'base_url': 'http://127.0.0.1:3999', 'reset_url': '//evil.com/reset'}
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            path.write_text(json.dumps(case))
+            with self.assertRaises(ValueError):
+                approval.plan_digest('crashlab_run', {'contract_path': str(path)})
+
+    def test_long_command_tail_is_disclosed_and_distinguishes_plans(self):
+        prefix = 'x' * 180
+        first = approval._approval_summary('crashlab_run', {
+            'contract_path': '/tmp/case.json',
+            'app_start': {'command': ['python3', '-c', prefix + 'print("first")'], 'cwd': '/tmp'},
+            'target': 'http://127.0.0.1:3999', 'base_url': None, 'reset_url': '/reset',
+        })
+        second = approval._approval_summary('crashlab_run', {
+            'contract_path': '/tmp/case.json',
+            'app_start': {'command': ['python3', '-c', prefix + 'print("second")'], 'cwd': '/tmp'},
+            'target': 'http://127.0.0.1:3999', 'base_url': None, 'reset_url': '/reset',
+        })
+        self.assertNotEqual(first, second)
+        self.assertIn('first', first)
+        self.assertIn('second', second)
+        self.assertLessEqual(len(first), 1200)
+
+    def test_pre_hook_blocks_a_plan_that_cannot_be_fully_disclosed(self):
+        case = json.loads(CASE.read_text())
+        case['app']['start']['env'] = {f'ENV_NAME_{i:03d}_' + 'x' * 60: 'v' for i in range(20)}
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            path.write_text(json.dumps(case))
+            directive = approval.pre_tool_call(
+                'crashlab_run', {'contract_path': str(path)},
+                tool_call_id='call-1', session_id='session-1')
+        self.assertEqual(directive['action'], 'block')
+        self.assertIn('complete disclosure', directive['message'])
+
+    def test_state_and_journey_paths_cannot_escape_the_origin(self):
+        for value in ('.example.com/state', 'example.com/state', '//evil.com/state', 'http://evil.com/state'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                core.valid_state_url(value)
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                core.valid_relative_path(value)
+        self.assertEqual(core.valid_state_url('http://127.0.0.1:3999/state'), '/state')
+        self.assertEqual(core.resolved_loopback_url('http://127.0.0.1:3999', '/state'),
+                         'http://127.0.0.1:3999/state')
+
+    def test_approval_discloses_the_python_binding(self):
+        case = json.loads(CASE.read_text())
+        case['app']['start']['command'] = ['{PYTHON}', 'server.py']
+        case['app']['start']['python'] = '/usr/bin/python3'
+        with tempfile.TemporaryDirectory() as temporary:
+            first_path = Path(temporary) / 'first.json'
+            first_path.write_text(json.dumps(case))
+            second = copy.deepcopy(case)
+            second['app']['start']['python'] = '/tmp/model-authored-launcher'
+            second_path = Path(temporary) / 'second.json'
+            second_path.write_text(json.dumps(second))
+            first = approval.pre_tool_call(
+                'crashlab_run', {'contract_path': str(first_path)},
+                tool_call_id='call-1', session_id='session-1')
+            other = approval.pre_tool_call(
+                'crashlab_run', {'contract_path': str(second_path)},
+                tool_call_id='call-2', session_id='session-2')
+        # A different interpreter binding is a different plan and is disclosed.
+        self.assertEqual(first['action'], 'approve')
+        self.assertEqual(other['action'], 'approve')
+        self.assertIn('python=/usr/bin/python3', first['message'])
+        self.assertIn('python=/tmp/model-authored-launcher', other['message'])
+        self.assertNotEqual(first['message'], other['message'])
+        self.assertNotEqual(first['rule_key'], other['rule_key'])
+        # The disclosure names the executable {PYTHON} really expands to.
+        for binding in ('/usr/bin/python3', '/tmp/model-authored-launcher'):
+            start = {'command': ['{PYTHON}', 'server.py'], 'python': binding}
+            resolved = core.resolve_app_python(start)
+            self.assertEqual(resolved, binding)
+            self.assertEqual(
+                core._expand_start('{PYTHON}', contract_dir=Path('/tmp'), data=Path('/tmp'),
+                                   port=3999, python=resolved),
+                binding)
+            self.assertIn('python=' + binding, approval._approval_summary(
+                'crashlab_run', {'contract_path': '/tmp/case.json', 'app_start': start}))
+        # The documented placeholder value and a missing field resolve to the
+        # interpreter that actually runs, never the literal template.
+        prepared = approval._approval_summary('crashlab_run', {
+            'contract_path': '/tmp/case.json',
+            'app_start': {'command': ['{PYTHON}', 'server.py'], 'python': '{PYTHON}'},
+        })
+        self.assertIn('python=' + core.resolve_app_python({}), prepared)
+        self.assertNotIn('{PYTHON}', prepared)
+        self.assertIn('python=' + core.resolve_app_python({}), approval._approval_summary(
+            'crashlab_run', {'contract_path': '/tmp/case.json',
+                             'app_start': {'command': ['{PYTHON}', 'server.py']}}))
+
+
 if __name__ == '__main__':
     unittest.main()

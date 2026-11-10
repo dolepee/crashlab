@@ -32,8 +32,8 @@ class NoRedirect(HTTPRedirectHandler):
 
 
 def valid_base(value):
-    if not isinstance(value, str):
-        raise ValueError("base URL must be a string")
+    if not isinstance(value, str) or not value or any(ch in value for ch in ("\\", "%", "@")) or any(ord(ch) < 33 or ord(ch) == 127 for ch in value):
+        raise ValueError("prototype targets must be loopback HTTP origins without credentials")
     parsed = urlparse(value)
     if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1")
             or parsed.username or parsed.password or parsed.query or parsed.fragment
@@ -43,9 +43,22 @@ def valid_base(value):
 
 
 def valid_path(value):
-    if not isinstance(value, str) or not value.startswith("/") or value.startswith("//"):
+    if (not isinstance(value, str) or not value.startswith("/") or value.startswith("//")
+            or any(ch in value for ch in ("\\", "%", "@"))
+            or any(ord(ch) < 32 or ord(ch) == 127 for ch in value)):
         raise ValueError("request paths must be relative to the target origin")
     return value
+
+
+def resolved_url(base, path):
+    base = valid_base(base)
+    path = valid_path(path)
+    resolved = base + path
+    parsed = urlparse(resolved)
+    if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1")
+            or parsed.username or parsed.password):
+        raise ValueError("request path resolves outside the loopback target")
+    return resolved
 
 
 def validate_request(spec):
@@ -127,7 +140,7 @@ def validate_http_contract(contract):
 def request(base, spec, timeout):
     raw = json.dumps(spec["json"], allow_nan=False).encode()
     started = time.monotonic_ns()
-    req = Request(base + spec["path"], data=raw, method=spec["method"],
+    req = Request(resolved_url(base, spec["path"]), data=raw, method=spec["method"],
                   headers={"Content-Type": "application/json"})
     # No redirects or environment-configured proxies: requests stay on the local target.
     opener = build_opener(ProxyHandler({}), NoRedirect())

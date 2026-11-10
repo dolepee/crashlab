@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import threading
 import time
 from pathlib import Path
@@ -103,11 +104,94 @@ def _data_dir() -> Path:
     return Path(os.environ.get("CRASHLAB_DATA_DIR", Path.home() / ".local/share/crashlab")).expanduser().resolve()
 
 
+def _clean_summary(value: Any, limit: int = 1200) -> str:
+    """Keep an approval prompt on one bounded line without env values."""
+    text = str(value if value is not None else "")
+    text = re.sub(r"[\x00-\x1f\x7f]+", " ", text.replace("\r", " ").replace("\n", " "))
+    text = " ".join(text.split())
+    if len(text) > limit:
+        text = text[: limit - 3].rstrip() + "..."
+    return text
+
+
+def _expand_python(text: Any, app_python: str | None) -> str:
+    """Show the executable ``{PYTHON}`` expands to, not the template.
+
+    Other placeholders ({PORT}, {DATA_DIR}, {APP_DIR}, {HOME}) are chosen when
+    the app starts, but the interpreter is bound now and must be visible.
+    """
+    value = str(text if text is not None else "")
+    if app_python:
+        value = value.replace("{PYTHON}", app_python)
+    return value
+
+
+def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
+    """Describe the complete material execution plan, or fail closed.
+
+    A human cannot approve a command, environment or target they cannot see.
+    Fields are therefore shown in full (after control-character sanitising).
+    If the complete plan does not fit the bounded prompt, raise instead of
+    approving a truncated prefix.
+    """
+    plan = plan if isinstance(plan, dict) else {}
+    start = plan.get("app_start")
+    start = start if isinstance(start, dict) else {}
+    parts = [f"CrashLab will execute {tool_name} for this frozen plan."]
+    if plan.get("buggy_url"):
+        parts.append("buggy=" + _clean_summary(plan["buggy_url"], 100000))
+    if plan.get("fixed_url"):
+        parts.append("fixed=" + _clean_summary(plan["fixed_url"], 100000))
+    if plan.get("target"):
+        parts.append("target=" + _clean_summary(plan["target"], 100000))
+    elif plan.get("targets"):
+        parts.append("targets=" + ", ".join(_clean_summary(item, 100000) for item in plan["targets"]))
+    else:
+        parts.append("target=unresolved; determined when the app starts")
+    if "base_url" in plan:
+        parts.append("base_url=" + (_clean_summary(plan["base_url"], 100000) if plan.get("base_url") else "none"))
+    if plan.get("reset_url"):
+        parts.append("reset=" + _clean_summary(plan["reset_url"], 100000))
+    elif plan.get("reset_urls"):
+        parts.append("reset=" + ", ".join(_clean_summary(item, 100000) for item in plan["reset_urls"]))
+    env = start.get("env")
+    if isinstance(env, dict):
+        parts.append("env=" + (", ".join(sorted(_clean_summary(key, 100000) for key in env)) or "(none)"))
+    if plan.get("contract_path"):
+        parts.append("case=" + _clean_summary(plan["contract_path"], 100000))
+    if plan.get("experiment_id"):
+        parts.append("experiment=" + _clean_summary(plan["experiment_id"], 100000))
+    app_python = None
+    if start:
+        try:
+            from . import crashlab_core as core
+        except ImportError:
+            import crashlab_core as core
+        app_python = core.resolve_app_python(start)
+        parts.append("python=" + _clean_summary(app_python, 100000))
+    command = start.get("command")
+    if isinstance(command, list):
+        try:
+            argv = shlex.join(str(item) for item in command)
+        except (TypeError, ValueError):
+            argv = " ".join(str(item) for item in command)
+        if argv:
+            parts.append("argv=" + _clean_summary(_expand_python(argv, app_python), 100000))
+    elif command:
+        parts.append("argv=" + _clean_summary(_expand_python(command, app_python), 100000))
+    if start.get("cwd"):
+        parts.append("cwd=" + _clean_summary(start["cwd"], 100000))
+    summary = _clean_summary(" · ".join(parts), 100000)
+    if len(summary) > 1200:
+        raise ValueError("the complete approval plan exceeds the 1,200-character prompt; split or shorten the command, environment or paths before requesting approval")
+    return summary
+
 def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
                contract: dict | None = None) -> dict[str, Any]:
     path = Path(args["contract_path"]).expanduser().resolve()
     raw = path.read_bytes() if raw is None else raw
     contract = json.loads(raw.decode("utf-8")) if contract is None else contract
+    _validate_contract(contract)
     app = contract.get("app") if isinstance(contract, dict) else None
     app = app if isinstance(app, dict) else {}
     start = app.get("start")
@@ -117,6 +201,9 @@ def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
         import crashlab_core as core
     override = args.get("base_url") if tool == "crashlab_run" else None
     target = core.effective_base_url(contract, override)
+    for candidate in (target, args.get("base_url"), args.get("buggy_url"), args.get("fixed_url")):
+        if candidate:
+            core.valid_base(candidate)
     plan: dict[str, Any] = {
         "tool": tool,
         "contract_path": str(path),
@@ -150,6 +237,7 @@ def _experiment_plan(tool: str, args: dict[str, Any], *, experiment_raw: bytes |
     case_raw = (folder / "case.json").read_bytes() if case_raw is None else case_raw
     experiment = json.loads(experiment_raw.decode("utf-8"))
     case = json.loads(case_raw.decode("utf-8")) if case is None else case
+    _validate_contract(case)
     try:
         from . import crashlab_core as core
     except ImportError:
@@ -189,8 +277,6 @@ def execution_plan(tool_name: str, args: dict[str, Any] | None) -> dict[str, Any
     if tool_name == "crashlab_campaign_run":
         return _campaign_plan(tool_name, args)
     raise ValueError(f"not an execution tool: {tool_name}")
-
-
 def plan_digest(tool_name: str, args: dict[str, Any] | None) -> str:
     return _sha256(_canonical(execution_plan(tool_name, args)))
 
@@ -484,9 +570,14 @@ def pre_tool_call(tool_name: str, args: dict[str, Any] | None, *,
         return None
     with _LOCK:
         _REQUESTS[(digest, tool_call_id or "")] = time.time()
+    try:
+        message = _approval_summary(tool_name, snapshot.get("plan", snapshot))
+    except Exception as exc:
+        return {"action": "block",
+                "message": f"CrashLab cannot approve this execution plan without complete disclosure: {exc}"}
     return {
         "action": "approve",
-        "message": f"CrashLab will execute {tool_name} for this exact frozen plan.",
+        "message": message,
         "rule_key": _rule_key(tool_name, digest),
     }
 

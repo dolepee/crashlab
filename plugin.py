@@ -221,7 +221,7 @@ def _slash(raw_args: str) -> str:
             result = core.run_and_persist(approved["path"], frozen_contract=approved["contract"])
         except approval.ApprovalRequired:
             return ("CrashLab needs a human approval for this case. Use the crashlab_run "
-                    "tool from Hermes so the approval gate can show the exact case, command and path.")
+                    "tool from Hermes so the approval gate can show a bounded summary of the case, command, working directory and targets.")
         return (f"CrashLab · {_verdict(result)} · {result.get('contract')}\n"
                 f"{result.get('error') or result.get('diagnosis') or 'No diagnosis recorded.'}\n{result.get('evidence_path')}")
     if args[0] in ("help", "?"):

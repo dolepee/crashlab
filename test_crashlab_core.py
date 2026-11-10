@@ -253,6 +253,25 @@ class ContractValidationTests(unittest.TestCase):
 class AppCleanupTests(unittest.TestCase):
     """The app process must not survive a malformed setup or a completed run."""
 
+    REDIRECT_APP = """\
+import http.server, os, socketserver
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(302)
+        self.send_header("Location", "http://example.invalid/")
+        self.end_headers()
+    def do_POST(self):
+        self.do_GET()
+    def log_message(self, *args):
+        pass
+
+with open(os.environ["PID_FILE"], "w", encoding="utf-8") as handle:
+    handle.write(str(os.getpid()))
+with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as server:
+    server.serve_forever()
+"""
+
     APP = """\
 import http.server, os, socketserver
 
@@ -305,6 +324,12 @@ with socketserver.TCPServer(("127.0.0.1", int(os.environ["PORT"])), Handler) as 
                 return
             time.sleep(0.05)
         self.fail(f"app process {pid} survived cleanup")
+
+    def test_managed_startup_does_not_follow_redirects(self):
+        self.script.write_text(self.REDIRECT_APP, encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "did not become ready"):
+            core._start_app(self.start({"ready_timeout": 1}), self.tmp)
+        self.wait_gone()
 
     def test_malformed_setup_stops_the_started_app(self):
         with self.assertRaises(ValueError):
@@ -520,6 +545,21 @@ class ArtifactSafetyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'stay inside'):
                 core._contained_evidence_dir(contract, root, data, True)
 
+    def test_evidence_run_stamp_must_be_a_fixed_utc_stamp(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data = root / 'run'
+            data.mkdir()
+            contract = {'evidence': {'screenshot_dir': str(data / 'shots')}}
+            contract['evidence']['run_stamp'] = '2026-11-09T17-00-00-000Z'
+            core._contained_evidence_dir(contract, root, data, True)
+            self.assertEqual(contract['evidence']['run_stamp'], '2026-11-09T17-00-00-000Z')
+            for value in ('2026-11-09T17:00:00.000Z', '../stamp', '', 123, 'now'):
+                with self.subTest(value=value):
+                    contract['evidence']['run_stamp'] = value
+                    with self.assertRaisesRegex(ValueError, 'run_stamp'):
+                        core._contained_evidence_dir(contract, root, data, True)
+
     def test_relative_evidence_resolves_under_the_contract_root(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -588,3 +628,42 @@ class ArtifactSafetyTests(unittest.TestCase):
                 case['journey'][-1]['as'] = value
                 with self.assertRaisesRegex(ValueError, 'screenshot slug'):
                     core.validate_contract(case)
+
+    def test_runner_environment_is_explicit_and_excludes_provider_secrets(self):
+        contract = self.base_case()
+        contract['app']['base_url'] = 'http://127.0.0.1:1'
+        with patch.dict(os.environ, {
+            'API_TOKEN': 'secret', 'CHROME_PATH': '/opt/chrome',
+            'CRASHLAB_RETRY_FETCH_TIMEOUT_MS': '2500', 'LANG': 'C.UTF-8',
+        }, clear=True):
+            env = core._runner_env()
+        self.assertEqual(env['PYTHON_BINARY'], sys.executable)
+        self.assertEqual(env['CHROME_PATH'], '/opt/chrome')
+        self.assertEqual(env['CRASHLAB_RETRY_FETCH_TIMEOUT_MS'], '2500')
+        self.assertEqual(env['LANG'], 'C.UTF-8')
+        self.assertIn('HOME', env)
+        self.assertNotIn('API_TOKEN', env)
+
+    def test_rejects_non_loopback_contract_targets(self):
+        for value in ('http://example.com', 'https://127.0.0.1:1',
+                      'http://user:pass@127.0.0.1:1', 'http://127.0.0.1:1/path'):
+            with self.subTest(value=value):
+                contract = self.base_case(); contract['app']['base_url'] = value
+                with self.assertRaises(ValueError):
+                    core.validate_contract(contract)
+
+    def test_rejects_non_loopback_run_override_before_execution(self):
+        contract = self.base_case()
+        with self.assertRaises(ValueError):
+            core.run_contract('case.json', base_url='https://example.com',
+                              frozen_contract=contract)
+
+    def test_rejects_non_loopback_start_target_before_launch(self):
+        contract = self.base_case()
+        del contract['app']['base_url']
+        contract['app']['start'] = {
+            'command': ['/bin/true'], 'cwd': '/tmp',
+            'base_url': 'http://example.com',
+        }
+        with self.assertRaises(ValueError):
+            core.run_contract('case.json', frozen_contract=contract)
