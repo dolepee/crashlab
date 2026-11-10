@@ -193,14 +193,9 @@ class BrowserIntegrity(unittest.TestCase):
         fixed = '2026-11-09T17-00-00-000Z'
         link = shots / f'leaf-symlink-{fixed}-shot-1.png'
         link.symlink_to(outside)
-        preload = self.root / 'fixed-date.js'
-        preload.write_text(
-            "Date.prototype.toISOString = function(){ return '2026-11-09T17:00:00.000Z'; };\n",
-            encoding='utf-8',
-        )
         case = self._screenshot_case(base_url)
-        with patch.dict(os.environ, {'NODE_OPTIONS': f'--require {preload}'}):
-            result = self.run_case(case=case)
+        case['evidence']['run_stamp'] = fixed
+        result = self.run_case(case=case)
         self.assertEqual(result['status'], 'ERROR', result)
         self.assertIn('EEXIST', result.get('error', ''), result)
         self.assertEqual(outside.read_bytes(), b'outside')

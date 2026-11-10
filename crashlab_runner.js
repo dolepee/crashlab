@@ -185,7 +185,14 @@ if (require.main === module) {
   const requestedEvidenceDir = path.resolve(contract.evidence?.screenshot_dir || 'evidence');
   fs.mkdirSync(requestedEvidenceDir, { recursive: true });
   const evidenceDir = fs.realpathSync(requestedEvidenceDir);
-  const runId = `${contract.id}-${nowId()}`;
+  const runStamp = value => {
+    if (value === undefined) return nowId();
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z$/.test(value)) {
+      throw new Error('evidence.run_stamp must be a fixed UTC stamp such as 2026-11-09T17-00-00-000Z');
+    }
+    return value;
+  };
+  const runId = `${contract.id}-${runStamp(contract.evidence?.run_stamp)}`;
   const safeScreenshotName = value => {
     if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(String(value))) {
       throw new Error('screenshot.as must be a bounded screenshot slug');

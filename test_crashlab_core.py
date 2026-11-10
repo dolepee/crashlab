@@ -520,6 +520,21 @@ class ArtifactSafetyTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'stay inside'):
                 core._contained_evidence_dir(contract, root, data, True)
 
+    def test_evidence_run_stamp_must_be_a_fixed_utc_stamp(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data = root / 'run'
+            data.mkdir()
+            contract = {'evidence': {'screenshot_dir': str(data / 'shots')}}
+            contract['evidence']['run_stamp'] = '2026-11-09T17-00-00-000Z'
+            core._contained_evidence_dir(contract, root, data, True)
+            self.assertEqual(contract['evidence']['run_stamp'], '2026-11-09T17-00-00-000Z')
+            for value in ('2026-11-09T17:00:00.000Z', '../stamp', '', 123, 'now'):
+                with self.subTest(value=value):
+                    contract['evidence']['run_stamp'] = value
+                    with self.assertRaisesRegex(ValueError, 'run_stamp'):
+                        core._contained_evidence_dir(contract, root, data, True)
+
     def test_relative_evidence_resolves_under_the_contract_root(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

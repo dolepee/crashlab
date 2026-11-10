@@ -28,6 +28,7 @@ SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}\Z")
 SAFE_RUN_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,219}\Z")
 SAFE_ARTIFACT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,239}\Z")
 SAFE_SCREENSHOT = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,31}\Z")
+FIXED_RUN_STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\Z")
 
 
 def valid_base(value):
@@ -760,6 +761,9 @@ def _contained_evidence_dir(contract: dict, contract_dir: Path, data: Path, mana
     raw = evidence.get("screenshot_dir")
     if raw is None:
         raw = str(data / "shots") if managed else str(contract_dir / "evidence")
+    stamp = evidence.get("run_stamp")
+    if stamp is not None and (not isinstance(stamp, str) or not FIXED_RUN_STAMP.match(stamp)):
+        raise ValueError("evidence.run_stamp must be a fixed UTC stamp such as 2026-11-09T17-00-00-000Z")
     if not isinstance(raw, str) or not raw.strip():
         raise ValueError("evidence.screenshot_dir must be a non-empty string")
     expanded = _expand_start(raw, contract_dir=contract_dir, data=data, port=0)
