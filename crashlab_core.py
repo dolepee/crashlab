@@ -613,12 +613,23 @@ def effective_base_url(contract: dict, override: str | None = None, *,
     return value
 
 
+def valid_reset_url(value: object) -> str:
+    """A reset target must stay a relative path on the already-approved origin."""
+    if not isinstance(value, str) or not value or value.startswith("//") or any(
+            ch in value for ch in ("\\", "%", "@")) or re.search(r"[\x00-\x20\x7f]", value):
+        raise ValueError("reset_url must be a relative path without another authority")
+    parsed = urllib.parse.urlsplit(value)
+    if parsed.scheme or parsed.netloc:
+        raise ValueError("reset_url must be a relative path without another authority")
+    return value
+
+
 def effective_reset_url(contract: dict) -> str | None:
     """The reset endpoint the browser runner will call, if the contract has one."""
     app = contract.get("app") if isinstance(contract, dict) else None
     app = app if isinstance(app, dict) else {}
     value = app.get("reset_url")
-    return str(value) if value else None
+    return valid_reset_url(value) if value else None
 
 
 def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = None,

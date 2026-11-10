@@ -615,6 +615,36 @@ class ApprovalPolicyTests(unittest.TestCase):
         self.assertEqual(directive['action'], 'block')
         self.assertIn('loopback', directive['message'])
 
+    def test_reset_url_cannot_escape_the_approved_origin(self):
+        for value in ('//evil.com', 'http://evil.com', '/\\evil.com', '/%2f%2fevil.com'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                core.valid_reset_url(value)
+        for value in ('/reset', 'reset', '/reset?case=one'):
+            self.assertEqual(core.valid_reset_url(value), value)
+
+    def test_long_environment_names_do_not_hide_target_or_reset(self):
+        summary = approval._approval_summary('crashlab_run', {
+            'contract_path': '/tmp/case.json',
+            'app_start': {'command': ['python3', 'server.py'], 'cwd': '/tmp',
+                          'env': {f'ENV_NAME_{i:03d}': 'v' for i in range(80)}},
+            'target': 'http://127.0.0.1:3999',
+            'base_url': None,
+            'reset_url': '/reset',
+        })
+        self.assertIn('target=http://127.0.0.1:3999', summary)
+        self.assertIn('reset=/reset', summary)
+        self.assertIn('+68 more', summary)
+        self.assertLessEqual(len(summary), 1200)
+
+    def test_reset_path_cannot_escape_the_approved_case(self):
+        case = json.loads(CASE.read_text())
+        case['app'] = {'base_url': 'http://127.0.0.1:3999', 'reset_url': '//evil.com/reset'}
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'case.json'
+            path.write_text(json.dumps(case))
+            with self.assertRaises(ValueError):
+                approval.plan_digest('crashlab_run', {'contract_path': str(path)})
+
 
 if __name__ == '__main__':
     unittest.main()

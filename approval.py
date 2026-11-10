@@ -115,11 +115,32 @@ def _clean_summary(value: Any, limit: int = 1200) -> str:
 
 
 def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
-    """Describe only what the human is being asked to authorize."""
+    """Describe only what the human is being asked to authorize.
+
+    Execution targets and reset paths are emitted before variable-length
+    details so a long environment name list cannot push them out of the
+    bounded prompt.
+    """
     plan = plan if isinstance(plan, dict) else {}
     start = plan.get("app_start")
     start = start if isinstance(start, dict) else {}
     parts = [f"CrashLab will execute {tool_name} for this frozen plan."]
+    if plan.get("buggy_url"):
+        parts.append("buggy=" + _clean_summary(plan["buggy_url"], 180))
+    if plan.get("fixed_url"):
+        parts.append("fixed=" + _clean_summary(plan["fixed_url"], 180))
+    if plan.get("target"):
+        parts.append("target=" + _clean_summary(plan["target"], 180))
+    elif plan.get("targets"):
+        parts.append("targets=" + ", ".join(_clean_summary(item, 120) for item in plan["targets"][:3]))
+    else:
+        parts.append("target=unresolved; the managed app target is determined only when the app starts")
+    if "base_url" in plan:
+        parts.append("base_url=" + (_clean_summary(plan["base_url"], 180) if plan.get("base_url") else "none"))
+    if plan.get("reset_url"):
+        parts.append("reset=" + _clean_summary(plan["reset_url"], 180))
+    elif plan.get("reset_urls"):
+        parts.append("reset=" + ", ".join(_clean_summary(item, 120) for item in plan["reset_urls"][:3]))
     if plan.get("contract_path"):
         parts.append("case=" + _clean_summary(plan["contract_path"], 260))
     if plan.get("experiment_id"):
@@ -138,24 +159,13 @@ def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
         parts.append("cwd=" + _clean_summary(start["cwd"], 220))
     env = start.get("env")
     if isinstance(env, dict):
-        parts.append("env=" + (", ".join(sorted(_clean_summary(key, 80) for key in env)) or "(none)"))
-    if plan.get("buggy_url"):
-        parts.append("buggy=" + _clean_summary(plan["buggy_url"], 240))
-    if plan.get("fixed_url"):
-        parts.append("fixed=" + _clean_summary(plan["fixed_url"], 240))
-    if plan.get("target"):
-        parts.append("target=" + _clean_summary(plan["target"], 240))
-    elif plan.get("targets"):
-        parts.append("targets=" + ", ".join(_clean_summary(item, 180) for item in plan["targets"][:4]))
-    else:
-        parts.append("target=unresolved; the managed app target is determined only when the app starts")
-    if "base_url" in plan:
-        parts.append("base_url=" + (_clean_summary(plan["base_url"], 240) if plan.get("base_url") else "none"))
-    if plan.get("reset_url"):
-        parts.append("reset=" + _clean_summary(plan["reset_url"], 240))
-    elif plan.get("reset_urls"):
-        parts.append("reset=" + ", ".join(_clean_summary(item, 180) for item in plan["reset_urls"][:4]))
+        names = sorted(_clean_summary(key, 80) for key in env)
+        shown = names[:12]
+        if len(names) > len(shown):
+            shown.append(f"+{len(names) - len(shown)} more")
+        parts.append("env=" + (", ".join(shown) or "(none)"))
     return _clean_summary(" · ".join(parts), 1200)
+
 
 
 def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
@@ -247,8 +257,6 @@ def execution_plan(tool_name: str, args: dict[str, Any] | None) -> dict[str, Any
     if tool_name == "crashlab_campaign_run":
         return _campaign_plan(tool_name, args)
     raise ValueError(f"not an execution tool: {tool_name}")
-
-
 def plan_digest(tool_name: str, args: dict[str, Any] | None) -> str:
     return _sha256(_canonical(execution_plan(tool_name, args)))
 
