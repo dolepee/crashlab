@@ -10,6 +10,20 @@ function nowId() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+function safeJoin(base, relative) {
+  if (typeof relative !== 'string' || !relative.startsWith('/') || relative.startsWith('//')
+      || /[\\%@\s\x00-\x1f]/.test(relative)) {
+    throw new Error('paths must stay on the approved loopback origin');
+  }
+  const target = new URL(relative, base);
+  if (target.protocol !== 'http:' || !['127.0.0.1', 'localhost', '::1', '[::1]'].includes(target.hostname)
+      || target.username || target.password) {
+    throw new Error('paths must stay on the approved loopback origin');
+  }
+  return target.href;
+}
+
+
 function loopbackBase(value) {
   if (typeof value !== 'string' || !value || /[\\%@\s\x00-\x1f]/.test(value)) throw new Error('prototype targets must be a loopback HTTP origin');
   let parsed;
@@ -511,7 +525,7 @@ if (require.main === module) {
 
   async function reset() {
     if (!contract.app.reset_url) return;
-    const response = await fetch(base + contract.app.reset_url, { method: 'POST' });
+    const response = await fetch(safeJoin(base, contract.app.reset_url), { method: 'POST' });
     if (!response.ok) throw new Error(`reset endpoint HTTP ${response.status}`);
   }
 
@@ -548,7 +562,7 @@ if (require.main === module) {
   async function run(steps) {
     for (const step of steps) {
       if (step.action === 'goto') {
-        await page.goto(base + (step.path || '/'), { waitUntil: 'domcontentloaded' });
+        await page.goto(safeJoin(base, step.path || '/'), { waitUntil: 'domcontentloaded' });
       } else if (step.action === 'click') {
         await page.click(step.selector);
       } else if (step.action === 'fill') {
@@ -652,7 +666,7 @@ if (require.main === module) {
         db: path.resolve(path.dirname(contractPath), db),
       };
     }
-    const response = await fetch(base + spec.url);
+    const response = await fetch(safeJoin(base, spec.url));
     if (!response.ok) throw new Error(`state endpoint HTTP ${response.status}`);
     const body = parseJson(await response.text(), 'state response');
     const records = spec.path.split('.').reduce((v, key) => v?.[key], body);

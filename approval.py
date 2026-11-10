@@ -117,34 +117,41 @@ def _clean_summary(value: Any, limit: int = 1200) -> str:
 def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
     """Describe only what the human is being asked to authorize.
 
-    Execution targets and reset paths are emitted before variable-length
-    details so a long environment name list cannot push them out of the
-    bounded prompt.
+    Every section is bounded separately. Targets, reset paths and the
+    environment section are emitted before long command/path details so no
+    single field can evict the sections the operator must inspect.
     """
     plan = plan if isinstance(plan, dict) else {}
     start = plan.get("app_start")
     start = start if isinstance(start, dict) else {}
     parts = [f"CrashLab will execute {tool_name} for this frozen plan."]
     if plan.get("buggy_url"):
-        parts.append("buggy=" + _clean_summary(plan["buggy_url"], 180))
+        parts.append("buggy=" + _clean_summary(plan["buggy_url"], 120))
     if plan.get("fixed_url"):
-        parts.append("fixed=" + _clean_summary(plan["fixed_url"], 180))
+        parts.append("fixed=" + _clean_summary(plan["fixed_url"], 120))
     if plan.get("target"):
-        parts.append("target=" + _clean_summary(plan["target"], 180))
+        parts.append("target=" + _clean_summary(plan["target"], 140))
     elif plan.get("targets"):
-        parts.append("targets=" + ", ".join(_clean_summary(item, 120) for item in plan["targets"][:3]))
+        parts.append("targets=" + ", ".join(_clean_summary(item, 100) for item in plan["targets"][:3]))
     else:
-        parts.append("target=unresolved; the managed app target is determined only when the app starts")
+        parts.append("target=unresolved; determined when the app starts")
     if "base_url" in plan:
-        parts.append("base_url=" + (_clean_summary(plan["base_url"], 180) if plan.get("base_url") else "none"))
+        parts.append("base_url=" + (_clean_summary(plan["base_url"], 120) if plan.get("base_url") else "none"))
     if plan.get("reset_url"):
-        parts.append("reset=" + _clean_summary(plan["reset_url"], 180))
+        parts.append("reset=" + _clean_summary(plan["reset_url"], 120))
     elif plan.get("reset_urls"):
-        parts.append("reset=" + ", ".join(_clean_summary(item, 120) for item in plan["reset_urls"][:3]))
+        parts.append("reset=" + ", ".join(_clean_summary(item, 100) for item in plan["reset_urls"][:3]))
+    env = start.get("env")
+    if isinstance(env, dict):
+        names = sorted(_clean_summary(key, 60) for key in env)
+        shown = names[:4]
+        if len(names) > len(shown):
+            shown.append(f"+{len(names) - len(shown)} more")
+        parts.append("env=" + (", ".join(shown) or "(none)"))
     if plan.get("contract_path"):
-        parts.append("case=" + _clean_summary(plan["contract_path"], 260))
+        parts.append("case=" + _clean_summary(plan["contract_path"], 160))
     if plan.get("experiment_id"):
-        parts.append("experiment=" + _clean_summary(plan["experiment_id"], 80))
+        parts.append("experiment=" + _clean_summary(plan["experiment_id"], 60))
     command = start.get("command")
     if isinstance(command, list):
         try:
@@ -152,27 +159,19 @@ def _approval_summary(tool_name: str, plan: dict[str, Any]) -> str:
         except (TypeError, ValueError):
             argv = " ".join(str(item) for item in command)
         if argv:
-            parts.append("argv=" + _clean_summary(argv, 420))
+            parts.append("argv=" + _clean_summary(argv, 180))
     elif command:
-        parts.append("argv=" + _clean_summary(command, 420))
+        parts.append("argv=" + _clean_summary(command, 180))
     if start.get("cwd"):
-        parts.append("cwd=" + _clean_summary(start["cwd"], 220))
-    env = start.get("env")
-    if isinstance(env, dict):
-        names = sorted(_clean_summary(key, 80) for key in env)
-        shown = names[:12]
-        if len(names) > len(shown):
-            shown.append(f"+{len(names) - len(shown)} more")
-        parts.append("env=" + (", ".join(shown) or "(none)"))
+        parts.append("cwd=" + _clean_summary(start["cwd"], 90))
     return _clean_summary(" · ".join(parts), 1200)
-
-
 
 def _case_plan(tool: str, args: dict[str, Any], *, raw: bytes | None = None,
                contract: dict | None = None) -> dict[str, Any]:
     path = Path(args["contract_path"]).expanduser().resolve()
     raw = path.read_bytes() if raw is None else raw
     contract = json.loads(raw.decode("utf-8")) if contract is None else contract
+    _validate_contract(contract)
     app = contract.get("app") if isinstance(contract, dict) else None
     app = app if isinstance(app, dict) else {}
     start = app.get("start")
@@ -218,6 +217,7 @@ def _experiment_plan(tool: str, args: dict[str, Any], *, experiment_raw: bytes |
     case_raw = (folder / "case.json").read_bytes() if case_raw is None else case_raw
     experiment = json.loads(experiment_raw.decode("utf-8"))
     case = json.loads(case_raw.decode("utf-8")) if case is None else case
+    _validate_contract(case)
     try:
         from . import crashlab_core as core
     except ImportError:

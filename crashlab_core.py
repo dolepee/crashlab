@@ -210,6 +210,44 @@ def load_contract(path: str | Path) -> dict:
     return validate_contract(contract)
 
 
+def valid_relative_path(value: object, label: str = "path") -> str:
+    """A path appended to an approved origin must remain an absolute path there."""
+    if (not isinstance(value, str) or not value.startswith("/") or value.startswith("//")
+            or any(ch in value for ch in ("\\", "%", "@"))
+            or re.search(r"[\x00-\x20\x7f]", value)):
+        raise ValueError(f"{label} must be an absolute local path")
+    parsed = urllib.parse.urlsplit(value)
+    if parsed.scheme or parsed.netloc:
+        raise ValueError(f"{label} must be an absolute local path")
+    return value
+
+
+def valid_state_url(value: object) -> str:
+    """State probes are paths; accept an absolute loopback URL only by normalising it."""
+    if isinstance(value, str) and value.startswith(("http://", "https://")):
+        if any(ch in value for ch in ("\\", "%", "@")) or re.search(r"[\x00-\x20\x7f]", value):
+            raise ValueError("state.url must stay on the loopback origin")
+        parsed = urllib.parse.urlsplit(value)
+        if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1", "[::1]")
+                or parsed.username or parsed.password):
+            raise ValueError("state.url must stay on the loopback origin")
+        path = parsed.path or "/"
+        return path + (("?" + parsed.query) if parsed.query else "") + (("#" + parsed.fragment) if parsed.fragment else "")
+    return valid_relative_path(value, "state.url")
+
+
+def resolved_loopback_url(base: str, path: object, label: str = "path") -> str:
+    """Join a relative path to a loopback origin and verify the final host."""
+    base = valid_base(base)
+    path = valid_relative_path(path, label)
+    resolved = base.rstrip("/") + path
+    parsed = urllib.parse.urlsplit(resolved)
+    if (parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1", "[::1]")
+            or parsed.username or parsed.password):
+        raise ValueError(f"{label} resolves outside the loopback origin")
+    return resolved
+
+
 def _validate_state(state: dict, where: str) -> None:
     if not isinstance(state, dict):
         raise ValueError(f"{where} must be an object")
@@ -234,6 +272,7 @@ def _validate_state(state: dict, where: str) -> None:
     if mode == "http":
         if not isinstance(state.get("url"), str) or not state["url"]:
             raise ValueError(f"{where}.url is required")
+        state["url"] = valid_state_url(state["url"])
         if not isinstance(state.get("path"), str) or not state["path"]:
             raise ValueError(f"{where}.path is required")
     else:
@@ -309,8 +348,10 @@ def _validate_journey(journey: list, where: str) -> None:
         if action == "screenshot" and "as" in step:
             if not isinstance(step["as"], str) or not SAFE_SCREENSHOT.fullmatch(step["as"]):
                 raise ValueError(f"{name}.as must be a bounded screenshot slug")
-        if action == "goto" and step.get("path") is not None and not isinstance(step["path"], str):
-            raise ValueError(f"{name}.path must be a string")
+        if action == "goto" and step.get("path") is not None:
+            if not isinstance(step["path"], str):
+                raise ValueError(f"{name}.path must be a string")
+            valid_relative_path(step["path"], f"{name}.path")
 
 
 def _reject_unsafe_integers(value: Any, where: str = "value") -> None:
@@ -614,14 +655,8 @@ def effective_base_url(contract: dict, override: str | None = None, *,
 
 
 def valid_reset_url(value: object) -> str:
-    """A reset target must stay a relative path on the already-approved origin."""
-    if not isinstance(value, str) or not value or value.startswith("//") or any(
-            ch in value for ch in ("\\", "%", "@")) or re.search(r"[\x00-\x20\x7f]", value):
-        raise ValueError("reset_url must be a relative path without another authority")
-    parsed = urllib.parse.urlsplit(value)
-    if parsed.scheme or parsed.netloc:
-        raise ValueError("reset_url must be a relative path without another authority")
-    return value
+    """A reset target must stay an absolute path on the approved origin."""
+    return valid_relative_path(value, "reset_url")
 
 
 def effective_reset_url(contract: dict) -> str | None:
@@ -688,6 +723,7 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
             raise ValueError("app.start has no usable base URL")
         base = valid_base(base)
         health = str(start.get("health_path", "/"))
+        health_url = resolved_loopback_url(base, health, "app.start.health_path")
         timeout_s = float(start.get("ready_timeout", 30))
         deadline = time.monotonic() + timeout_s
         while time.monotonic() < deadline:
@@ -695,11 +731,12 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
                 text = log.read_text(encoding="utf-8", errors="replace")
                 raise RuntimeError(f"app exited before readiness ({proc.returncode}): {text[-2000:]}")
             try:
-                with urllib.request.urlopen(base.rstrip("/") + health, timeout=0.5) as response:
+                with urllib.request.urlopen(health_url, timeout=0.5) as response:
                     if response.status < 500:
                         for step in start.get("setup", []) if initialize else []:
                             if not isinstance(step, dict) or not isinstance(step.get("path"), str):
                                 raise ValueError("app.start.setup steps need a path")
+                            valid_relative_path(step["path"], "app.start.setup.path")
                             payload = None
                             headers = {}
                             if "json" in step:
@@ -707,8 +744,9 @@ def _start_app(contract: dict, contract_dir: Path, *, data_dir: Path | None = No
                                 headers["Content-Type"] = "application/json"
                             elif "body" in step:
                                 payload = str(step["body"]).encode("utf-8")
+                            setup_url = resolved_loopback_url(base, step["path"], "app.start.setup.path")
                             request = urllib.request.Request(
-                                base.rstrip("/") + step["path"], data=payload,
+                                setup_url, data=payload,
                                 headers=headers, method=str(step.get("method", "POST")),
                             )
                             with urllib.request.urlopen(request, timeout=5) as setup:

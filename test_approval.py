@@ -616,10 +616,10 @@ class ApprovalPolicyTests(unittest.TestCase):
         self.assertIn('loopback', directive['message'])
 
     def test_reset_url_cannot_escape_the_approved_origin(self):
-        for value in ('//evil.com', 'http://evil.com', '/\\evil.com', '/%2f%2fevil.com'):
+        for value in ('//evil.com', 'http://evil.com', '/\\evil.com', '/%2f%2fevil.com', '.example.com/reset', 'example.com/reset'):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 core.valid_reset_url(value)
-        for value in ('/reset', 'reset', '/reset?case=one'):
+        for value in ('/reset', '/reset?case=one'):
             self.assertEqual(core.valid_reset_url(value), value)
 
     def test_long_environment_names_do_not_hide_target_or_reset(self):
@@ -633,7 +633,7 @@ class ApprovalPolicyTests(unittest.TestCase):
         })
         self.assertIn('target=http://127.0.0.1:3999', summary)
         self.assertIn('reset=/reset', summary)
-        self.assertIn('+68 more', summary)
+        self.assertIn('+76 more', summary)
         self.assertLessEqual(len(summary), 1200)
 
     def test_reset_path_cannot_escape_the_approved_case(self):
@@ -644,6 +644,29 @@ class ApprovalPolicyTests(unittest.TestCase):
             path.write_text(json.dumps(case))
             with self.assertRaises(ValueError):
                 approval.plan_digest('crashlab_run', {'contract_path': str(path)})
+
+    def test_long_fields_keep_every_approval_section(self):
+        summary = approval._approval_summary('crashlab_run', {
+            'contract_path': '/' + 'a' * 400,
+            'app_start': {'command': ['python3'] + ['x' * 100] * 20, 'cwd': '/' + 'c' * 400,
+                          'env': {f'ENV_{i:03d}': 'v' for i in range(80)}},
+            'target': 'http://127.0.0.1:3999',
+            'base_url': None,
+            'reset_url': '/reset',
+        })
+        for section in ('target=', 'reset=', 'env=', 'case=', 'argv=', 'cwd='):
+            self.assertIn(section, summary)
+        self.assertLessEqual(len(summary), 1200)
+
+    def test_state_and_journey_paths_cannot_escape_the_origin(self):
+        for value in ('.example.com/state', 'example.com/state', '//evil.com/state', 'http://evil.com/state'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                core.valid_state_url(value)
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                core.valid_relative_path(value)
+        self.assertEqual(core.valid_state_url('http://127.0.0.1:3999/state'), '/state')
+        self.assertEqual(core.resolved_loopback_url('http://127.0.0.1:3999', '/state'),
+                         'http://127.0.0.1:3999/state')
 
 
 if __name__ == '__main__':
